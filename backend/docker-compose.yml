@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: labtracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-labtracker}
+      POSTGRES_USER: ${POSTGRES_USER:-labtracker_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword_change_me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - labtracker_pg_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: labtracker-pgadmin
+    restart: unless-stopped
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@labtracker.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-devpassword_change_me}
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  labtracker_pg_data:

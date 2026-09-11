@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LabTracker.Api/LabTracker.Api.csproj" />
+    <Project Path="src/LabTracker.Application/LabTracker.Application.csproj" />
+    <Project Path="src/LabTracker.Domain/LabTracker.Domain.csproj" />
+    <Project Path="src/LabTracker.Infrastructure/LabTracker.Infrastructure.csproj" />
+    <Project Path="src/LabTracker.Shared/LabTracker.Shared.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LabTracker.IntegrationTests/LabTracker.IntegrationTests.csproj" />
+    <Project Path="tests/LabTracker.UnitTests/LabTracker.UnitTests.csproj" />
+  </Folder>
+</Solution>
