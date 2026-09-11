@@ -4,11 +4,10 @@ using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using BookingEntity = LabTracker.Domain.Modules.Booking.Booking;
-using UsageActorEntity = LabTracker.Domain.Modules.Booking.UsageActor;
 
 namespace LabTracker.Application.Modules.Booking;
 
-public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator)
+public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver)
 {
     // Researchers only ever see their own bookings; Super Admins and Science
     // Officers see everything, per the brief's "personal bookings" vs "view bookings" split.
@@ -58,7 +57,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
 
         await createValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var actorId = await GetOrCreateInternalActorAsync(researcherId, cancellationToken);
+        var actorId = await actorResolver.GetOrCreateInternalActorAsync(researcherId, cancellationToken);
 
         var booking = new BookingEntity
         {
@@ -113,30 +112,6 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
-    }
-
-    private async Task<int> GetOrCreateInternalActorAsync(int researcherId, CancellationToken cancellationToken)
-    {
-        var existingActorId = await db.UsageActors
-            .Where(a => a.ActorType == ActorType.Internal && a.ResearcherId == researcherId)
-            .Select(a => a.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (existingActorId != 0)
-        {
-            return existingActorId;
-        }
-
-        var researcherName = await db.Researchers.Where(r => r.Id == researcherId).Select(r => r.FullName).SingleAsync(cancellationToken);
-        var actor = new UsageActorEntity
-        {
-            ActorType = ActorType.Internal,
-            ResearcherId = researcherId,
-            DisplayNameSnapshot = researcherName,
-        };
-        db.UsageActors.Add(actor);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return actor.Id;
     }
 
     private static readonly System.Linq.Expressions.Expression<Func<BookingEntity, BookingDto>> ProjectToDto = b => new BookingDto
