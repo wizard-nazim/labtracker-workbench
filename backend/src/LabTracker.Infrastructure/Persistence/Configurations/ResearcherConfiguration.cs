@@ -18,5 +18,10 @@ public class ResearcherConfiguration : IEntityTypeConfiguration<Researcher>
         builder.HasOne(r => r.ResearchGroup)
             .WithMany()
             .HasForeignKey(r => r.ResearchGroupId);
+
+        // A login account maps to at most one researcher profile.
+        builder.HasIndex(r => r.UserId)
+            .IsUnique()
+            .HasFilter("\"UserId\" IS NOT NULL");
     }
 }

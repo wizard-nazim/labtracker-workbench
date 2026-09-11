@@ -477,7 +477,9 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.HasIndex("ResearchGroupId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL");
 
                     b.ToTable("Researchers");
                 });
