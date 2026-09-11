@@ -1,3 +1,6 @@
+using LabTracker.Application.Common.Interfaces;
+using LabTracker.Application.Modules.Identity;
+using LabTracker.Infrastructure.Identity;
 using LabTracker.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -13,6 +16,9 @@ public static class DependencyInjection
 
         services.AddDbContext<LabTrackerDbContext>(options =>
             options.UseNpgsql(connectionString));
+        services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<LabTrackerDbContext>());
+
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }
