@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableEmptyState } from '@/components/table-empty-state'
 import { useAuth } from '@/context/auth-context'
 import { ApiError } from '@/lib/api-client'
 import { BookingStatusIndicator } from './booking-status-indicator'
@@ -79,9 +80,9 @@ export function BookingsPage() {
             <TableRow>
               <TableHead className="w-36">Status</TableHead>
               <TableHead>Equipment</TableHead>
-              {isManager && <TableHead>Booked for</TableHead>}
+              {isManager && <TableHead className="hidden md:table-cell">Booked for</TableHead>}
               <TableHead>Start</TableHead>
-              <TableHead>End</TableHead>
+              <TableHead className="hidden sm:table-cell">End</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -96,19 +97,19 @@ export function BookingsPage() {
               ))}
 
             {isError && (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
-                  Couldn't load bookings. Check that the API is running and try again.
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                colSpan={columnCount}
+                tone="error"
+                title="Couldn't load bookings."
+                description="Check that the API is running and try again."
+              />
             )}
 
             {!isLoading && !isError && bookings?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
-                  {isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                colSpan={columnCount}
+                title={isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
+              />
             )}
 
             {bookings?.map((booking) => {
@@ -121,9 +122,15 @@ export function BookingsPage() {
                     <BookingStatusIndicator status={booking.status} />
                   </TableCell>
                   <TableCell className="font-medium text-foreground">{booking.equipmentName}</TableCell>
-                  {isManager && <TableCell className="text-muted-foreground">{booking.actorDisplayName}</TableCell>}
+                  {isManager && (
+                    <TableCell className="hidden text-muted-foreground md:table-cell">
+                      {booking.actorDisplayName}
+                    </TableCell>
+                  )}
                   <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledEnd)}</TableCell>
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">
+                    {formatDateTime(booking.scheduledEnd)}
+                  </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
                       {isManager && booking.status === 'Requested' && (

@@ -2,6 +2,8 @@ import { Outlet, NavLink } from 'react-router-dom'
 import { Gauge, FlaskConical, CalendarClock, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,25 +44,35 @@ export function AppShell() {
         </div>
 
         {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
-            title={label}
-            className={({ isActive }) =>
-              `flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground ${
-                isActive ? 'bg-accent text-accent-foreground' : ''
-              }`
-            }
-          >
-            <Icon className="size-5" aria-hidden="true" />
-            <span className="sr-only">{label}</span>
-          </NavLink>
+          <Tooltip key={to}>
+            <TooltipTrigger asChild>
+              <NavLink
+                to={to}
+                end={end}
+                className="relative flex size-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <span
+                        className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-primary"
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Icon className={`size-5 ${isActive ? 'text-primary' : ''}`} aria-hidden="true" />
+                    <span className="sr-only">{label}</span>
+                  </>
+                )}
+              </NavLink>
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+          </Tooltip>
         ))}
       </nav>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-end border-b border-border px-6">
+        <header className="flex h-14 shrink-0 items-center justify-end gap-1 border-b border-border px-6">
+          <ThemeToggle />
           <DropdownMenu>
             <DropdownMenuTrigger className="flex items-center gap-2 rounded-md p-1 outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring">
               <Avatar className="size-7">

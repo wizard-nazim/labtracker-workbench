@@ -1,12 +1,25 @@
+import type { LucideIcon } from 'lucide-react'
+import { Boxes, CircleCheck, TriangleAlert, Archive } from 'lucide-react'
 import { useEquipment } from '@/features/equipment/use-equipment'
 import { useAuth } from '@/context/auth-context'
 import { Skeleton } from '@/components/ui/skeleton'
 
-function ReadoutPanel({ label, value, accentClass }: { label: string; value: number | string; accentClass: string }) {
+function ReadoutPanel({
+  label,
+  value,
+  accentClass,
+  icon: Icon,
+}: {
+  label: string
+  value: number | string
+  accentClass: string
+  icon: LucideIcon
+}) {
   return (
     <div className="relative overflow-hidden rounded-md border border-border bg-card p-5">
       <span className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} aria-hidden="true" />
-      <p className="font-mono text-3xl font-medium tabular-nums text-foreground">{value}</p>
+      <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+      <p className="mt-2 font-mono text-3xl font-medium tabular-nums text-foreground">{value}</p>
       <p className="mt-1 text-sm text-muted-foreground">{label}</p>
     </div>
   )
@@ -40,10 +53,20 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <ReadoutPanel label="Total equipment" value={counts.total} accentClass="bg-primary" />
-          <ReadoutPanel label="Available now" value={counts.available} accentClass="bg-status-available" />
-          <ReadoutPanel label="Needs attention" value={counts.needsAttention} accentClass="bg-status-maintenance" />
-          <ReadoutPanel label="Retired" value={counts.retired} accentClass="bg-status-retired" />
+          <ReadoutPanel label="Total equipment" value={counts.total} accentClass="bg-primary" icon={Boxes} />
+          <ReadoutPanel
+            label="Available now"
+            value={counts.available}
+            accentClass="bg-status-available"
+            icon={CircleCheck}
+          />
+          <ReadoutPanel
+            label="Needs attention"
+            value={counts.needsAttention}
+            accentClass="bg-status-maintenance"
+            icon={TriangleAlert}
+          />
+          <ReadoutPanel label="Retired" value={counts.retired} accentClass="bg-status-retired" icon={Archive} />
         </div>
       )}
     </div>

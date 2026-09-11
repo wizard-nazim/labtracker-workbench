@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableEmptyState } from '@/components/table-empty-state'
 import { useAuth } from '@/context/auth-context'
 import { BookEquipmentDialog } from '@/features/bookings/book-equipment-dialog'
 import { useEquipment } from './use-equipment'
@@ -59,8 +60,8 @@ export function EquipmentListPage() {
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Room</TableHead>
-              <TableHead>Serial no.</TableHead>
-              <TableHead>Department</TableHead>
+              <TableHead className="hidden md:table-cell">Serial no.</TableHead>
+              <TableHead className="hidden lg:table-cell">Department</TableHead>
               <TableHead className="text-right">Shared</TableHead>
               {canBook && <TableHead className="w-24" />}
             </TableRow>
@@ -76,19 +77,16 @@ export function EquipmentListPage() {
               ))}
 
             {isError && (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
-                  Couldn't load equipment. Check that the API is running and try again.
-                </TableCell>
-              </TableRow>
+              <TableEmptyState
+                colSpan={columnCount}
+                tone="error"
+                title="Couldn't load equipment."
+                description="Check that the API is running and try again."
+              />
             )}
 
             {!isLoading && !isError && equipment?.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
-                  No equipment matches this filter.
-                </TableCell>
-              </TableRow>
+              <TableEmptyState colSpan={columnCount} title="No equipment matches this filter." />
             )}
 
             {equipment?.map((item) => (
@@ -99,8 +97,12 @@ export function EquipmentListPage() {
                 <TableCell className="font-medium text-foreground">{item.name}</TableCell>
                 <TableCell className="text-muted-foreground">{item.equipmentTypeName}</TableCell>
                 <TableCell className="text-muted-foreground">{item.roomLabel}</TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">{item.serialNumber ?? '—'}</TableCell>
-                <TableCell className="text-muted-foreground">{item.owningDepartmentName}</TableCell>
+                <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
+                  {item.serialNumber ?? '—'}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground lg:table-cell">
+                  {item.owningDepartmentName}
+                </TableCell>
                 <TableCell className="text-right text-muted-foreground">{item.isShared ? 'Yes' : 'No'}</TableCell>
                 {canBook && (
                   <TableCell>
