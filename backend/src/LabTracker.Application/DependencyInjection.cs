@@ -1,6 +1,7 @@
 using FluentValidation;
 using LabTracker.Application.Modules.Equipment;
 using LabTracker.Application.Modules.Identity;
+using LabTracker.Application.Modules.Organization;
 using LabTracker.Domain.Modules.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<AuthService>();
 
+        services.AddScoped<DepartmentService>();
         services.AddScoped<EquipmentTypeService>();
         services.AddScoped<RoomService>();
         services.AddScoped<EquipmentService>();

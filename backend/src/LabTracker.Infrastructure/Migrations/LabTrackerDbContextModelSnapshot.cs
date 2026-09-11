@@ -182,7 +182,7 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<int?>("OwningDepartmentId")
+                    b.Property<int>("OwningDepartmentId")
                         .HasColumnType("integer");
 
                     b.Property<int>("RoomId")
@@ -585,7 +585,8 @@ namespace LabTracker.Infrastructure.Migrations
                     b.HasOne("LabTracker.Domain.Modules.Organization.Department", "OwningDepartment")
                         .WithMany()
                         .HasForeignKey("OwningDepartmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("LabTracker.Domain.Modules.Equipment.Room", "Room")
                         .WithMany()

@@ -17,7 +17,8 @@ public class EquipmentDto
     public int RoomId { get; set; }
     public string RoomLabel { get; set; } = string.Empty;
 
-    public int? OwningDepartmentId { get; set; }
+    public int OwningDepartmentId { get; set; }
+    public string OwningDepartmentName { get; set; } = string.Empty;
 
     public List<ScienceOfficerAssignmentDto> ScienceOfficers { get; set; } = [];
 }
@@ -37,7 +38,7 @@ public class UpsertEquipmentRequest
     public bool IsShared { get; set; }
     public int EquipmentTypeId { get; set; }
     public int RoomId { get; set; }
-    public int? OwningDepartmentId { get; set; }
+    public int OwningDepartmentId { get; set; }
 }
 
 public class UpdateEquipmentStatusRequest

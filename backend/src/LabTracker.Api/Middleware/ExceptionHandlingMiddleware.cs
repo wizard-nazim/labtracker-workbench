@@ -1,4 +1,6 @@
 using LabTracker.Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace LabTracker.Api.Middleware;
 
@@ -31,6 +33,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 status = StatusCodes.Status400BadRequest,
                 errors,
             });
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        {
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "A record with the same unique value already exists.");
         }
         catch (Exception ex)
         {

@@ -18,9 +18,10 @@ public class Equipment
     public int RoomId { get; set; }
     public Room Room { get; set; } = null!;
 
-    // Null for equipment owned jointly/shared rather than by one department.
-    public int? OwningDepartmentId { get; set; }
-    public Department? OwningDepartment { get; set; }
+    // Always set, even for shared equipment — ownership (who is administratively
+    // responsible / funds it) is separate from IsShared (who else may use it).
+    public int OwningDepartmentId { get; set; }
+    public Department OwningDepartment { get; set; } = null!;
 
     public ICollection<EquipmentScienceOfficer> ScienceOfficers { get; set; } = new List<EquipmentScienceOfficer>();
 }

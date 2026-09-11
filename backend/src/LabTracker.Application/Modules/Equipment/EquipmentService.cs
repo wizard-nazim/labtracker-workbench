@@ -170,6 +170,7 @@ public class EquipmentService(
         RoomId = e.RoomId,
         RoomLabel = e.Room.Building + " " + e.Room.Floor + " " + e.Room.RoomNumber,
         OwningDepartmentId = e.OwningDepartmentId,
+        OwningDepartmentName = e.OwningDepartment.Name,
         ScienceOfficers = e.ScienceOfficers.Select(so => new ScienceOfficerAssignmentDto
         {
             UserId = so.UserId,

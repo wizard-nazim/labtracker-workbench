@@ -45,7 +45,6 @@ public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipment
 
         RuleFor(x => x.OwningDepartmentId)
             .MustAsync((id, ct) => db.Departments.AnyAsync(d => d.Id == id, ct))
-            .When(x => x.OwningDepartmentId.HasValue)
             .WithMessage("OwningDepartmentId does not reference an existing department.");
     }
 }
