@@ -1,0 +1,61 @@
+using FluentValidation;
+using LabTracker.Application.Common.Interfaces;
+using LabTracker.Shared.Enums;
+using Microsoft.EntityFrameworkCore;
+
+namespace LabTracker.Application.Modules.Equipment;
+
+public class UpsertEquipmentTypeRequestValidator : AbstractValidator<UpsertEquipmentTypeRequest>
+{
+    public UpsertEquipmentTypeRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(150);
+    }
+}
+
+public class UpsertRoomRequestValidator : AbstractValidator<UpsertRoomRequest>
+{
+    public UpsertRoomRequestValidator(IApplicationDbContext db)
+    {
+        RuleFor(x => x.Building).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Floor).NotEmpty().MaximumLength(50);
+        RuleFor(x => x.RoomNumber).NotEmpty().MaximumLength(20);
+
+        RuleFor(x => x.DepartmentId)
+            .MustAsync((id, ct) => db.Departments.AnyAsync(d => d.Id == id, ct))
+            .When(x => x.DepartmentId.HasValue)
+            .WithMessage("DepartmentId does not reference an existing department.");
+    }
+}
+
+public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipmentRequest>
+{
+    public UpsertEquipmentRequestValidator(IApplicationDbContext db)
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.SerialNumber).MaximumLength(100);
+
+        RuleFor(x => x.EquipmentTypeId)
+            .MustAsync((id, ct) => db.EquipmentTypes.AnyAsync(t => t.Id == id, ct))
+            .WithMessage("EquipmentTypeId does not reference an existing equipment type.");
+
+        RuleFor(x => x.RoomId)
+            .MustAsync((id, ct) => db.Rooms.AnyAsync(r => r.Id == id, ct))
+            .WithMessage("RoomId does not reference an existing room.");
+
+        RuleFor(x => x.OwningDepartmentId)
+            .MustAsync((id, ct) => db.Departments.AnyAsync(d => d.Id == id, ct))
+            .When(x => x.OwningDepartmentId.HasValue)
+            .WithMessage("OwningDepartmentId does not reference an existing department.");
+    }
+}
+
+public class AssignScienceOfficerRequestValidator : AbstractValidator<AssignScienceOfficerRequest>
+{
+    public AssignScienceOfficerRequestValidator(IApplicationDbContext db)
+    {
+        RuleFor(x => x.UserId)
+            .MustAsync((id, ct) => db.Users.AnyAsync(u => u.Id == id && u.Role == Role.ScienceOfficer, ct))
+            .WithMessage("UserId must reference an existing user with the Science Officer role.");
+    }
+}

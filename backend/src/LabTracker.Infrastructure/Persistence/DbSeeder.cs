@@ -5,30 +5,40 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LabTracker.Infrastructure.Persistence;
 
-// Dev-only bootstrap: creates one Super Admin so there's a way to log in before
-// real user management (Phase 4) exists. Not a substitute for it.
+// Dev-only bootstrap: creates one user per role so there's a way to log in and
+// exercise role-based permissions before real user management (Phase 4) exists.
+// Not a substitute for it.
 public static class DbSeeder
 {
-    private const string DefaultAdminEmail = "admin@labtracker.local";
-    private const string DefaultAdminPassword = "ChangeMe123!";
+    private const string DefaultPassword = "ChangeMe123!";
 
-    public static async Task SeedDevelopmentAdminAsync(LabTrackerDbContext db, IPasswordHasher<User> passwordHasher)
+    private static readonly (string Email, Role Role)[] DevelopmentUsers =
+    [
+        ("admin@labtracker.local", Role.SuperAdmin),
+        ("so@labtracker.local", Role.ScienceOfficer),
+        ("researcher@labtracker.local", Role.Researcher),
+    ];
+
+    public static async Task SeedDevelopmentUsersAsync(LabTrackerDbContext db, IPasswordHasher<User> passwordHasher)
     {
         if (await db.Users.AnyAsync())
         {
             return;
         }
 
-        var admin = new User
+        foreach (var (email, role) in DevelopmentUsers)
         {
-            Email = DefaultAdminEmail,
-            Role = Role.SuperAdmin,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow,
-        };
-        admin.PasswordHash = passwordHasher.HashPassword(admin, DefaultAdminPassword);
+            var user = new User
+            {
+                Email = email,
+                Role = role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+            user.PasswordHash = passwordHasher.HashPassword(user, DefaultPassword);
+            db.Users.Add(user);
+        }
 
-        db.Users.Add(admin);
         await db.SaveChangesAsync();
     }
 }

@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json.Serialization;
+using LabTracker.Api.Middleware;
 using LabTracker.Application;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Infrastructure;
@@ -11,7 +13,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -46,8 +49,10 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
-    await DbSeeder.SeedDevelopmentAdminAsync(db, passwordHasher);
+    await DbSeeder.SeedDevelopmentUsersAsync(db, passwordHasher);
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
