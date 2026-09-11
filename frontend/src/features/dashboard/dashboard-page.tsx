@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
-import { Boxes, CircleCheck, TriangleAlert, Archive } from 'lucide-react'
+import { Boxes, CircleCheck, TriangleAlert, CalendarClock } from 'lucide-react'
 import { useEquipment } from '@/features/equipment/use-equipment'
+import { useBookings } from '@/features/bookings/use-bookings'
 import { useAuth } from '@/context/auth-context'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -25,15 +26,40 @@ function ReadoutPanel({
   )
 }
 
+// The one deliberately "loud" panel on the dashboard — everything else stays
+// quiet so this genuinely stands out. Base is solid bg-primary/text-primary-foreground
+// (the same pairing our buttons already use, so contrast is correct in both
+// themes) with a diagonal sheen layered on top for the gradient feel, rather
+// than fading the primary color itself toward transparent — which would break
+// contrast in dark mode, where --primary is a light teal meant for dark text.
+function HeroReadoutPanel({ label, value, banner, icon: Icon }: { label: string; value: number; banner: string; icon: LucideIcon }) {
+  return (
+    <div className="relative overflow-hidden rounded-md bg-primary p-5 text-primary-foreground">
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10"
+        aria-hidden="true"
+      />
+      <span className="absolute top-3 right-3 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-medium">
+        {banner}
+      </span>
+      <Icon className="relative size-4 opacity-80" aria-hidden="true" />
+      <p className="relative mt-2 font-mono text-3xl font-medium tabular-nums">{value}</p>
+      <p className="relative mt-1 text-sm opacity-80">{label}</p>
+    </div>
+  )
+}
+
 export function DashboardPage() {
   const { user } = useAuth()
-  const { data: equipment, isLoading } = useEquipment('All')
+  const { data: equipment, isLoading: isEquipmentLoading } = useEquipment('All')
+  const { data: bookings, isLoading: isBookingsLoading } = useBookings()
+  const isLoading = isEquipmentLoading || isBookingsLoading
 
   const counts = {
     total: equipment?.length ?? 0,
     available: equipment?.filter((e) => e.status === 'Available').length ?? 0,
     needsAttention: equipment?.filter((e) => e.status === 'Faulty' || e.status === 'UnderMaintenance').length ?? 0,
-    retired: equipment?.filter((e) => e.status === 'Retired').length ?? 0,
+    activeBookings: bookings?.filter((b) => b.status === 'Requested' || b.status === 'Approved').length ?? 0,
   }
 
   return (
@@ -66,7 +92,7 @@ export function DashboardPage() {
             accentClass="bg-status-maintenance"
             icon={TriangleAlert}
           />
-          <ReadoutPanel label="Retired" value={counts.retired} accentClass="bg-status-retired" icon={Archive} />
+          <HeroReadoutPanel label="Equipment booked" value={counts.activeBookings} banner="Active" icon={CalendarClock} />
         </div>
       )}
     </div>
