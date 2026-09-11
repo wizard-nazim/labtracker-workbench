@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TableEmptyState } from '@/components/table-empty-state'
 import { useAuth } from '@/context/auth-context'
 import { ApiError } from '@/lib/api-client'
+import { RecordUsageDialog } from '@/features/usage/record-usage-dialog'
 import { BookingStatusIndicator } from './booking-status-indicator'
 import { useApproveBooking, useBookings, useCancelBooking, useRejectBooking } from './use-bookings'
 import type { Booking } from './types'
@@ -142,6 +143,13 @@ export function BookingsPage() {
                             Reject
                           </Button>
                         </>
+                      )}
+                      {isManager && booking.status === 'Approved' && (
+                        <RecordUsageDialog
+                          equipmentId={booking.equipmentId}
+                          equipmentName={booking.equipmentName}
+                          bookingId={booking.id}
+                        />
                       )}
                       {canCancel && (
                         <Button size="sm" variant="ghost" disabled={isPending} onClick={() => handleCancel(booking)}>

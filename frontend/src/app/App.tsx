@@ -8,6 +8,7 @@ import { LoginPage } from '@/features/auth/login-page'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { EquipmentListPage } from '@/features/equipment/equipment-list-page'
 import { BookingsPage } from '@/features/bookings/bookings-page'
+import { UsageRecordsPage } from '@/features/usage/usage-records-page'
 
 export function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/equipment" element={<EquipmentListPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
+          <Route path="/usage" element={<UsageRecordsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
