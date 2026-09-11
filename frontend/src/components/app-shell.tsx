@@ -1,5 +1,5 @@
 import { Outlet, NavLink } from 'react-router-dom'
-import { Gauge, FlaskConical, LogOut } from 'lucide-react'
+import { Gauge, FlaskConical, CalendarClock, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -14,6 +14,7 @@ import {
 const NAV_ITEMS = [
   { to: '/', label: 'Overview', icon: Gauge, end: true },
   { to: '/equipment', label: 'Equipment', icon: FlaskConical, end: false },
+  { to: '/bookings', label: 'Bookings', icon: CalendarClock, end: false },
 ]
 
 const ROLE_LABEL: Record<string, string> = {

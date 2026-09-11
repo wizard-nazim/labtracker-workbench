@@ -15,6 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/context/auth-context'
+import { BookEquipmentDialog } from '@/features/bookings/book-equipment-dialog'
 import { useEquipment } from './use-equipment'
 import { StatusIndicator } from './status-indicator'
 import type { EquipmentStatus } from './types'
@@ -24,6 +26,9 @@ const STATUS_FILTERS: Array<EquipmentStatus | 'All'> = ['All', 'Available', 'Fau
 export function EquipmentListPage() {
   const [status, setStatus] = useState<EquipmentStatus | 'All'>('All')
   const { data: equipment, isLoading, isError } = useEquipment(status)
+  const { user } = useAuth()
+  const canBook = user?.role === 'Researcher'
+  const columnCount = canBook ? 8 : 7
 
   return (
     <div className="flex flex-col gap-6">
@@ -57,13 +62,14 @@ export function EquipmentListPage() {
               <TableHead>Serial no.</TableHead>
               <TableHead>Department</TableHead>
               <TableHead className="text-right">Shared</TableHead>
+              {canBook && <TableHead className="w-24" />}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading &&
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={columnCount}>
                     <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
@@ -71,7 +77,7 @@ export function EquipmentListPage() {
 
             {isError && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
                   Couldn't load equipment. Check that the API is running and try again.
                 </TableCell>
               </TableRow>
@@ -79,7 +85,7 @@ export function EquipmentListPage() {
 
             {!isLoading && !isError && equipment?.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
                   No equipment matches this filter.
                 </TableCell>
               </TableRow>
@@ -96,6 +102,13 @@ export function EquipmentListPage() {
                 <TableCell className="font-mono text-xs text-muted-foreground">{item.serialNumber ?? '—'}</TableCell>
                 <TableCell className="text-muted-foreground">{item.owningDepartmentName}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{item.isShared ? 'Yes' : 'No'}</TableCell>
+                {canBook && (
+                  <TableCell>
+                    {item.status === 'Available' && (
+                      <BookEquipmentDialog equipmentId={item.id} equipmentName={item.name} />
+                    )}
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>

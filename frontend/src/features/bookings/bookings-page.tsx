@@ -1,0 +1,154 @@
+import { toast } from 'sonner'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/context/auth-context'
+import { ApiError } from '@/lib/api-client'
+import { BookingStatusIndicator } from './booking-status-indicator'
+import { useApproveBooking, useBookings, useCancelBooking, useRejectBooking } from './use-bookings'
+import type { Booking } from './types'
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function errorMessage(err: unknown) {
+  return err instanceof ApiError ? err.message : 'Something went wrong. Try again.'
+}
+
+export function BookingsPage() {
+  const { user } = useAuth()
+  const isManager = user?.role === 'SuperAdmin' || user?.role === 'ScienceOfficer'
+
+  const { data: bookings, isLoading, isError } = useBookings()
+  const approve = useApproveBooking()
+  const reject = useRejectBooking()
+  const cancel = useCancelBooking()
+
+  async function handleApprove(booking: Booking) {
+    try {
+      await approve.mutateAsync(booking.id)
+      toast.success(`Approved booking for ${booking.equipmentName}.`)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  async function handleReject(booking: Booking) {
+    try {
+      await reject.mutateAsync(booking.id)
+      toast.success(`Rejected booking for ${booking.equipmentName}.`)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  async function handleCancel(booking: Booking) {
+    try {
+      await cancel.mutateAsync(booking.id)
+      toast.success(`Cancelled booking for ${booking.equipmentName}.`)
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  const columnCount = isManager ? 6 : 5
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-foreground">Bookings</h1>
+        <p className="text-sm text-muted-foreground">
+          {isManager ? 'All equipment bookings across the department.' : 'Your equipment bookings.'}
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-36">Status</TableHead>
+              <TableHead>Equipment</TableHead>
+              {isManager && <TableHead>Booked for</TableHead>}
+              <TableHead>Start</TableHead>
+              <TableHead>End</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading &&
+              Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={columnCount}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {isError && (
+              <TableRow>
+                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
+                  Couldn't load bookings. Check that the API is running and try again.
+                </TableCell>
+              </TableRow>
+            )}
+
+            {!isLoading && !isError && bookings?.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={columnCount} className="py-10 text-center text-sm text-muted-foreground">
+                  {isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
+                </TableCell>
+              </TableRow>
+            )}
+
+            {bookings?.map((booking) => {
+              const isPending = approve.isPending || reject.isPending || cancel.isPending
+              const canCancel = booking.status === 'Requested' || booking.status === 'Approved'
+
+              return (
+                <TableRow key={booking.id}>
+                  <TableCell>
+                    <BookingStatusIndicator status={booking.status} />
+                  </TableCell>
+                  <TableCell className="font-medium text-foreground">{booking.equipmentName}</TableCell>
+                  {isManager && <TableCell className="text-muted-foreground">{booking.actorDisplayName}</TableCell>}
+                  <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledEnd)}</TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-2">
+                      {isManager && booking.status === 'Requested' && (
+                        <>
+                          <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleApprove(booking)}>
+                            Approve
+                          </Button>
+                          <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleReject(booking)}>
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      {canCancel && (
+                        <Button size="sm" variant="ghost" disabled={isPending} onClick={() => handleCancel(booking)}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  )
+}
