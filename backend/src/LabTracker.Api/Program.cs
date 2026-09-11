@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using LabTracker.Api.Middleware;
+using LabTracker.Api.Serialization;
 using LabTracker.Application;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Infrastructure;
@@ -14,7 +15,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

@@ -1,6 +1,5 @@
-using System.Security.Claims;
+using LabTracker.Api.Extensions;
 using LabTracker.Application.Modules.Equipment;
-using LabTracker.Shared.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -35,7 +34,7 @@ public class EquipmentController(EquipmentService service) : ControllerBase
     [HttpPatch("{id:int}/status")]
     public async Task<ActionResult<EquipmentDto>> UpdateStatus(int id, UpdateEquipmentStatusRequest request, CancellationToken cancellationToken)
     {
-        var updated = await service.UpdateStatusAsync(id, request.Status, CurrentUserId, CurrentUserRole, cancellationToken);
+        var updated = await service.UpdateStatusAsync(id, request.Status, User.GetUserId(), User.GetRole(), cancellationToken);
         return Ok(updated);
     }
 
@@ -51,8 +50,4 @@ public class EquipmentController(EquipmentService service) : ControllerBase
         await service.RemoveScienceOfficerAsync(id, userId, cancellationToken);
         return NoContent();
     }
-
-    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-    private Role CurrentUserRole => Enum.Parse<Role>(User.FindFirstValue(ClaimTypes.Role)!);
 }
