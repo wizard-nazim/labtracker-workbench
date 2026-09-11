@@ -38,6 +38,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "A record with the same unique value already exists.");
         }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
+        {
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "This record cannot be deleted because other records still reference it.");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception processing {Method} {Path}", context.Request.Method, context.Request.Path);

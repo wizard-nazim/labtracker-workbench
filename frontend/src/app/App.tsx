@@ -1,7 +1,37 @@
+import { useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { Toaster } from '@/components/ui/sonner'
+import { SplashScreen } from '@/components/splash-screen'
+import { ProtectedRoute } from '@/components/protected-route'
+import { AppShell } from '@/components/app-shell'
+import { LoginPage } from '@/features/auth/login-page'
+import { DashboardPage } from '@/features/dashboard/dashboard-page'
+import { EquipmentListPage } from '@/features/equipment/equipment-list-page'
+
 export function App() {
+  const [showSplash, setShowSplash] = useState(true)
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />
+  }
+
   return (
-    <div className="flex min-h-svh items-center justify-center">
-      <p className="text-muted-foreground text-sm">LabTracker — scaffold in progress</p>
-    </div>
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/equipment" element={<EquipmentListPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </>
   )
 }

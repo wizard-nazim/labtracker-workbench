@@ -1,6 +1,7 @@
 using FluentValidation;
 using LabTracker.Application.Modules.Booking;
 using LabTracker.Application.Modules.Equipment;
+using LabTracker.Application.Modules.External;
 using LabTracker.Application.Modules.Identity;
 using LabTracker.Application.Modules.Organization;
 using LabTracker.Domain.Modules.Identity;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<UsageActorResolver>();
         services.AddScoped<BookingService>();
         services.AddScoped<UsageRecordService>();
+        services.AddScoped<CompanyService>();
 
         return services;
     }

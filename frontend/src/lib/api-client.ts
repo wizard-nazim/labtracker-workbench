@@ -1,21 +1,40 @@
+import { authStorage } from './auth-storage'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
+export interface ApiErrorBody {
+  title?: string
+  detail?: string
+  errors?: Record<string, string[]>
+}
 
 export class ApiError extends Error {
   status: number
+  body: ApiErrorBody | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, body: ApiErrorBody | null = null) {
     super(message)
     this.status = status
+    this.body = body
   }
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = authStorage.getToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    },
     ...options,
   })
 
-  if (!response.ok) throw new ApiError(response.status, response.statusText)
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as ApiErrorBody | null
+    const message = body?.detail ?? body?.title ?? response.statusText
+    throw new ApiError(response.status, message, body)
+  }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
@@ -26,5 +45,7 @@ export const apiClient = {
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
   put: <T,>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
+  patch: <T,>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
 }

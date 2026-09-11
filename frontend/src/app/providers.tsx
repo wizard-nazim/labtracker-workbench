@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter } from 'react-router-dom'
 import { queryClient } from '@/lib/query-client'
+import { AuthProvider } from '@/context/auth-context'
 
-// AuthProvider and BrowserRouter are added here once the routing/auth phase lands.
 export function Providers({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>{children}</BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  )
 }

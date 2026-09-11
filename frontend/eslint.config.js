@@ -27,4 +27,12 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // A context module's whole job is exporting both its Provider and its
+    // useXyz() accessor hook together — that's not a fast-refresh smell.
+    files: ['src/context/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])
