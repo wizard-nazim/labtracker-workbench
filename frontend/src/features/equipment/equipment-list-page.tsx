@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { FlaskConical } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
+import { PageBanner } from '@/components/page-banner'
 import {
   Select,
   SelectContent,
@@ -26,8 +28,14 @@ import type { EquipmentStatus } from './types'
 
 const STATUS_FILTERS: Array<EquipmentStatus | 'All'> = ['All', 'Available', 'Faulty', 'UnderMaintenance', 'Retired']
 
+function initialStatusFrom(searchParams: URLSearchParams): EquipmentStatus | 'All' {
+  const value = searchParams.get('status')
+  return STATUS_FILTERS.includes(value as EquipmentStatus | 'All') ? (value as EquipmentStatus | 'All') : 'All'
+}
+
 export function EquipmentListPage() {
-  const [status, setStatus] = useState<EquipmentStatus | 'All'>('All')
+  const [searchParams] = useSearchParams()
+  const [status, setStatus] = useState<EquipmentStatus | 'All'>(() => initialStatusFrom(searchParams))
   const { data: equipment, isLoading, isError } = useEquipment(status)
   const { user } = useAuth()
   const canBook = user?.role === 'Researcher'
@@ -35,6 +43,8 @@ export function EquipmentListPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBanner />
+
       <PageHeader
         icon={FlaskConical}
         title="Equipment"

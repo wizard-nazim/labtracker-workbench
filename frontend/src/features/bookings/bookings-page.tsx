@@ -1,6 +1,7 @@
 import { toast } from 'sonner'
 import { CalendarClock } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
+import { PageBanner } from '@/components/page-banner'
 import {
   Table,
   TableBody,
@@ -70,6 +71,8 @@ export function BookingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBanner />
+
       <PageHeader
         icon={CalendarClock}
         title="Bookings"

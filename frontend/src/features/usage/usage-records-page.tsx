@@ -1,5 +1,6 @@
 import { ClipboardList } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
+import { PageBanner } from '@/components/page-banner'
 import {
   Table,
   TableBody,
@@ -30,6 +31,8 @@ export function UsageRecordsPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBanner />
+
       <PageHeader
         icon={ClipboardList}
         title="Usage"

@@ -2,6 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { Settings } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PageHeader } from '@/components/page-header'
+import { PageBanner } from '@/components/page-banner'
 import { useAuth } from '@/context/auth-context'
 import { DepartmentsTab } from './departments'
 import { PrincipalInvestigatorsTab } from './principal-investigators'
@@ -27,6 +28,8 @@ export function AdminPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageBanner />
+
       <PageHeader
         icon={Settings}
         title="Admin"
