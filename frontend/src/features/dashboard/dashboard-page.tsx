@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
-import { Boxes, CircleCheck, TriangleAlert, CalendarClock } from 'lucide-react'
+import { Gauge, Boxes, CircleCheck, TriangleAlert, CalendarClock } from 'lucide-react'
 import { useEquipment } from '@/features/equipment/use-equipment'
 import { useBookings } from '@/features/bookings/use-bookings'
 import { useAuth } from '@/context/auth-context'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/page-header'
 
 function ReadoutPanel({
   label,
@@ -64,12 +65,11 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Signed in as {user?.email} — {user?.role === 'ScienceOfficer' ? 'Science Officer' : user?.role}.
-        </p>
-      </div>
+      <PageHeader
+        icon={Gauge}
+        title="Overview"
+        description={`Signed in as ${user?.email} — ${user?.role === 'ScienceOfficer' ? 'Science Officer' : user?.role}.`}
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

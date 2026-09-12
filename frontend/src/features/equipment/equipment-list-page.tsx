@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { FlaskConical } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import {
   Select,
   SelectContent,
@@ -33,24 +35,25 @@ export function EquipmentListPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Equipment</h1>
-          <p className="text-sm text-muted-foreground">Browse instruments, their location, and current availability.</p>
-        </div>
-        <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_FILTERS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option === 'All' ? 'All statuses' : option === 'UnderMaintenance' ? 'Under maintenance' : option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <PageHeader
+        icon={FlaskConical}
+        title="Equipment"
+        description="Browse instruments, their location, and current availability."
+        action={
+          <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUS_FILTERS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option === 'All' ? 'All statuses' : option === 'UnderMaintenance' ? 'Under maintenance' : option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="overflow-hidden rounded-md border border-border">
         <Table>

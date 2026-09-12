@@ -4,6 +4,7 @@ import { useAuth } from '@/context/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { MagicCard } from '@/components/ui/magic-card'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -46,7 +47,13 @@ export function LoginPage() {
           <span className="text-lg font-semibold text-foreground">LabTracker</span>
         </div>
 
-        <div className="rounded-md border border-border bg-card p-6">
+        <MagicCard
+          className="rounded-md p-6"
+          gradientFrom="var(--primary)"
+          gradientTo="var(--primary)"
+          gradientColor="var(--primary)"
+          gradientOpacity={0.15}
+        >
           <h1 className="text-base font-medium text-foreground">Sign in</h1>
           <p className="mt-1 text-sm text-muted-foreground">Molecular &amp; Cell Biology equipment system.</p>
 
@@ -80,7 +87,7 @@ export function LoginPage() {
               {isSubmitting ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>
-        </div>
+        </MagicCard>
       </div>
     </div>
   )

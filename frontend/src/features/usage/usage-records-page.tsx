@@ -1,3 +1,5 @@
+import { ClipboardList } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import {
   Table,
   TableBody,
@@ -28,15 +30,12 @@ export function UsageRecordsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-foreground">Usage</h1>
-          <p className="text-sm text-muted-foreground">
-            {isManager ? 'Recorded equipment usage across the department.' : 'Your equipment usage history.'}
-          </p>
-        </div>
-        {isManager && <RecordWalkInUsageDialog />}
-      </div>
+      <PageHeader
+        icon={ClipboardList}
+        title="Usage"
+        description={isManager ? 'Recorded equipment usage across the department.' : 'Your equipment usage history.'}
+        action={isManager ? <RecordWalkInUsageDialog /> : undefined}
+      />
 
       <div className="overflow-hidden rounded-md border border-border">
         <Table>

@@ -35,4 +35,13 @@ export default defineConfig([
       'react-refresh/only-export-components': 'off',
     },
   },
+  {
+    // Each admin CRUD screen pairs a small resource hook (also reused by other
+    // features, e.g. useResearchers) with its list+dialog components in one
+    // file — same reasoning as src/context above.
+    files: ['src/features/admin/**/*.{ts,tsx}'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

@@ -1,4 +1,6 @@
 import { toast } from 'sonner'
+import { CalendarClock } from 'lucide-react'
+import { PageHeader } from '@/components/page-header'
 import {
   Table,
   TableBody,
@@ -68,12 +70,11 @@ export function BookingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Bookings</h1>
-        <p className="text-sm text-muted-foreground">
-          {isManager ? 'All equipment bookings across the department.' : 'Your equipment bookings.'}
-        </p>
-      </div>
+      <PageHeader
+        icon={CalendarClock}
+        title="Bookings"
+        description={isManager ? 'All equipment bookings across the department.' : 'Your equipment bookings.'}
+      />
 
       <div className="overflow-hidden rounded-md border border-border">
         <Table>
