@@ -38,9 +38,26 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "A record with the same unique value already exists.");
         }
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
+        {
+            // Race-condition loser: the EX_Bookings_Equipment_TimeRange constraint (see
+            // AddBookingOverlapExclusionConstraint migration) caught a second concurrent
+            // insert that the app-level conflict check didn't. Same message as that check.
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "This equipment is already booked for an overlapping time range.");
+        }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
         {
             await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "This record cannot be deleted because other records still reference it.");
+        }
+        // Under concurrent inserts, Postgres's GIST-index exclusion-constraint check can
+        // report a deadlock (40P01) instead of a clean exclusion_violation — both
+        // transactions block on each other's not-yet-committed index entry. EF/Npgsql
+        // classifies deadlocks as transient and wraps them in InvalidOperationException
+        // rather than throwing DbUpdateException directly (no retrying execution strategy
+        // is configured here, so it surfaces rather than silently retrying).
+        catch (InvalidOperationException ex) when (ex.InnerException is DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.DeadlockDetected } })
+        {
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", "This action conflicted with another concurrent request. Please try again.");
         }
         catch (Exception ex)
         {
