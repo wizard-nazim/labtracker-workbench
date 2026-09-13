@@ -12,6 +12,12 @@ public class Equipment
     public bool IsShared { get; set; }
     public EquipmentStatus Status { get; set; } = EquipmentStatus.Available;
 
+    // Uploaded photo, set via a dedicated image-upload endpoint (not the plain
+    // create/update request). IconKey is a fallback chosen from a fixed curated
+    // set (see EquipmentIconCatalog) — used for display only when no image is set.
+    public string? ImageUrl { get; set; }
+    public string? IconKey { get; set; }
+
     public int EquipmentTypeId { get; set; }
     public EquipmentType EquipmentType { get; set; } = null!;
 

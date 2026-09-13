@@ -174,6 +174,14 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int>("EquipmentTypeId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("IconKey")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<bool>("IsShared")
                         .HasColumnType("boolean");
 

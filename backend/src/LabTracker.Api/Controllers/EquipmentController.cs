@@ -1,4 +1,5 @@
 using LabTracker.Api.Extensions;
+using LabTracker.Api.Services;
 using LabTracker.Application.Modules.Equipment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ namespace LabTracker.Api.Controllers;
 [ApiController]
 [Route("api/equipment")]
 [Authorize]
-public class EquipmentController(EquipmentService service) : ControllerBase
+public class EquipmentController(EquipmentService service, IEquipmentImageStorage imageStorage) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<List<EquipmentDto>>> GetAll([FromQuery] EquipmentFilter filter, CancellationToken cancellationToken)
@@ -30,6 +31,15 @@ public class EquipmentController(EquipmentService service) : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<EquipmentDto>> Update(int id, UpsertEquipmentRequest request, CancellationToken cancellationToken)
         => Ok(await service.UpdateAsync(id, request, cancellationToken));
+
+    [HttpPost("{id:int}/image")]
+    [Authorize(Roles = "SuperAdmin")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<EquipmentDto>> UploadImage(int id, IFormFile file, CancellationToken cancellationToken)
+    {
+        var imageUrl = await imageStorage.SaveAsync(id, file, cancellationToken);
+        return Ok(await service.SetImageAsync(id, imageUrl, cancellationToken));
+    }
 
     [HttpPatch("{id:int}/status")]
     public async Task<ActionResult<EquipmentDto>> UpdateStatus(int id, UpdateEquipmentStatusRequest request, CancellationToken cancellationToken)

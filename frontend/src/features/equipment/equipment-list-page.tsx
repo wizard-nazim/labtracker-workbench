@@ -24,6 +24,8 @@ import { useAuth } from '@/context/auth-context'
 import { BookEquipmentDialog } from '@/features/bookings/book-equipment-dialog'
 import { useEquipment } from './use-equipment'
 import { StatusIndicator } from './status-indicator'
+import { EquipmentAvatar } from './equipment-avatar'
+import { CreateEquipmentDialog, EditEquipmentDialog } from './equipment-form-dialog'
 import type { EquipmentStatus } from './types'
 
 const STATUS_FILTERS: Array<EquipmentStatus | 'All'> = ['All', 'Available', 'Faulty', 'UnderMaintenance', 'Retired']
@@ -39,7 +41,8 @@ export function EquipmentListPage() {
   const { data: equipment, isLoading, isError } = useEquipment(status)
   const { user } = useAuth()
   const canBook = user?.role === 'Researcher'
-  const columnCount = canBook ? 8 : 7
+  const isSuperAdmin = user?.role === 'SuperAdmin'
+  const columnCount = 8 + (canBook ? 1 : 0) + (isSuperAdmin ? 1 : 0)
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,18 +53,21 @@ export function EquipmentListPage() {
         title="Equipment"
         description="Browse instruments, their location, and current availability."
         action={
-          <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTERS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option === 'All' ? 'All statuses' : option === 'UnderMaintenance' ? 'Under maintenance' : option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option === 'All' ? 'All statuses' : option === 'UnderMaintenance' ? 'Under maintenance' : option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isSuperAdmin && <CreateEquipmentDialog />}
+          </div>
         }
       />
 
@@ -69,6 +75,7 @@ export function EquipmentListPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14" />
               <TableHead className="w-44">Status</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
@@ -77,6 +84,7 @@ export function EquipmentListPage() {
               <TableHead className="hidden lg:table-cell">Department</TableHead>
               <TableHead className="text-right">Shared</TableHead>
               {canBook && <TableHead className="w-24" />}
+              {isSuperAdmin && <TableHead className="w-16" />}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -105,6 +113,9 @@ export function EquipmentListPage() {
             {equipment?.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
+                  <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name={item.name} />
+                </TableCell>
+                <TableCell>
                   <StatusIndicator status={item.status} />
                 </TableCell>
                 <TableCell className="font-medium text-foreground">{item.name}</TableCell>
@@ -122,6 +133,11 @@ export function EquipmentListPage() {
                     {item.status === 'Available' && (
                       <BookEquipmentDialog equipmentId={item.id} equipmentName={item.name} />
                     )}
+                  </TableCell>
+                )}
+                {isSuperAdmin && (
+                  <TableCell>
+                    <EditEquipmentDialog equipment={item} />
                   </TableCell>
                 )}
               </TableRow>

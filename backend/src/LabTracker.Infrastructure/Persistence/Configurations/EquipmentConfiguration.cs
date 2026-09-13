@@ -10,6 +10,8 @@ public class EquipmentConfiguration : IEntityTypeConfiguration<EquipmentEntity>
     {
         builder.Property(e => e.Name).HasMaxLength(200).IsRequired();
         builder.Property(e => e.SerialNumber).HasMaxLength(100);
+        builder.Property(e => e.ImageUrl).HasMaxLength(300);
+        builder.Property(e => e.IconKey).HasMaxLength(50);
 
         builder.HasOne(e => e.EquipmentType)
             .WithMany()

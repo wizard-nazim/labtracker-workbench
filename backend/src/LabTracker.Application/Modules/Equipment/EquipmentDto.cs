@@ -11,6 +11,9 @@ public class EquipmentDto
     public bool IsShared { get; set; }
     public EquipmentStatus Status { get; set; }
 
+    public string? ImageUrl { get; set; }
+    public string? IconKey { get; set; }
+
     public int EquipmentTypeId { get; set; }
     public string EquipmentTypeName { get; set; } = string.Empty;
 
@@ -36,6 +39,7 @@ public class UpsertEquipmentRequest
     public string? SerialNumber { get; set; }
     public string? Description { get; set; }
     public bool IsShared { get; set; }
+    public string? IconKey { get; set; }
     public int EquipmentTypeId { get; set; }
     public int RoomId { get; set; }
     public int OwningDepartmentId { get; set; }

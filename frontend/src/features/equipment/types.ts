@@ -13,6 +13,8 @@ export interface Equipment {
   description: string | null
   isShared: boolean
   status: EquipmentStatus
+  imageUrl: string | null
+  iconKey: string | null
   equipmentTypeId: number
   equipmentTypeName: string
   roomId: number

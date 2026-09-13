@@ -2,6 +2,10 @@ import { authStorage } from './auth-storage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+// VITE_API_BASE_URL includes the /api suffix; static files (uploaded images)
+// are served from the API's origin, not under /api, so strip it back off.
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '')
+
 export interface ApiErrorBody {
   title?: string
   detail?: string
@@ -39,6 +43,27 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+// Separate from `request`: a multipart body must not get the JSON Content-Type
+// header (the browser sets its own, boundary included).
+async function uploadFile<T>(path: string, file: File): Promise<T> {
+  const token = authStorage.getToken()
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as ApiErrorBody | null
+    const message = body?.detail ?? body?.title ?? response.statusText
+    throw new ApiError(response.status, message, body)
+  }
+  return response.json() as Promise<T>
+}
+
 export const apiClient = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body?: unknown) =>
@@ -48,4 +73,5 @@ export const apiClient = {
   patch: <T,>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
+  uploadFile,
 }

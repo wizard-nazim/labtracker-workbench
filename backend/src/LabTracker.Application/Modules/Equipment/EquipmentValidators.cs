@@ -35,6 +35,10 @@ public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipment
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.SerialNumber).MaximumLength(100);
 
+        RuleFor(x => x.IconKey)
+            .Must(key => key is null || EquipmentIconCatalog.AllowedKeys.Contains(key))
+            .WithMessage("IconKey is not a recognized icon.");
+
         RuleFor(x => x.EquipmentTypeId)
             .MustAsync((id, ct) => db.EquipmentTypes.AnyAsync(t => t.Id == id, ct))
             .WithMessage("EquipmentTypeId does not reference an existing equipment type.");

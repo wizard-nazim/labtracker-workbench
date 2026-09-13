@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
-interface EquipmentType {
+export interface EquipmentType {
   id: number
   name: string
 }
@@ -27,7 +27,7 @@ interface UpsertEquipmentTypeRequest {
   name: string
 }
 
-function useEquipmentTypes() {
+export function useEquipmentTypes() {
   return useQuery({ queryKey: ['equipment-types'], queryFn: () => apiClient.get<EquipmentType[]>('/equipment-types') })
 }
 

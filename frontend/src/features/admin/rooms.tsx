@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
 
-interface Room {
+export interface Room {
   id: number
   building: string
   floor: string
@@ -41,7 +41,7 @@ interface UpsertRoomRequest {
   departmentId?: number
 }
 
-function useRooms() {
+export function useRooms() {
   return useQuery({ queryKey: ['rooms'], queryFn: () => apiClient.get<Room[]>('/rooms') })
 }
 

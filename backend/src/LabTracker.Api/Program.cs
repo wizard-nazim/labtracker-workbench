@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using LabTracker.Api.Middleware;
 using LabTracker.Api.Serialization;
+using LabTracker.Api.Services;
 using LabTracker.Application;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Infrastructure;
@@ -25,6 +26,7 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IEquipmentImageStorage, EquipmentImageStorage>();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
@@ -64,11 +66,14 @@ if (app.Environment.IsDevelopment())
     var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
     var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
     await DbSeeder.SeedDevelopmentUsersAsync(db, passwordHasher);
+    await DbSeeder.SeedDevelopmentSampleDataAsync(db);
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+
+app.UseStaticFiles();
 
 app.UseCors("Frontend");
 

@@ -49,6 +49,7 @@ public class EquipmentService(
             SerialNumber = request.SerialNumber,
             Description = request.Description,
             IsShared = request.IsShared,
+            IconKey = request.IconKey,
             EquipmentTypeId = request.EquipmentTypeId,
             RoomId = request.RoomId,
             OwningDepartmentId = request.OwningDepartmentId,
@@ -71,9 +72,23 @@ public class EquipmentService(
         equipment.SerialNumber = request.SerialNumber;
         equipment.Description = request.Description;
         equipment.IsShared = request.IsShared;
+        equipment.IconKey = request.IconKey;
         equipment.EquipmentTypeId = request.EquipmentTypeId;
         equipment.RoomId = request.RoomId;
         equipment.OwningDepartmentId = request.OwningDepartmentId;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetByIdAsync(id, cancellationToken);
+    }
+
+    // Set by the dedicated image-upload endpoint once the file has been saved to
+    // disk — kept separate from UpdateAsync since that request stays plain JSON.
+    public async Task<EquipmentDto> SetImageAsync(int id, string imageUrl, CancellationToken cancellationToken = default)
+    {
+        var equipment = await db.Equipment.FindAsync([id], cancellationToken)
+            ?? throw new NotFoundException(nameof(EquipmentEntity), id);
+
+        equipment.ImageUrl = imageUrl;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -165,6 +180,8 @@ public class EquipmentService(
         Description = e.Description,
         IsShared = e.IsShared,
         Status = e.Status,
+        ImageUrl = e.ImageUrl,
+        IconKey = e.IconKey,
         EquipmentTypeId = e.EquipmentTypeId,
         EquipmentTypeName = e.EquipmentType.Name,
         RoomId = e.RoomId,
