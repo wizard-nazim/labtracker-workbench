@@ -65,7 +65,9 @@ function HeroReadoutPanel({
       <span className="absolute top-3 right-3 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-medium">
         {banner}
       </span>
-      <Icon className="relative size-4 opacity-80" aria-hidden="true" />
+      <div className="relative inline-flex size-8 items-center justify-center rounded-md bg-white/15 ring-1 ring-white/20 backdrop-blur-sm">
+        <Icon className="size-4 opacity-80" aria-hidden="true" />
+      </div>
       <p className="relative mt-2 font-mono text-3xl font-medium tabular-nums">{value}</p>
       <p className="relative mt-1 text-sm opacity-80">{label}</p>
     </Link>

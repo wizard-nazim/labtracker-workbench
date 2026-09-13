@@ -8,7 +8,7 @@ interface PageBannerProps {
 export function PageBanner({ src, alt = '' }: PageBannerProps) {
   if (src) {
     return (
-      <div className="overflow-hidden rounded-md border border-border">
+      <div className="overflow-hidden rounded-md border border-border shadow-lg ring-1 ring-foreground/10">
         <img src={src} alt={alt} className="h-40 w-full object-cover" />
       </div>
     )

@@ -10,7 +10,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ icon: Icon, title, description, action }: PageHeaderProps) {
   return (
-    <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-md border border-border bg-card px-5 py-4">
+    <div className="relative flex items-center justify-between gap-4 overflow-hidden rounded-md border border-border bg-card px-5 py-4 shadow-sm ring-1 ring-foreground/5">
       <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
       <div className="flex items-center gap-3">
         <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
