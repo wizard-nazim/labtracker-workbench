@@ -10,6 +10,7 @@ import { EquipmentListPage } from '@/features/equipment/equipment-list-page'
 import { BookingsPage } from '@/features/bookings/bookings-page'
 import { UsageRecordsPage } from '@/features/usage/usage-records-page'
 import { AdminPage } from '@/features/admin/admin-page'
+import { ReportsPage } from '@/features/reports/reports-page'
 
 export function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -33,6 +34,7 @@ export function App() {
           <Route path="/equipment" element={<EquipmentListPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/usage" element={<UsageRecordsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

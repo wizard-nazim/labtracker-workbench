@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ClipboardList,
   Settings,
+  BarChart3,
   LogOut,
   ChevronsLeft,
   ChevronsRight,
@@ -53,7 +54,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'System',
-    items: [{ to: '/admin', label: 'Admin', icon: Settings, end: false, roles: ['SuperAdmin'] }],
+    items: [
+      { to: '/reports', label: 'Reports', icon: BarChart3, end: false, roles: ['SuperAdmin'] },
+      { to: '/admin', label: 'Admin', icon: Settings, end: false, roles: ['SuperAdmin'] },
+    ],
   },
 ]
 

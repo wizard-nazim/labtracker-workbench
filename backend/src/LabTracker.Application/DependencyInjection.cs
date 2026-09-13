@@ -4,6 +4,7 @@ using LabTracker.Application.Modules.Equipment;
 using LabTracker.Application.Modules.External;
 using LabTracker.Application.Modules.Identity;
 using LabTracker.Application.Modules.Organization;
+using LabTracker.Application.Modules.Reports;
 using LabTracker.Domain.Modules.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<BookingService>();
         services.AddScoped<UsageRecordService>();
         services.AddScoped<CompanyService>();
+        services.AddScoped<ReportsService>();
 
         return services;
     }
