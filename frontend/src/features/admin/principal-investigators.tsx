@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TableEmptyState } from '@/components/table-empty-state'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,12 +33,17 @@ export interface PrincipalInvestigator {
   email: string
   departmentId: number
   departmentName: string
+  userId: number | null
+  hasLogin: boolean
+  hasEquipmentPermissions: boolean
 }
 
 interface UpsertPrincipalInvestigatorRequest {
   fullName: string
   email: string
   departmentId: number
+  hasEquipmentPermissions: boolean
+  password?: string
 }
 
 export function usePrincipalInvestigators() {
@@ -72,6 +78,8 @@ function PiFields({
   setEmail,
   departmentId,
   setDepartmentId,
+  hasEquipmentPermissions,
+  setHasEquipmentPermissions,
 }: {
   fullName: string
   setFullName: (v: string) => void
@@ -79,6 +87,8 @@ function PiFields({
   setEmail: (v: string) => void
   departmentId: string
   setDepartmentId: (v: string) => void
+  hasEquipmentPermissions: boolean
+  setHasEquipmentPermissions: (v: boolean) => void
 }) {
   const { data: departments } = useDepartments()
 
@@ -107,6 +117,15 @@ function PiFields({
           </SelectContent>
         </Select>
       </div>
+      <label className="flex items-center gap-2 text-sm text-foreground">
+        <input
+          type="checkbox"
+          className="size-4 rounded border-border accent-primary"
+          checked={hasEquipmentPermissions}
+          onChange={(e) => setHasEquipmentPermissions(e.target.checked)}
+        />
+        Can manage equipment for their lab (add/edit equipment, post maintenance notices)
+      </label>
     </>
   )
 }
@@ -115,20 +134,31 @@ function CreatePiDialog() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [departmentId, setDepartmentId] = useState('')
+  const [hasEquipmentPermissions, setHasEquipmentPermissions] = useState(false)
+  const [password, setPassword] = useState('')
   const create = useCreatePrincipalInvestigator()
 
   async function handleSubmit() {
-    await create.mutateAsync({ fullName, email, departmentId: Number(departmentId) })
+    await create.mutateAsync({
+      fullName,
+      email,
+      departmentId: Number(departmentId),
+      hasEquipmentPermissions,
+      password: password || undefined,
+    })
     toast.success(`Added principal investigator "${fullName}".`)
     setFullName('')
     setEmail('')
     setDepartmentId('')
+    setHasEquipmentPermissions(false)
+    setPassword('')
   }
 
   return (
     <EntityDialog
       trigger={<Button size="sm">Add PI</Button>}
       title="Add principal investigator"
+      description="Leave the password blank to add them without a login for now."
       submitLabel="Add PI"
       submitDisabled={!departmentId}
       onSubmit={handleSubmit}
@@ -140,7 +170,19 @@ function CreatePiDialog() {
         setEmail={setEmail}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
+        hasEquipmentPermissions={hasEquipmentPermissions}
+        setHasEquipmentPermissions={setHasEquipmentPermissions}
       />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="pi-password">Password (optional — sets up their login)</Label>
+        <Input
+          id="pi-password"
+          type="password"
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
     </EntityDialog>
   )
 }
@@ -150,10 +192,11 @@ function EditPiDialog({ pi }: { pi: PrincipalInvestigator }) {
   const [fullName, setFullName] = useState(pi.fullName)
   const [email, setEmail] = useState(pi.email)
   const [departmentId, setDepartmentId] = useState(String(pi.departmentId))
+  const [hasEquipmentPermissions, setHasEquipmentPermissions] = useState(pi.hasEquipmentPermissions)
   const update = useUpdatePrincipalInvestigator(pi.id)
 
   async function handleSubmit() {
-    await update.mutateAsync({ fullName, email, departmentId: Number(departmentId) })
+    await update.mutateAsync({ fullName, email, departmentId: Number(departmentId), hasEquipmentPermissions })
     toast.success(`Updated principal investigator "${fullName}".`)
   }
 
@@ -178,7 +221,10 @@ function EditPiDialog({ pi }: { pi: PrincipalInvestigator }) {
         setEmail={setEmail}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
+        hasEquipmentPermissions={hasEquipmentPermissions}
+        setHasEquipmentPermissions={setHasEquipmentPermissions}
       />
+      {!pi.hasLogin && <p className="text-xs text-muted-foreground">No login yet — this PI can't sign in.</p>}
     </EntityDialog>
   )
 }
@@ -189,7 +235,7 @@ export function PrincipalInvestigatorsTab() {
   return (
     <AdminSection
       title="Principal investigators"
-      description="PIs lead research groups. They don't log in to LabTracker themselves."
+      description="PIs lead research groups and can optionally log in and be given equipment permissions."
       action={<CreatePiDialog />}
     >
       <Table>
@@ -198,6 +244,8 @@ export function PrincipalInvestigatorsTab() {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Department</TableHead>
+            <TableHead>Login</TableHead>
+            <TableHead>Permissions</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -205,7 +253,7 @@ export function PrincipalInvestigatorsTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={6}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -213,7 +261,7 @@ export function PrincipalInvestigatorsTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={4}
+              colSpan={6}
               tone="error"
               title="Couldn't load principal investigators."
               description="Check that the API is running and try again."
@@ -221,7 +269,7 @@ export function PrincipalInvestigatorsTab() {
           )}
 
           {!isLoading && !isError && pis?.length === 0 && (
-            <TableEmptyState colSpan={4} title="No principal investigators yet." />
+            <TableEmptyState colSpan={6} title="No principal investigators yet." />
           )}
 
           {pis?.map((pi) => (
@@ -229,6 +277,16 @@ export function PrincipalInvestigatorsTab() {
               <TableCell className="font-medium text-foreground">{pi.fullName}</TableCell>
               <TableCell className="text-muted-foreground">{pi.email}</TableCell>
               <TableCell className="text-muted-foreground">{pi.departmentName}</TableCell>
+              <TableCell>
+                <Badge variant={pi.hasLogin ? 'secondary' : 'outline'}>{pi.hasLogin ? 'Active' : 'No login'}</Badge>
+              </TableCell>
+              <TableCell>
+                {pi.hasEquipmentPermissions ? (
+                  <Badge variant="secondary">Equipment</Badge>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
+              </TableCell>
               <TableCell className="text-right">
                 <EditPiDialog pi={pi} />
               </TableCell>

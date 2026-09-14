@@ -15,5 +15,9 @@ public class RoomConfiguration : IEntityTypeConfiguration<EquipmentModule.Room>
         builder.HasOne(r => r.Department)
             .WithMany()
             .HasForeignKey(r => r.DepartmentId);
+
+        builder.HasOne(r => r.ResearchGroup)
+            .WithMany()
+            .HasForeignKey(r => r.ResearchGroupId);
     }
 }

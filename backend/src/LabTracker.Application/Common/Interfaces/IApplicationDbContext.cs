@@ -17,9 +17,10 @@ public interface IApplicationDbContext
     DbSet<PrincipalInvestigator> PrincipalInvestigators { get; }
     DbSet<ResearchGroup> ResearchGroups { get; }
     DbSet<Researcher> Researchers { get; }
+    DbSet<Facility> Facilities { get; }
 
-    DbSet<Company> Companies { get; }
-    DbSet<CompanyContact> CompanyContacts { get; }
+    DbSet<ExternalOrganization> ExternalOrganizations { get; }
+    DbSet<ExternalContact> ExternalContacts { get; }
 
     DbSet<Domain.Modules.Equipment.Room> Rooms { get; }
     DbSet<Domain.Modules.Equipment.EquipmentType> EquipmentTypes { get; }

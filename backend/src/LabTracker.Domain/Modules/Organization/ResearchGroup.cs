@@ -10,4 +10,6 @@ public class ResearchGroup
 
     public int PrincipalInvestigatorId { get; set; }
     public PrincipalInvestigator PrincipalInvestigator { get; set; } = null!;
+
+    public ICollection<Researcher> Researchers { get; set; } = new List<Researcher>();
 }

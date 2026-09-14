@@ -1,4 +1,5 @@
 using LabTracker.Application.Common.Interfaces;
+using LabTracker.Domain.Modules.Organization;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabTracker.Application.Modules.Reports;
@@ -7,8 +8,11 @@ public class ReportsService(IApplicationDbContext db)
 {
     private const string ExternalBucketName = "External";
 
-    // Attributes each usage session to the research group of the researcher who
-    // used the equipment, grouped over the requested period. External (company
+    // Attributes each usage session to the research group(s) of the researcher who
+    // used the equipment, grouped over the requested period. A researcher who
+    // belongs to more than one lab has their session counted toward *all* of
+    // them (an explicit assumption, pending confirmation of how multi-group
+    // attribution should work — see the Phase 1 plan). External (company
     // contact) usage has no research group, so it's bucketed separately rather
     // than silently dropped from the totals.
     public async Task<List<UsageStatsRow>> GetEquipmentUsageStatsAsync(UsageStatsFilter filter, CancellationToken cancellationToken = default)
@@ -21,7 +25,7 @@ public class ReportsService(IApplicationDbContext db)
         var to = DateTime.SpecifyKind(filter.To, DateTimeKind.Utc);
 
         var query = db.UsageRecords
-            .Include(u => u.Actor).ThenInclude(a => a!.Researcher).ThenInclude(r => r!.ResearchGroup).ThenInclude(g => g!.PrincipalInvestigator)
+            .Include(u => u.Actor).ThenInclude(a => a!.Researcher).ThenInclude(r => r!.ResearchGroups).ThenInclude(g => g.PrincipalInvestigator)
             .Where(u => u.ActualStart >= from && u.ActualStart < to)
             .AsQueryable();
 
@@ -30,19 +34,26 @@ public class ReportsService(IApplicationDbContext db)
 
         var records = await query.ToListAsync(cancellationToken);
 
-        return records
-            .GroupBy(u => u.Actor.Researcher?.ResearchGroupId)
+        var attributions = records.SelectMany(record =>
+        {
+            var groups = record.Actor.Researcher?.ResearchGroups;
+            return groups is { Count: > 0 }
+                ? groups.Select(group => (Record: record, Group: (ResearchGroup?)group))
+                : [(Record: record, Group: (ResearchGroup?)null)];
+        });
+
+        return attributions
+            .GroupBy(a => a.Group?.Id)
             .Select(group =>
             {
-                var first = group.First();
-                var researchGroup = first.Actor.Researcher?.ResearchGroup;
+                var researchGroup = group.First().Group;
                 return new UsageStatsRow
                 {
                     ResearchGroupId = group.Key,
                     ResearchGroupName = researchGroup?.Name ?? ExternalBucketName,
                     PrincipalInvestigatorName = researchGroup?.PrincipalInvestigator.FullName,
                     SessionCount = group.Count(),
-                    TotalHours = Math.Round(group.Sum(u => (u.ActualEnd - u.ActualStart).TotalHours), 1),
+                    TotalHours = Math.Round(group.Sum(a => (a.Record.ActualEnd - a.Record.ActualStart).TotalHours), 1),
                 };
             })
             .OrderByDescending(row => row.TotalHours)

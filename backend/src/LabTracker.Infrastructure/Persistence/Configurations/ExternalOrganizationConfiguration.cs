@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace LabTracker.Infrastructure.Persistence.Configurations;
 
-public class CompanyConfiguration : IEntityTypeConfiguration<Company>
+public class ExternalOrganizationConfiguration : IEntityTypeConfiguration<ExternalOrganization>
 {
-    public void Configure(EntityTypeBuilder<Company> builder)
+    public void Configure(EntityTypeBuilder<ExternalOrganization> builder)
     {
         builder.Property(c => c.Name).HasMaxLength(200).IsRequired();
     }

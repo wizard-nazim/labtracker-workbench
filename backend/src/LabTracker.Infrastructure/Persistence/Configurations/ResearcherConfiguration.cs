@@ -10,14 +10,16 @@ public class ResearcherConfiguration : IEntityTypeConfiguration<Researcher>
     {
         builder.Property(r => r.FullName).HasMaxLength(200).IsRequired();
         builder.Property(r => r.StudentNumber).HasMaxLength(50).IsRequired();
+        builder.Property(r => r.FieldOfStudy).HasMaxLength(100);
 
         builder.HasOne(r => r.User)
             .WithMany()
             .HasForeignKey(r => r.UserId);
 
-        builder.HasOne(r => r.ResearchGroup)
-            .WithMany()
-            .HasForeignKey(r => r.ResearchGroupId);
+        // A student can belong to more than one lab (e.g. "Plant Stress" and "Speedy").
+        builder.HasMany(r => r.ResearchGroups)
+            .WithMany(g => g.Researchers)
+            .UsingEntity(j => j.ToTable("ResearcherResearchGroups"));
 
         // A login account maps to at most one researcher profile.
         builder.HasIndex(r => r.UserId)

@@ -64,6 +64,7 @@ export function GlobalSearch() {
     <>
       <button
         type="button"
+        data-tour="global-search"
         onClick={() => setOpen(true)}
         className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent sm:w-auto sm:min-w-48 sm:justify-start sm:gap-2 sm:rounded-md sm:border sm:border-border sm:px-3 sm:hover:bg-transparent sm:hover:border-primary/40"
       >

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MagicCard } from '@/components/ui/magic-card'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { OrbitMark } from './orbit-mark'
 import { LoginBackground } from './constellation-background'
 
@@ -35,6 +36,9 @@ export function LoginPage() {
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center gap-10 bg-background px-4 py-12 lg:flex-row lg:gap-16">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
       <LoginBackground />
       <div
         className="opacity-0 lg:order-2"

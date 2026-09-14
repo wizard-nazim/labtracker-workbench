@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
+import { useResearchGroups } from './research-groups'
 
 export interface Room {
   id: number
@@ -32,6 +33,8 @@ export interface Room {
   floor: string
   roomNumber: string
   departmentId: number | null
+  researchGroupId: number | null
+  researchGroupName: string | null
 }
 
 interface UpsertRoomRequest {
@@ -39,6 +42,7 @@ interface UpsertRoomRequest {
   floor: string
   roomNumber: string
   departmentId?: number
+  researchGroupId?: number
 }
 
 export function useRooms() {
@@ -70,6 +74,8 @@ function RoomFields({
   setRoomNumber,
   departmentId,
   setDepartmentId,
+  researchGroupId,
+  setResearchGroupId,
 }: {
   building: string
   setBuilding: (v: string) => void
@@ -79,8 +85,11 @@ function RoomFields({
   setRoomNumber: (v: string) => void
   departmentId: string
   setDepartmentId: (v: string) => void
+  researchGroupId: string
+  setResearchGroupId: (v: string) => void
 }) {
   const { data: departments } = useDepartments()
+  const { data: researchGroups } = useResearchGroups()
 
   return (
     <>
@@ -111,6 +120,21 @@ function RoomFields({
           </SelectContent>
         </Select>
       </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="room-lab">Lab (optional — a lab's rooms can span multiple floors)</Label>
+        <Select value={researchGroupId} onValueChange={setResearchGroupId}>
+          <SelectTrigger id="room-lab">
+            <SelectValue placeholder="No lab" />
+          </SelectTrigger>
+          <SelectContent>
+            {researchGroups?.map((group) => (
+              <SelectItem key={group.id} value={String(group.id)}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </>
   )
 }
@@ -120,6 +144,7 @@ function CreateRoomDialog() {
   const [floor, setFloor] = useState('')
   const [roomNumber, setRoomNumber] = useState('')
   const [departmentId, setDepartmentId] = useState('')
+  const [researchGroupId, setResearchGroupId] = useState('')
   const create = useCreateRoom()
 
   async function handleSubmit() {
@@ -128,12 +153,14 @@ function CreateRoomDialog() {
       floor,
       roomNumber,
       departmentId: departmentId ? Number(departmentId) : undefined,
+      researchGroupId: researchGroupId ? Number(researchGroupId) : undefined,
     })
     toast.success(`Added room ${roomNumber}.`)
     setBuilding('')
     setFloor('')
     setRoomNumber('')
     setDepartmentId('')
+    setResearchGroupId('')
   }
 
   return (
@@ -152,6 +179,8 @@ function CreateRoomDialog() {
         setRoomNumber={setRoomNumber}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
+        researchGroupId={researchGroupId}
+        setResearchGroupId={setResearchGroupId}
       />
     </EntityDialog>
   )
@@ -163,6 +192,7 @@ function EditRoomDialog({ room }: { room: Room }) {
   const [floor, setFloor] = useState(room.floor)
   const [roomNumber, setRoomNumber] = useState(room.roomNumber)
   const [departmentId, setDepartmentId] = useState(room.departmentId ? String(room.departmentId) : '')
+  const [researchGroupId, setResearchGroupId] = useState(room.researchGroupId ? String(room.researchGroupId) : '')
   const update = useUpdateRoom(room.id)
 
   async function handleSubmit() {
@@ -171,6 +201,7 @@ function EditRoomDialog({ room }: { room: Room }) {
       floor,
       roomNumber,
       departmentId: departmentId ? Number(departmentId) : undefined,
+      researchGroupId: researchGroupId ? Number(researchGroupId) : undefined,
     })
     toast.success(`Updated room ${roomNumber}.`)
   }
@@ -197,6 +228,8 @@ function EditRoomDialog({ room }: { room: Room }) {
         setRoomNumber={setRoomNumber}
         departmentId={departmentId}
         setDepartmentId={setDepartmentId}
+        researchGroupId={researchGroupId}
+        setResearchGroupId={setResearchGroupId}
       />
     </EntityDialog>
   )
@@ -213,6 +246,7 @@ export function RoomsTab() {
             <TableHead>Building</TableHead>
             <TableHead>Floor</TableHead>
             <TableHead>Room</TableHead>
+            <TableHead>Lab</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -220,7 +254,7 @@ export function RoomsTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -228,20 +262,21 @@ export function RoomsTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={4}
+              colSpan={5}
               tone="error"
               title="Couldn't load rooms."
               description="Check that the API is running and try again."
             />
           )}
 
-          {!isLoading && !isError && rooms?.length === 0 && <TableEmptyState colSpan={4} title="No rooms yet." />}
+          {!isLoading && !isError && rooms?.length === 0 && <TableEmptyState colSpan={5} title="No rooms yet." />}
 
           {rooms?.map((room) => (
             <TableRow key={room.id}>
               <TableCell className="text-muted-foreground">{room.building}</TableCell>
               <TableCell className="text-muted-foreground">{room.floor}</TableCell>
               <TableCell className="font-medium text-foreground">{room.roomNumber}</TableCell>
+              <TableCell className="text-muted-foreground">{room.researchGroupName ?? '—'}</TableCell>
               <TableCell className="text-right">
                 <EditRoomDialog room={room} />
               </TableCell>

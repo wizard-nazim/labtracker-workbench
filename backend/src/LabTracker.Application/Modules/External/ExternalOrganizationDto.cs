@@ -1,27 +1,27 @@
 namespace LabTracker.Application.Modules.External;
 
-public class CompanyDto
+public class ExternalOrganizationDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    public List<CompanyContactDto> Contacts { get; set; } = [];
+    public List<ExternalContactDto> Contacts { get; set; } = [];
 }
 
-public class UpsertCompanyRequest
+public class UpsertExternalOrganizationRequest
 {
     public string Name { get; set; } = string.Empty;
 }
 
-public class CompanyContactDto
+public class ExternalContactDto
 {
     public int Id { get; set; }
-    public int CompanyId { get; set; }
+    public int ExternalOrganizationId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
 }
 
-public class UpsertCompanyContactRequest
+public class UpsertExternalContactRequest
 {
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

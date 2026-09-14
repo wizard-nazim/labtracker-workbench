@@ -18,9 +18,10 @@ public class LabTrackerDbContext(DbContextOptions<LabTrackerDbContext> options)
     public DbSet<PrincipalInvestigator> PrincipalInvestigators => Set<PrincipalInvestigator>();
     public DbSet<ResearchGroup> ResearchGroups => Set<ResearchGroup>();
     public DbSet<Researcher> Researchers => Set<Researcher>();
+    public DbSet<Facility> Facilities => Set<Facility>();
 
-    public DbSet<Company> Companies => Set<Company>();
-    public DbSet<CompanyContact> CompanyContacts => Set<CompanyContact>();
+    public DbSet<ExternalOrganization> ExternalOrganizations => Set<ExternalOrganization>();
+    public DbSet<ExternalContact> ExternalContacts => Set<ExternalContact>();
 
     public DbSet<EquipmentModule.Room> Rooms => Set<EquipmentModule.Room>();
     public DbSet<EquipmentModule.EquipmentType> EquipmentTypes => Set<EquipmentModule.EquipmentType>();

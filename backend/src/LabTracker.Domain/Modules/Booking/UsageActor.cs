@@ -5,7 +5,7 @@ using LabTracker.Shared.Enums;
 namespace LabTracker.Domain.Modules.Booking;
 
 // The one place internal-vs-external usage duality lives: Bookings and UsageRecords
-// reference only UsageActor, never Researcher/CompanyContact directly.
+// reference only UsageActor, never Researcher/ExternalContact directly.
 public class UsageActor
 {
     public int Id { get; set; }
@@ -15,6 +15,6 @@ public class UsageActor
     public int? ResearcherId { get; set; }
     public Researcher? Researcher { get; set; }
 
-    public int? CompanyContactId { get; set; }
-    public CompanyContact? CompanyContact { get; set; }
+    public int? ExternalContactId { get; set; }
+    public ExternalContact? ExternalContact { get; set; }
 }

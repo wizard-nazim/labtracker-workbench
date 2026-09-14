@@ -2,17 +2,17 @@ using FluentValidation;
 
 namespace LabTracker.Application.Modules.External;
 
-public class UpsertCompanyRequestValidator : AbstractValidator<UpsertCompanyRequest>
+public class UpsertExternalOrganizationRequestValidator : AbstractValidator<UpsertExternalOrganizationRequest>
 {
-    public UpsertCompanyRequestValidator()
+    public UpsertExternalOrganizationRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
     }
 }
 
-public class UpsertCompanyContactRequestValidator : AbstractValidator<UpsertCompanyContactRequest>
+public class UpsertExternalContactRequestValidator : AbstractValidator<UpsertExternalContactRequest>
 {
-    public UpsertCompanyContactRequestValidator()
+    public UpsertExternalContactRequestValidator()
     {
         RuleFor(x => x.FullName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Email).NotEmpty().MaximumLength(256).EmailAddress();

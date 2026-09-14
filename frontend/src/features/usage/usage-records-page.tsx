@@ -31,7 +31,7 @@ export function UsageRecordsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageBanner />
+      <PageBanner src="/banners/usage-banner.jpg" alt="Usage" />
 
       <PageHeader
         icon={ClipboardList}

@@ -76,7 +76,7 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageBanner />
+      <PageBanner src="/banners/reports-banner.jpg" alt="Reports" />
 
       <PageHeader
         icon={BarChart3}

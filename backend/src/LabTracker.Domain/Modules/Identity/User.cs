@@ -10,4 +10,6 @@ public class User
     public Role Role { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
+    public bool HasCompletedOnboarding { get; set; }
+    public bool HasCompletedAdminTour { get; set; }
 }

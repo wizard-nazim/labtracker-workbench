@@ -26,9 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-type UserRole = 'SuperAdmin' | 'ScienceOfficer' | 'Researcher'
+type UserRole = 'SuperAdmin' | 'ScienceOfficer' | 'Researcher' | 'PrincipalInvestigator'
 
-interface User {
+export interface User {
   id: number
   email: string
   role: UserRole
@@ -46,9 +46,14 @@ const ROLE_LABEL: Record<UserRole, string> = {
   SuperAdmin: 'Super Admin',
   ScienceOfficer: 'Science Officer',
   Researcher: 'Researcher',
+  PrincipalInvestigator: 'Principal Investigator',
 }
 
-function useUsers() {
+// Principal Investigator accounts are provisioned from the Admin → Principal
+// Investigators tab instead, so they're not offered as a role here.
+const CREATABLE_ROLES: UserRole[] = ['SuperAdmin', 'ScienceOfficer', 'Researcher']
+
+export function useUsers() {
   return useQuery({ queryKey: ['users'], queryFn: () => apiClient.get<User[]>('/users') })
 }
 
@@ -112,7 +117,7 @@ function CreateUserDialog() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(ROLE_LABEL) as UserRole[]).map((value) => (
+            {CREATABLE_ROLES.map((value) => (
               <SelectItem key={value} value={value}>
                 {ROLE_LABEL[value]}
               </SelectItem>

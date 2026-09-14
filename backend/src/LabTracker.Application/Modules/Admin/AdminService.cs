@@ -1,5 +1,6 @@
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Domain.Modules.Identity;
+using LabTracker.Domain.Modules.Organization;
 using LabTracker.Shared.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public class AdminService(IApplicationDbContext db, IPasswordHasher<User> passwo
         db.UsageRecords.RemoveRange(db.UsageRecords);
         db.Bookings.RemoveRange(db.Bookings);
         db.EquipmentScienceOfficers.RemoveRange(db.EquipmentScienceOfficers);
+        db.Facilities.RemoveRange(db.Facilities);
         db.UsageActors.RemoveRange(db.UsageActors);
         db.Equipment.RemoveRange(db.Equipment);
         db.Rooms.RemoveRange(db.Rooms);
@@ -41,12 +43,13 @@ public class AdminService(IApplicationDbContext db, IPasswordHasher<User> passwo
         db.Researchers.RemoveRange(db.Researchers);
         db.ResearchGroups.RemoveRange(db.ResearchGroups);
         db.PrincipalInvestigators.RemoveRange(db.PrincipalInvestigators);
-        db.CompanyContacts.RemoveRange(db.CompanyContacts);
-        db.Companies.RemoveRange(db.Companies);
+        db.ExternalContacts.RemoveRange(db.ExternalContacts);
+        db.ExternalOrganizations.RemoveRange(db.ExternalOrganizations);
         db.Departments.RemoveRange(db.Departments);
         db.Users.RemoveRange(db.Users);
         await db.SaveChangesAsync(cancellationToken);
 
+        var createdUsers = new Dictionary<Role, User>();
         foreach (var (email, role) in DefaultUsers)
         {
             var user = new User
@@ -58,8 +61,18 @@ public class AdminService(IApplicationDbContext db, IPasswordHasher<User> passwo
             };
             user.PasswordHash = passwordHasher.HashPassword(user, DefaultPassword);
             db.Users.Add(user);
+            createdUsers[role] = user;
         }
+        await db.SaveChangesAsync(cancellationToken);
 
+        // Give the Researcher and Science Officer default logins their own
+        // linked Researcher profile (no research group yet — the admin adds
+        // real ones) so they can book equipment for themselves immediately,
+        // instead of hitting "ResearcherId is required when booking on behalf
+        // of someone else."
+        db.Researchers.AddRange(
+            new Researcher { FullName = "Researcher", StudentNumber = "DEFAULT-RES", UserId = createdUsers[Role.Researcher].Id },
+            new Researcher { FullName = "Science Officer", StudentNumber = "DEFAULT-SO", UserId = createdUsers[Role.ScienceOfficer].Id });
         await db.SaveChangesAsync(cancellationToken);
     }
 }

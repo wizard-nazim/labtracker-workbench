@@ -20,17 +20,17 @@ public class EquipmentController(EquipmentService service, IEquipmentImageStorag
         => Ok(await service.GetByIdAsync(id, cancellationToken));
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,PrincipalInvestigator")]
     public async Task<ActionResult<EquipmentDto>> Create(UpsertEquipmentRequest request, CancellationToken cancellationToken)
     {
-        var created = await service.CreateAsync(request, cancellationToken);
+        var created = await service.CreateAsync(request, User.GetUserId(), User.GetRole(), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "SuperAdmin")]
+    [Authorize(Roles = "SuperAdmin,PrincipalInvestigator")]
     public async Task<ActionResult<EquipmentDto>> Update(int id, UpsertEquipmentRequest request, CancellationToken cancellationToken)
-        => Ok(await service.UpdateAsync(id, request, cancellationToken));
+        => Ok(await service.UpdateAsync(id, request, User.GetUserId(), User.GetRole(), cancellationToken));
 
     [HttpPost("{id:int}/image")]
     [Authorize(Roles = "SuperAdmin")]

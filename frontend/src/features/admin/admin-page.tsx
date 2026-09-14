@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Settings, TriangleAlert } from 'lucide-react'
+import { Joyride } from 'react-joyride'
+import { Settings, TriangleAlert, HelpCircle } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAdminTour } from '@/features/onboarding/use-admin-tour'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +28,8 @@ import { ResearchGroupsTab } from './research-groups'
 import { ResearchersTab } from './researchers'
 import { EquipmentTypesTab } from './equipment-types'
 import { RoomsTab } from './rooms'
-import { CompaniesTab } from './companies'
+import { FacilitiesTab } from './facilities'
+import { ExternalTab } from './external'
 import { UsersTab } from './users'
 
 // Each tab gets its own accent, distinct from the equipment-status colors
@@ -70,8 +73,14 @@ const TABS = [
       'bg-orange-500/10 text-orange-700 dark:text-orange-300 data-active:bg-orange-500/25 data-active:text-orange-700 dark:data-active:text-orange-300',
   },
   {
-    value: 'companies',
-    label: 'Companies',
+    value: 'facilities',
+    label: 'Facilities',
+    accentClass:
+      'bg-teal-500/10 text-teal-700 dark:text-teal-300 data-active:bg-teal-500/25 data-active:text-teal-700 dark:data-active:text-teal-300',
+  },
+  {
+    value: 'external',
+    label: 'External',
     accentClass:
       'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 data-active:bg-cyan-500/25 data-active:text-cyan-700 dark:data-active:text-cyan-300',
   },
@@ -83,28 +92,65 @@ const TABS = [
   },
 ]
 
+const TAB_TOUR_ID: Record<string, string> = {
+  departments: 'admin-tab-departments',
+  facilities: 'admin-tab-facilities',
+  users: 'admin-tab-users',
+}
+
 export function AdminPage() {
   const { user } = useAuth()
+  const tour = useAdminTour()
   if (user?.role !== 'SuperAdmin') return <Navigate to="/" replace />
 
   return (
     <div className="flex flex-col gap-6">
-      <PageBanner />
+      <Joyride
+        steps={tour.steps}
+        run={tour.run}
+        onEvent={tour.handleEvent}
+        continuous
+        options={{
+          showProgress: true,
+          skipBeacon: true,
+          buttons: ['back', 'skip', 'primary'],
+          primaryColor: 'var(--primary)',
+          backgroundColor: 'var(--popover)',
+          textColor: 'var(--popover-foreground)',
+          arrowColor: 'var(--popover)',
+          overlayColor: 'rgba(0, 0, 0, 0.5)',
+        }}
+      />
+
+      <PageBanner src="/banners/admin-banner.jpg" alt="Admin" />
 
       <PageHeader
         icon={Settings}
         title="Admin"
         description="Manage the master data equipment and bookings depend on."
+        action={
+          <Button size="sm" variant="outline" onClick={tour.restart}>
+            <HelpCircle className="size-4" aria-hidden="true" />
+            Take a tour
+          </Button>
+        }
       />
 
       <Tabs defaultValue="departments">
-        <TabsList>
-          {TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} className={tab.accentClass}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        <div className="overflow-x-auto" data-tour="admin-tabs">
+          <TabsList>
+            {TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                data-tour={TAB_TOUR_ID[tab.value]}
+                className={`${tab.accentClass} shrink-0`}
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         <TabsContent value="departments">
           <DepartmentsTab />
@@ -124,8 +170,11 @@ export function AdminPage() {
         <TabsContent value="rooms">
           <RoomsTab />
         </TabsContent>
-        <TabsContent value="companies">
-          <CompaniesTab />
+        <TabsContent value="facilities">
+          <FacilitiesTab />
+        </TabsContent>
+        <TabsContent value="external">
+          <ExternalTab />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab />
@@ -156,7 +205,7 @@ function DangerZone() {
   }
 
   return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-5">
+    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-5" data-tour="danger-zone">
       <div className="flex items-center gap-2 text-destructive">
         <TriangleAlert className="size-4" aria-hidden="true" />
         <h2 className="text-sm font-semibold">Danger zone</h2>

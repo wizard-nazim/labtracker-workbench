@@ -5,4 +5,5 @@ public enum Role
     SuperAdmin,
     ScienceOfficer,
     Researcher,
+    PrincipalInvestigator,
 }

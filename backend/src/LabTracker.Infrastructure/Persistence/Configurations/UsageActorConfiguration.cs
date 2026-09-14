@@ -14,14 +14,14 @@ public class UsageActorConfiguration : IEntityTypeConfiguration<UsageActor>
             .WithMany()
             .HasForeignKey(a => a.ResearcherId);
 
-        builder.HasOne(a => a.CompanyContact)
+        builder.HasOne(a => a.ExternalContact)
             .WithMany()
-            .HasForeignKey(a => a.CompanyContactId);
+            .HasForeignKey(a => a.ExternalContactId);
 
-        // Exactly one of Researcher/CompanyContact set, matching ActorType.
+        // Exactly one of Researcher/ExternalContact set, matching ActorType.
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_UsageActor_ExactlyOneParty",
-            "(\"ResearcherId\" IS NOT NULL AND \"CompanyContactId\" IS NULL) OR " +
-            "(\"ResearcherId\" IS NULL AND \"CompanyContactId\" IS NOT NULL)"));
+            "(\"ResearcherId\" IS NOT NULL AND \"ExternalContactId\" IS NULL) OR " +
+            "(\"ResearcherId\" IS NULL AND \"ExternalContactId\" IS NOT NULL)"));
     }
 }

@@ -25,13 +25,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useResearchGroups } from './research-groups'
+import { useUsers } from './users'
 
 export interface Researcher {
   id: number
   fullName: string
   studentNumber: string
-  researchGroupId: number
-  researchGroupName: string
+  fieldOfStudy: string | null
+  researchGroupIds: number[]
+  researchGroupNames: string[]
   userId: number | null
   userEmail: string | null
 }
@@ -39,7 +41,9 @@ export interface Researcher {
 interface UpsertResearcherRequest {
   fullName: string
   studentNumber: string
-  researchGroupId: number
+  fieldOfStudy?: string
+  researchGroupIds: number[]
+  userId?: number
 }
 
 export function useResearchers() {
@@ -67,17 +71,43 @@ function ResearcherFields({
   setFullName,
   studentNumber,
   setStudentNumber,
-  researchGroupId,
-  setResearchGroupId,
+  fieldOfStudy,
+  setFieldOfStudy,
+  researchGroupIds,
+  setResearchGroupIds,
+  userId,
+  setUserId,
+  currentResearcherId,
 }: {
   fullName: string
   setFullName: (v: string) => void
   studentNumber: string
   setStudentNumber: (v: string) => void
-  researchGroupId: string
-  setResearchGroupId: (v: string) => void
+  fieldOfStudy: string
+  setFieldOfStudy: (v: string) => void
+  researchGroupIds: number[]
+  setResearchGroupIds: (v: number[]) => void
+  userId: string
+  setUserId: (v: string) => void
+  currentResearcherId?: number
 }) {
   const { data: groups } = useResearchGroups()
+  const { data: users } = useUsers()
+  const { data: researchers } = useResearchers()
+
+  // A user can only be linked to one Researcher profile at a time (enforced by
+  // a unique index) — exclude users already linked to a *different* researcher,
+  // but keep this researcher's own current link selectable when editing.
+  const linkedElsewhere = new Set(
+    (researchers ?? []).filter((r) => r.id !== currentResearcherId && r.userId).map((r) => r.userId),
+  )
+  const linkableUsers = (users ?? []).filter((u) => u.role !== 'SuperAdmin' && !linkedElsewhere.has(u.id))
+
+  function toggleGroup(id: number) {
+    setResearchGroupIds(
+      researchGroupIds.includes(id) ? researchGroupIds.filter((g) => g !== id) : [...researchGroupIds, id],
+    )
+  }
 
   return (
     <>
@@ -95,19 +125,45 @@ function ResearcherFields({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="researcher-group">Research group</Label>
-        <Select value={researchGroupId} onValueChange={setResearchGroupId} required>
-          <SelectTrigger id="researcher-group">
-            <SelectValue placeholder="Select research group" />
+        <Label htmlFor="researcher-field-of-study">Field of study (optional)</Label>
+        <Input
+          id="researcher-field-of-study"
+          placeholder="e.g. Honours, Masters, PhD"
+          value={fieldOfStudy}
+          onChange={(e) => setFieldOfStudy(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="researcher-user">Linked account (optional)</Label>
+        <Select value={userId} onValueChange={setUserId}>
+          <SelectTrigger id="researcher-user">
+            <SelectValue placeholder="No account" />
           </SelectTrigger>
           <SelectContent>
-            {groups?.map((group) => (
-              <SelectItem key={group.id} value={String(group.id)}>
-                {group.name}
+            <SelectItem value="none">No account</SelectItem>
+            {linkableUsers.map((u) => (
+              <SelectItem key={u.id} value={String(u.id)}>
+                {u.email}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label>Research groups (a student can belong to more than one)</Label>
+        <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-2">
+          {groups?.map((group) => (
+            <label key={group.id} className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-border accent-primary"
+                checked={researchGroupIds.includes(group.id)}
+                onChange={() => toggleGroup(group.id)}
+              />
+              {group.name}
+            </label>
+          ))}
+        </div>
       </div>
     </>
   )
@@ -116,24 +172,34 @@ function ResearcherFields({
 function CreateResearcherDialog() {
   const [fullName, setFullName] = useState('')
   const [studentNumber, setStudentNumber] = useState('')
-  const [researchGroupId, setResearchGroupId] = useState('')
+  const [fieldOfStudy, setFieldOfStudy] = useState('')
+  const [researchGroupIds, setResearchGroupIds] = useState<number[]>([])
+  const [userId, setUserId] = useState('')
   const create = useCreateResearcher()
 
   async function handleSubmit() {
-    await create.mutateAsync({ fullName, studentNumber, researchGroupId: Number(researchGroupId) })
+    await create.mutateAsync({
+      fullName,
+      studentNumber,
+      fieldOfStudy: fieldOfStudy || undefined,
+      researchGroupIds,
+      userId: userId && userId !== 'none' ? Number(userId) : undefined,
+    })
     toast.success(`Added researcher "${fullName}".`)
     setFullName('')
     setStudentNumber('')
-    setResearchGroupId('')
+    setFieldOfStudy('')
+    setResearchGroupIds([])
+    setUserId('')
   }
 
   return (
     <EntityDialog
       trigger={<Button size="sm">Add researcher</Button>}
       title="Add researcher"
-      description="Creates a research profile. Linking it to a login account happens separately once the researcher has one."
+      description="Creates a research profile, optionally linked to an existing login account."
       submitLabel="Add researcher"
-      submitDisabled={!researchGroupId}
+      submitDisabled={researchGroupIds.length === 0}
       onSubmit={handleSubmit}
     >
       <ResearcherFields
@@ -141,8 +207,12 @@ function CreateResearcherDialog() {
         setFullName={setFullName}
         studentNumber={studentNumber}
         setStudentNumber={setStudentNumber}
-        researchGroupId={researchGroupId}
-        setResearchGroupId={setResearchGroupId}
+        fieldOfStudy={fieldOfStudy}
+        setFieldOfStudy={setFieldOfStudy}
+        researchGroupIds={researchGroupIds}
+        setResearchGroupIds={setResearchGroupIds}
+        userId={userId}
+        setUserId={setUserId}
       />
     </EntityDialog>
   )
@@ -152,11 +222,19 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
   const [open, setOpen] = useState(false)
   const [fullName, setFullName] = useState(researcher.fullName)
   const [studentNumber, setStudentNumber] = useState(researcher.studentNumber)
-  const [researchGroupId, setResearchGroupId] = useState(String(researcher.researchGroupId))
+  const [fieldOfStudy, setFieldOfStudy] = useState(researcher.fieldOfStudy ?? '')
+  const [researchGroupIds, setResearchGroupIds] = useState<number[]>(researcher.researchGroupIds)
+  const [userId, setUserId] = useState(researcher.userId ? String(researcher.userId) : 'none')
   const update = useUpdateResearcher(researcher.id)
 
   async function handleSubmit() {
-    await update.mutateAsync({ fullName, studentNumber, researchGroupId: Number(researchGroupId) })
+    await update.mutateAsync({
+      fullName,
+      studentNumber,
+      fieldOfStudy: fieldOfStudy || undefined,
+      researchGroupIds,
+      userId: userId && userId !== 'none' ? Number(userId) : undefined,
+    })
     toast.success(`Updated researcher "${fullName}".`)
   }
 
@@ -169,7 +247,7 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
       }
       title="Edit researcher"
       submitLabel="Save changes"
-      submitDisabled={!researchGroupId}
+      submitDisabled={researchGroupIds.length === 0}
       onSubmit={handleSubmit}
       open={open}
       onOpenChange={setOpen}
@@ -179,8 +257,13 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
         setFullName={setFullName}
         studentNumber={studentNumber}
         setStudentNumber={setStudentNumber}
-        researchGroupId={researchGroupId}
-        setResearchGroupId={setResearchGroupId}
+        fieldOfStudy={fieldOfStudy}
+        setFieldOfStudy={setFieldOfStudy}
+        researchGroupIds={researchGroupIds}
+        setResearchGroupIds={setResearchGroupIds}
+        userId={userId}
+        setUserId={setUserId}
+        currentResearcherId={researcher.id}
       />
     </EntityDialog>
   )
@@ -200,7 +283,8 @@ export function ResearchersTab() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Student no.</TableHead>
-            <TableHead>Research group</TableHead>
+            <TableHead>Field of study</TableHead>
+            <TableHead>Research groups</TableHead>
             <TableHead>Account</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -209,7 +293,7 @@ export function ResearchersTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -217,7 +301,7 @@ export function ResearchersTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={5}
+              colSpan={6}
               tone="error"
               title="Couldn't load researchers."
               description="Check that the API is running and try again."
@@ -225,14 +309,15 @@ export function ResearchersTab() {
           )}
 
           {!isLoading && !isError && researchers?.length === 0 && (
-            <TableEmptyState colSpan={5} title="No researchers yet." />
+            <TableEmptyState colSpan={6} title="No researchers yet." />
           )}
 
           {researchers?.map((researcher) => (
             <TableRow key={researcher.id}>
               <TableCell className="font-medium text-foreground">{researcher.fullName}</TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">{researcher.studentNumber}</TableCell>
-              <TableCell className="text-muted-foreground">{researcher.researchGroupName}</TableCell>
+              <TableCell className="text-muted-foreground">{researcher.fieldOfStudy ?? '—'}</TableCell>
+              <TableCell className="text-muted-foreground">{researcher.researchGroupNames.join(', ')}</TableCell>
               <TableCell className="text-muted-foreground">{researcher.userEmail ?? 'No account yet'}</TableCell>
               <TableCell className="text-right">
                 <EditResearcherDialog researcher={researcher} />

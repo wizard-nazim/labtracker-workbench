@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowLeft, Info, TriangleAlert } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
+import { canBookEquipment } from '@/types/roles'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -41,8 +42,9 @@ export function EquipmentDetailPage() {
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
 
-  const canBook = user?.role === 'Researcher'
+  const canBook = canBookEquipment(user?.role)
   const isSuperAdmin = user?.role === 'SuperAdmin'
+  const canManageEquipment = isSuperAdmin || user?.role === 'PrincipalInvestigator'
 
   async function handleBook() {
     if (!equipment) return
@@ -104,7 +106,7 @@ export function EquipmentDetailPage() {
               </div>
             </div>
           </div>
-          {isSuperAdmin && <EditEquipmentDialog equipment={equipment} />}
+          {canManageEquipment && <EditEquipmentDialog equipment={equipment} />}
         </div>
 
         {equipment.description && (

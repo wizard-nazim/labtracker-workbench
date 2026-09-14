@@ -71,7 +71,7 @@ export function BookingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageBanner />
+      <PageBanner src="/banners/bookings-banner.jpg" alt="Bookings" />
 
       <PageHeader
         icon={CalendarClock}

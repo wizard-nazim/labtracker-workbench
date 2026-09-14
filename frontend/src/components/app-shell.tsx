@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Outlet, NavLink } from 'react-router-dom'
-import { LogOut, ChevronsLeft, ChevronsRight, ChevronDown, Menu } from 'lucide-react'
+import { Outlet, NavLink, Link } from 'react-router-dom'
+import { Joyride } from 'react-joyride'
+import { LogOut, ChevronsLeft, ChevronsRight, ChevronDown, Menu, UserRound, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { NAV_GROUPS, type NavGroup } from '@/lib/nav-items'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { NotificationsPanel } from '@/components/notifications-panel'
 import { GlobalSearch } from '@/components/global-search'
+import { useOnboardingTour } from '@/features/onboarding/use-onboarding-tour'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +23,7 @@ const ROLE_LABEL: Record<string, string> = {
   SuperAdmin: 'Super Admin',
   ScienceOfficer: 'Science Officer',
   Researcher: 'Researcher',
+  PrincipalInvestigator: 'Principal Investigator',
 }
 
 function LabTrackerMark() {
@@ -55,6 +58,7 @@ function NavList({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collap
                 end={end}
                 title={collapsed ? label : undefined}
                 onClick={onNavigate}
+                data-tour={`nav-${to === '/' ? 'dashboard' : to.slice(1)}`}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors ${
                     collapsed ? 'justify-center px-0' : ''
@@ -80,6 +84,7 @@ export function AppShell() {
   const { user, logout } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const tour = useOnboardingTour()
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -89,6 +94,7 @@ export function AppShell() {
   const profileMenu = (
     <DropdownMenu>
       <DropdownMenuTrigger
+        data-tour="profile-menu"
         className={`flex w-full items-center gap-2.5 p-3 text-left outline-none transition-colors hover:bg-sidebar-accent/60 ${
           collapsed ? 'justify-center' : ''
         }`}
@@ -112,6 +118,17 @@ export function AppShell() {
           <span className="text-xs font-normal text-muted-foreground">{user ? ROLE_LABEL[user.role] : ''}</span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/account">
+            <UserRound className="size-4" aria-hidden="true" />
+            Account
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={tour.restart}>
+          <HelpCircle className="size-4" aria-hidden="true" />
+          Restart tutorial
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={logout}>
           <LogOut className="size-4" aria-hidden="true" />
           Sign out
@@ -122,6 +139,23 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-svh bg-background">
+      <Joyride
+        steps={tour.steps}
+        run={tour.run}
+        onEvent={tour.handleEvent}
+        continuous
+        options={{
+          showProgress: true,
+          skipBeacon: true,
+          buttons: ['back', 'skip', 'primary'],
+          primaryColor: 'var(--primary)',
+          backgroundColor: 'var(--popover)',
+          textColor: 'var(--popover-foreground)',
+          arrowColor: 'var(--popover)',
+          overlayColor: 'rgba(0, 0, 0, 0.5)',
+        }}
+      />
+
       <aside
         className={`hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex ${
           collapsed ? 'w-16' : 'w-60'
@@ -165,6 +199,7 @@ export function AppShell() {
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
+              data-tour="mobile-nav-toggle"
               onClick={() => setMobileNavOpen(true)}
               className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
               aria-label="Open navigation"

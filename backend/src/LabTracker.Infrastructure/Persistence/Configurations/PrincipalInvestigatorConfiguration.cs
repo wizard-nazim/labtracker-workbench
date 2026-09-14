@@ -14,5 +14,14 @@ public class PrincipalInvestigatorConfiguration : IEntityTypeConfiguration<Princ
         builder.HasOne(p => p.Department)
             .WithMany()
             .HasForeignKey(p => p.DepartmentId);
+
+        builder.HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId);
+
+        // A login account maps to at most one PI profile (mirrors Researcher.UserId).
+        builder.HasIndex(p => p.UserId)
+            .IsUnique()
+            .HasFilter("\"UserId\" IS NOT NULL");
     }
 }
