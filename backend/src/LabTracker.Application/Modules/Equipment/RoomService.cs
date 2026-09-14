@@ -11,6 +11,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
     public async Task<List<RoomDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await db.Rooms
+            .Include(r => r.ResearchGroup)
             .OrderBy(r => r.Building).ThenBy(r => r.Floor).ThenBy(r => r.RoomNumber)
             .Select(r => ToDto(r))
             .ToListAsync(cancellationToken);
@@ -18,7 +19,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
 
     public async Task<RoomDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var room = await db.Rooms.FindAsync([id], cancellationToken)
+        var room = await db.Rooms.Include(r => r.ResearchGroup).SingleOrDefaultAsync(r => r.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(RoomEntity), id);
 
         return ToDto(room);
@@ -34,11 +35,12 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
             Floor = request.Floor,
             RoomNumber = request.RoomNumber,
             DepartmentId = request.DepartmentId,
+            ResearchGroupId = request.ResearchGroupId,
         };
         db.Rooms.Add(room);
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToDto(room);
+        return await GetByIdAsync(room.Id, cancellationToken);
     }
 
     public async Task<RoomDto> UpdateAsync(int id, UpsertRoomRequest request, CancellationToken cancellationToken = default)
@@ -52,9 +54,10 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
         room.Floor = request.Floor;
         room.RoomNumber = request.RoomNumber;
         room.DepartmentId = request.DepartmentId;
+        room.ResearchGroupId = request.ResearchGroupId;
         await db.SaveChangesAsync(cancellationToken);
 
-        return ToDto(room);
+        return await GetByIdAsync(id, cancellationToken);
     }
 
     private static RoomDto ToDto(RoomEntity r) => new()
@@ -64,5 +67,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
         Floor = r.Floor,
         RoomNumber = r.RoomNumber,
         DepartmentId = r.DepartmentId,
+        ResearchGroupId = r.ResearchGroupId,
+        ResearchGroupName = r.ResearchGroup?.Name,
     };
 }

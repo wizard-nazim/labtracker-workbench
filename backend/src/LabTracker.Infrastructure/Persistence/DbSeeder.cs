@@ -140,11 +140,26 @@ public static class DbSeeder
         db.ResearchGroups.AddRange(okaforLab, chenLab);
         await db.SaveChangesAsync();
 
-        var nadia = new Researcher { FullName = "Nadia Petrov", StudentNumber = "STU1001", ResearchGroupId = okaforLab.Id };
-        var sam = new Researcher { FullName = "Sam Reyes", StudentNumber = "STU1002", ResearchGroupId = okaforLab.Id };
-        var priya = new Researcher { FullName = "Priya Nair", StudentNumber = "STU1003", ResearchGroupId = chenLab.Id };
-        var tom = new Researcher { FullName = "Tom Becker", StudentNumber = "STU1004", ResearchGroupId = chenLab.Id };
+        var nadia = new Researcher { FullName = "Nadia Petrov", StudentNumber = "STU1001", ResearchGroups = [okaforLab] };
+        var sam = new Researcher { FullName = "Sam Reyes", StudentNumber = "STU1002", ResearchGroups = [okaforLab] };
+        var priya = new Researcher { FullName = "Priya Nair", StudentNumber = "STU1003", ResearchGroups = [chenLab] };
+        var tom = new Researcher { FullName = "Tom Becker", StudentNumber = "STU1004", ResearchGroups = [chenLab] };
         db.Researchers.AddRange(nadia, sam, priya, tom);
+        await db.SaveChangesAsync();
+
+        // Link the non-admin dev logins to their own Researcher profile so they
+        // can book equipment for themselves out of the box, instead of hitting
+        // "ResearcherId is required when booking on behalf of someone else."
+        var researcherUserId = await db.Users.Where(u => u.Email == "researcher@labtracker.local").Select(u => u.Id).SingleOrDefaultAsync();
+        var scienceOfficerUserId = await db.Users.Where(u => u.Email == "so@labtracker.local").Select(u => u.Id).SingleOrDefaultAsync();
+        if (researcherUserId != 0)
+        {
+            db.Researchers.Add(new Researcher { FullName = "Demo Researcher", StudentNumber = "STU1000", UserId = researcherUserId, ResearchGroups = [okaforLab] });
+        }
+        if (scienceOfficerUserId != 0)
+        {
+            db.Researchers.Add(new Researcher { FullName = "Demo Science Officer", StudentNumber = "STU1005", UserId = scienceOfficerUserId, ResearchGroups = [okaforLab] });
+        }
         await db.SaveChangesAsync();
 
         var actorsByResearcher = new Dictionary<Researcher, UsageActor>();

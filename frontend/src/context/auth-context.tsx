@@ -16,10 +16,14 @@ interface LoginResponse {
   role: string
 }
 
+export type AuthTransition = 'login' | 'logout' | null
+
 interface AuthContextValue {
   user: CurrentUser | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  transition: AuthTransition
+  clearTransition: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -34,6 +38,10 @@ function userFromToken(token: string): CurrentUser | null {
   }
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 function readInitialUser(): CurrentUser | null {
   const token = authStorage.getToken()
   if (!token) return null
@@ -45,6 +53,7 @@ function readInitialUser(): CurrentUser | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<CurrentUser | null>(readInitialUser)
+  const [transition, setTransition] = useState<AuthTransition>(null)
 
   async function login(email: string, password: string) {
     const result = await apiClient.post<LoginResponse>('/auth/login', { email, password })
@@ -52,14 +61,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!decoded) throw new Error('Received an invalid session token.')
     authStorage.setToken(result.token)
     setUser(decoded)
+    if (!prefersReducedMotion()) setTransition('login')
   }
 
   function logout() {
     authStorage.clearToken()
     setUser(null)
+    if (!prefersReducedMotion()) setTransition('logout')
   }
 
-  return <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>
+  function clearTransition() {
+    setTransition(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, transition, clearTransition }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

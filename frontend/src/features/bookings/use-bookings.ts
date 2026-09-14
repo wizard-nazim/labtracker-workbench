@@ -4,10 +4,12 @@ import type { Booking, CreateBookingRequest } from './types'
 
 const BOOKINGS_KEY = ['bookings']
 
-export function useBookings() {
+export function useBookings(filter?: { equipmentId?: number }) {
+  const query = filter?.equipmentId ? `?equipmentId=${filter.equipmentId}` : ''
+
   return useQuery({
-    queryKey: BOOKINGS_KEY,
-    queryFn: () => apiClient.get<Booking[]>('/bookings'),
+    queryKey: filter?.equipmentId ? [...BOOKINGS_KEY, filter] : BOOKINGS_KEY,
+    queryFn: () => apiClient.get<Booking[]>(`/bookings${query}`),
   })
 }
 

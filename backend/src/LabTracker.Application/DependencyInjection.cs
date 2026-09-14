@@ -1,4 +1,5 @@
 using FluentValidation;
+using LabTracker.Application.Modules.Admin;
 using LabTracker.Application.Modules.Booking;
 using LabTracker.Application.Modules.Equipment;
 using LabTracker.Application.Modules.External;
@@ -19,18 +20,22 @@ public static class DependencyInjection
 
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<AuthService>();
+        services.AddScoped<AccountService>();
+        services.AddScoped<UserService>();
+        services.AddScoped<AdminService>();
 
         services.AddScoped<DepartmentService>();
         services.AddScoped<PrincipalInvestigatorService>();
         services.AddScoped<ResearchGroupService>();
         services.AddScoped<ResearcherService>();
+        services.AddScoped<FacilityService>();
         services.AddScoped<EquipmentTypeService>();
         services.AddScoped<RoomService>();
         services.AddScoped<EquipmentService>();
         services.AddScoped<UsageActorResolver>();
         services.AddScoped<BookingService>();
         services.AddScoped<UsageRecordService>();
-        services.AddScoped<CompanyService>();
+        services.AddScoped<ExternalOrganizationService>();
         services.AddScoped<ReportsService>();
 
         return services;

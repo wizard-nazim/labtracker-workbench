@@ -25,6 +25,11 @@ public class UpsertRoomRequestValidator : AbstractValidator<UpsertRoomRequest>
             .MustAsync((id, ct) => db.Departments.AnyAsync(d => d.Id == id, ct))
             .When(x => x.DepartmentId.HasValue)
             .WithMessage("DepartmentId does not reference an existing department.");
+
+        RuleFor(x => x.ResearchGroupId)
+            .MustAsync((id, ct) => db.ResearchGroups.AnyAsync(g => g.Id == id, ct))
+            .When(x => x.ResearchGroupId.HasValue)
+            .WithMessage("ResearchGroupId does not reference an existing research group.");
     }
 }
 
@@ -57,8 +62,20 @@ public class AssignScienceOfficerRequestValidator : AbstractValidator<AssignScie
 {
     public AssignScienceOfficerRequestValidator(IApplicationDbContext db)
     {
+        // A Science Officer, or a Principal Investigator who's been granted
+        // equipment permissions, can be assigned to oversee equipment.
         RuleFor(x => x.UserId)
-            .MustAsync((id, ct) => db.Users.AnyAsync(u => u.Id == id && u.Role == Role.ScienceOfficer, ct))
-            .WithMessage("UserId must reference an existing user with the Science Officer role.");
+            .MustAsync((id, ct) => IsEligibleOverseerAsync(db, id, ct))
+            .WithMessage("UserId must reference a Science Officer, or a Principal Investigator with equipment permissions.");
+    }
+
+    private static async Task<bool> IsEligibleOverseerAsync(IApplicationDbContext db, int userId, CancellationToken ct)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return false;
+        if (user.Role == Role.ScienceOfficer) return true;
+
+        return user.Role == Role.PrincipalInvestigator
+            && await db.PrincipalInvestigators.AnyAsync(pi => pi.UserId == userId && pi.HasEquipmentPermissions, ct);
     }
 }

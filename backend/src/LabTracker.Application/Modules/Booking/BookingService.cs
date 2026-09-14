@@ -9,8 +9,10 @@ namespace LabTracker.Application.Modules.Booking;
 
 public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver)
 {
-    // Researchers only ever see their own bookings; Super Admins and Science
-    // Officers see everything, per the brief's "personal bookings" vs "view bookings" split.
+    // Researchers only ever see their own bookings; a Principal Investigator sees
+    // bookings across the research group(s) they lead (lab-wide, not just their
+    // own); Super Admins and Science Officers see everything department-wide,
+    // per the brief's "personal bookings" vs "view bookings" split.
     public async Task<List<BookingDto>> GetAllAsync(BookingFilter filter, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
         var query = db.Bookings.AsQueryable();
@@ -18,6 +20,13 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         if (actingUserRole == Role.Researcher)
         {
             query = query.Where(b => b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId == actingUserId);
+        }
+        else if (actingUserRole == Role.PrincipalInvestigator)
+        {
+            var ledGroupIds = db.ResearchGroups
+                .Where(g => g.PrincipalInvestigator.UserId == actingUserId)
+                .Select(g => g.Id);
+            query = query.Where(b => b.Actor.ResearcherId != null && b.Actor.Researcher!.ResearchGroups.Any(g => ledGroupIds.Contains(g.Id)));
         }
 
         if (filter.EquipmentId is { } equipmentId) query = query.Where(b => b.EquipmentId == equipmentId);
@@ -34,16 +43,18 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
 
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
+        // Anyone with their own linked Researcher profile (a plain Researcher, or a
+        // Science Officer/Principal Investigator who also has one) books for
+        // themselves — any ResearcherId in the request body is ignored in that case,
+        // to prevent booking on someone else's behalf. Only when the acting user has
+        // no such profile (e.g. a Super Admin booking on someone's behalf) is an
+        // explicit ResearcherId required.
+        var selfResearcherId = await db.Researchers.Where(r => r.UserId == actingUserId).Select(r => r.Id).SingleOrDefaultAsync(cancellationToken);
+
         int researcherId;
-        if (actingUserRole == Role.Researcher)
+        if (selfResearcherId != 0)
         {
-            // A Researcher can only ever book for themselves — any ResearcherId in the
-            // request body is ignored to prevent booking on someone else's behalf.
-            researcherId = await db.Researchers.Where(r => r.UserId == actingUserId).Select(r => r.Id).SingleOrDefaultAsync(cancellationToken);
-            if (researcherId == 0)
-            {
-                throw new NotFoundException("ResearcherProfile", actingUserId);
-            }
+            researcherId = selfResearcherId;
         }
         else if (request.ResearcherId is { } explicitId)
         {
@@ -122,6 +133,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         Status = b.Status,
         EquipmentId = b.EquipmentId,
         EquipmentName = b.Equipment.Name,
+        RoomLabel = b.Equipment.Room.Building + " " + b.Equipment.Room.Floor + " " + b.Equipment.Room.RoomNumber,
         ResearcherId = b.Actor.ResearcherId,
         ActorDisplayName = b.Actor.DisplayNameSnapshot,
         CreatedByUserId = b.CreatedByUserId,

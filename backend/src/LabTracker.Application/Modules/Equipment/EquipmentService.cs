@@ -39,8 +39,9 @@ public class EquipmentService(
             ?? throw new NotFoundException(nameof(EquipmentEntity), id);
     }
 
-    public async Task<EquipmentDto> CreateAsync(UpsertEquipmentRequest request, CancellationToken cancellationToken = default)
+    public async Task<EquipmentDto> CreateAsync(UpsertEquipmentRequest request, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
+        await EnsureCanManageEquipmentAsync(actingUserId, actingUserRole, cancellationToken);
         await upsertValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var equipment = new EquipmentEntity
@@ -61,8 +62,9 @@ public class EquipmentService(
         return await GetByIdAsync(equipment.Id, cancellationToken);
     }
 
-    public async Task<EquipmentDto> UpdateAsync(int id, UpsertEquipmentRequest request, CancellationToken cancellationToken = default)
+    public async Task<EquipmentDto> UpdateAsync(int id, UpsertEquipmentRequest request, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
+        await EnsureCanManageEquipmentAsync(actingUserId, actingUserRole, cancellationToken);
         await upsertValidator.ValidateAndThrowAsync(request, cancellationToken);
 
         var equipment = await db.Equipment.FindAsync([id], cancellationToken)
@@ -170,6 +172,21 @@ public class EquipmentService(
 
         db.EquipmentScienceOfficers.Remove(assignment);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    // SuperAdmin always can; a Principal Investigator only if granted equipment
+    // permissions — mirrors the eligibility check in AssignScienceOfficerRequestValidator.
+    private async Task EnsureCanManageEquipmentAsync(int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
+    {
+        if (actingUserRole == Role.SuperAdmin) return;
+
+        var hasPermission = actingUserRole == Role.PrincipalInvestigator
+            && await db.PrincipalInvestigators.AnyAsync(pi => pi.UserId == actingUserId && pi.HasEquipmentPermissions, cancellationToken);
+
+        if (!hasPermission)
+        {
+            throw new ForbiddenException("Only a Super Admin or a Principal Investigator with equipment permissions can manage equipment.");
+        }
     }
 
     private static readonly System.Linq.Expressions.Expression<Func<EquipmentEntity, EquipmentDto>> ProjectToDto = e => new EquipmentDto

@@ -7,6 +7,7 @@ export interface Booking {
   status: BookingStatus
   equipmentId: number
   equipmentName: string
+  roomLabel: string
   researcherId: number | null
   actorDisplayName: string
   createdByUserId: number

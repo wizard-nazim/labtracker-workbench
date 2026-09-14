@@ -22,6 +22,21 @@ namespace LabTracker.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FacilityUser", b =>
+                {
+                    b.Property<int>("FacilityId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OverseersId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("FacilityId", "OverseersId");
+
+                    b.HasIndex("OverseersId");
+
+                    b.ToTable("FacilityOverseers", (string)null);
+                });
+
             modelBuilder.Entity("LabTracker.Domain.Modules.Booking.Booking", b =>
                 {
                     b.Property<int>("Id")
@@ -89,26 +104,26 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int>("ActorType")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("CompanyContactId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("DisplayNameSnapshot")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("ExternalContactId")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("ResearcherId")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CompanyContactId");
+                    b.HasIndex("ExternalContactId");
 
                     b.HasIndex("ResearcherId");
 
                     b.ToTable("UsageActors", t =>
                         {
-                            t.HasCheckConstraint("CK_UsageActor_ExactlyOneParty", "(\"ResearcherId\" IS NOT NULL AND \"CompanyContactId\" IS NULL) OR (\"ResearcherId\" IS NULL AND \"CompanyContactId\" IS NOT NULL)");
+                            t.HasCheckConstraint("CK_UsageActor_ExactlyOneParty", "(\"ResearcherId\" IS NOT NULL AND \"ExternalContactId\" IS NULL) OR (\"ResearcherId\" IS NULL AND \"ExternalContactId\" IS NOT NULL)");
                         });
                 });
 
@@ -278,6 +293,9 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<int?>("ResearchGroupId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("RoomNumber")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -287,10 +305,45 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.HasIndex("DepartmentId");
 
+                    b.HasIndex("ResearchGroupId");
+
                     b.ToTable("Rooms");
                 });
 
-            modelBuilder.Entity("LabTracker.Domain.Modules.External.Company", b =>
+            modelBuilder.Entity("LabTracker.Domain.Modules.External.ExternalContact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("ExternalOrganizationId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExternalOrganizationId");
+
+                    b.ToTable("ExternalContacts");
+                });
+
+            modelBuilder.Entity("LabTracker.Domain.Modules.External.ExternalOrganization", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -305,40 +358,7 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Companies");
-                });
-
-            modelBuilder.Entity("LabTracker.Domain.Modules.External.CompanyContact", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("FullName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.ToTable("CompanyContacts");
+                    b.ToTable("ExternalOrganizations");
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Identity.User", b =>
@@ -356,6 +376,12 @@ namespace LabTracker.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("HasCompletedAdminTour")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("HasCompletedOnboarding")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -401,6 +427,29 @@ namespace LabTracker.Infrastructure.Migrations
                     b.ToTable("Departments");
                 });
 
+            modelBuilder.Entity("LabTracker.Domain.Modules.Organization.Facility", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DepartmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.ToTable("Facilities");
+                });
+
             modelBuilder.Entity("LabTracker.Domain.Modules.Organization.PrincipalInvestigator", b =>
                 {
                     b.Property<int>("Id")
@@ -422,9 +471,19 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<bool>("HasEquipmentPermissions")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("\"UserId\" IS NOT NULL");
 
                     b.ToTable("PrincipalInvestigators");
                 });
@@ -465,13 +524,14 @@ namespace LabTracker.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("FieldOfStudy")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<int>("ResearchGroupId")
-                        .HasColumnType("integer");
 
                     b.Property<string>("StudentNumber")
                         .IsRequired()
@@ -483,13 +543,41 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ResearchGroupId");
-
                     b.HasIndex("UserId")
                         .IsUnique()
                         .HasFilter("\"UserId\" IS NOT NULL");
 
                     b.ToTable("Researchers");
+                });
+
+            modelBuilder.Entity("ResearchGroupResearcher", b =>
+                {
+                    b.Property<int>("ResearchGroupsId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ResearchersId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ResearchGroupsId", "ResearchersId");
+
+                    b.HasIndex("ResearchersId");
+
+                    b.ToTable("ResearcherResearchGroups", (string)null);
+                });
+
+            modelBuilder.Entity("FacilityUser", b =>
+                {
+                    b.HasOne("LabTracker.Domain.Modules.Organization.Facility", null)
+                        .WithMany()
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("OverseersId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Booking.Booking", b =>
@@ -535,9 +623,9 @@ namespace LabTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Booking.UsageActor", b =>
                 {
-                    b.HasOne("LabTracker.Domain.Modules.External.CompanyContact", "CompanyContact")
+                    b.HasOne("LabTracker.Domain.Modules.External.ExternalContact", "ExternalContact")
                         .WithMany()
-                        .HasForeignKey("CompanyContactId")
+                        .HasForeignKey("ExternalContactId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LabTracker.Domain.Modules.Organization.Researcher", "Researcher")
@@ -545,7 +633,7 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasForeignKey("ResearcherId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("CompanyContact");
+                    b.Navigation("ExternalContact");
 
                     b.Navigation("Researcher");
                 });
@@ -637,18 +725,36 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("LabTracker.Domain.Modules.Organization.ResearchGroup", "ResearchGroup")
+                        .WithMany()
+                        .HasForeignKey("ResearchGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Department");
+
+                    b.Navigation("ResearchGroup");
                 });
 
-            modelBuilder.Entity("LabTracker.Domain.Modules.External.CompanyContact", b =>
+            modelBuilder.Entity("LabTracker.Domain.Modules.External.ExternalContact", b =>
                 {
-                    b.HasOne("LabTracker.Domain.Modules.External.Company", "Company")
+                    b.HasOne("LabTracker.Domain.Modules.External.ExternalOrganization", "ExternalOrganization")
                         .WithMany("Contacts")
-                        .HasForeignKey("CompanyId")
+                        .HasForeignKey("ExternalOrganizationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Company");
+                    b.Navigation("ExternalOrganization");
+                });
+
+            modelBuilder.Entity("LabTracker.Domain.Modules.Organization.Facility", b =>
+                {
+                    b.HasOne("LabTracker.Domain.Modules.Organization.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Department");
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Organization.PrincipalInvestigator", b =>
@@ -659,7 +765,14 @@ namespace LabTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Department");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Organization.ResearchGroup", b =>
@@ -683,20 +796,27 @@ namespace LabTracker.Infrastructure.Migrations
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Organization.Researcher", b =>
                 {
-                    b.HasOne("LabTracker.Domain.Modules.Organization.ResearchGroup", "ResearchGroup")
-                        .WithMany()
-                        .HasForeignKey("ResearchGroupId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("LabTracker.Domain.Modules.Identity.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.Navigation("ResearchGroup");
-
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ResearchGroupResearcher", b =>
+                {
+                    b.HasOne("LabTracker.Domain.Modules.Organization.ResearchGroup", null)
+                        .WithMany()
+                        .HasForeignKey("ResearchGroupsId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LabTracker.Domain.Modules.Organization.Researcher", null)
+                        .WithMany()
+                        .HasForeignKey("ResearchersId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Equipment.Equipment", b =>
@@ -704,7 +824,7 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Navigation("ScienceOfficers");
                 });
 
-            modelBuilder.Entity("LabTracker.Domain.Modules.External.Company", b =>
+            modelBuilder.Entity("LabTracker.Domain.Modules.External.ExternalOrganization", b =>
                 {
                     b.Navigation("Contacts");
                 });

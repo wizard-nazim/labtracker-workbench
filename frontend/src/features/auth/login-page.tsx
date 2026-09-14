@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MagicCard } from '@/components/ui/magic-card'
+import { ThemeToggle } from '@/components/theme-toggle'
+import { OrbitMark } from './orbit-mark'
+import { LoginBackground } from './constellation-background'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -32,8 +35,22 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-svh flex-col items-center justify-center gap-10 bg-background px-4 py-12 lg:flex-row lg:gap-16">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+      <LoginBackground />
+      <div
+        className="opacity-0 lg:order-2"
+        style={{ animation: 'labtracker-fade-in 500ms ease-out forwards', animationDelay: '80ms' }}
+      >
+        <OrbitMark className="size-48 lg:size-56" />
+      </div>
+
+      <div
+        className="w-full max-w-sm opacity-0"
+        style={{ animation: 'labtracker-fade-in 500ms ease-out forwards' }}
+      >
         <div className="mb-8 flex items-center gap-2.5">
           <svg viewBox="0 0 24 24" fill="none" className="size-6 text-primary" aria-hidden="true">
             <path

@@ -26,90 +26,90 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 
-interface CompanyContact {
+interface ExternalContact {
   id: number
-  companyId: number
+  externalOrganizationId: number
   fullName: string
   email: string
   phone: string | null
 }
 
-interface Company {
+interface ExternalOrganization {
   id: number
   name: string
-  contacts: CompanyContact[]
+  contacts: ExternalContact[]
 }
 
-function useCompanies() {
-  return useQuery({ queryKey: ['companies'], queryFn: () => apiClient.get<Company[]>('/companies') })
+function useExternalOrganizations() {
+  return useQuery({ queryKey: ['external'], queryFn: () => apiClient.get<ExternalOrganization[]>('/external') })
 }
 
-function useCreateCompany() {
+function useCreateExternalOrganization() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (request: { name: string }) => apiClient.post<Company>('/companies', request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companies'] }),
+    mutationFn: (request: { name: string }) => apiClient.post<ExternalOrganization>('/external', request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['external'] }),
   })
 }
 
-function useUpdateCompany(id: number) {
+function useUpdateExternalOrganization(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (request: { name: string }) => apiClient.put<Company>(`/companies/${id}`, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companies'] }),
+    mutationFn: (request: { name: string }) => apiClient.put<ExternalOrganization>(`/external/${id}`, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['external'] }),
   })
 }
 
-function useAddCompanyContact(companyId: number) {
+function useAddExternalContact(externalOrganizationId: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: { fullName: string; email: string; phone?: string }) =>
-      apiClient.post<Company>(`/companies/${companyId}/contacts`, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companies'] }),
+      apiClient.post<ExternalOrganization>(`/external/${externalOrganizationId}/contacts`, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['external'] }),
   })
 }
 
-function useRemoveCompanyContact(companyId: number) {
+function useRemoveExternalContact(externalOrganizationId: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (contactId: number) => apiClient.delete(`/companies/${companyId}/contacts/${contactId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companies'] }),
+    mutationFn: (contactId: number) => apiClient.delete(`/external/${externalOrganizationId}/contacts/${contactId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['external'] }),
   })
 }
 
-function CreateCompanyDialog() {
+function CreateExternalOrganizationDialog() {
   const [name, setName] = useState('')
-  const create = useCreateCompany()
+  const create = useCreateExternalOrganization()
 
   async function handleSubmit() {
     await create.mutateAsync({ name })
-    toast.success(`Added company "${name}".`)
+    toast.success(`Added "${name}".`)
     setName('')
   }
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add company</Button>}
-      title="Add company"
-      submitLabel="Add company"
+      trigger={<Button size="sm">Add external org</Button>}
+      title="Add external organization"
+      submitLabel="Add"
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="company-name">Name</Label>
-        <Input id="company-name" required value={name} onChange={(e) => setName(e.target.value)} />
+        <Label htmlFor="external-org-name">Name</Label>
+        <Input id="external-org-name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
     </EntityDialog>
   )
 }
 
-function EditCompanyDialog({ company }: { company: Company }) {
+function EditExternalOrganizationDialog({ externalOrganization }: { externalOrganization: ExternalOrganization }) {
   const [open, setOpen] = useState(false)
-  const [name, setName] = useState(company.name)
-  const update = useUpdateCompany(company.id)
+  const [name, setName] = useState(externalOrganization.name)
+  const update = useUpdateExternalOrganization(externalOrganization.id)
 
   async function handleSubmit() {
     await update.mutateAsync({ name })
-    toast.success(`Updated company "${name}".`)
+    toast.success(`Updated "${name}".`)
   }
 
   return (
@@ -119,27 +119,27 @@ function EditCompanyDialog({ company }: { company: Company }) {
           Rename
         </Button>
       }
-      title="Rename company"
+      title="Rename external organization"
       submitLabel="Save changes"
       onSubmit={handleSubmit}
       open={open}
       onOpenChange={setOpen}
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="edit-company-name">Name</Label>
-        <Input id="edit-company-name" required value={name} onChange={(e) => setName(e.target.value)} />
+        <Label htmlFor="edit-external-org-name">Name</Label>
+        <Input id="edit-external-org-name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
     </EntityDialog>
   )
 }
 
-function ManageContactsDialog({ company }: { company: Company }) {
+function ManageContactsDialog({ externalOrganization }: { externalOrganization: ExternalOrganization }) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const addContact = useAddCompanyContact(company.id)
-  const removeContact = useRemoveCompanyContact(company.id)
+  const addContact = useAddExternalContact(externalOrganization.id)
+  const removeContact = useRemoveExternalContact(externalOrganization.id)
 
   async function handleAddContact(event: FormEvent) {
     event.preventDefault()
@@ -168,17 +168,17 @@ function ManageContactsDialog({ company }: { company: Company }) {
     <Dialog>
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost">
-          Contacts ({company.contacts.length})
+          Contacts ({externalOrganization.contacts.length})
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{company.name} — contacts</DialogTitle>
+          <DialogTitle>{externalOrganization.name} — contacts</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          {company.contacts.length === 0 && <p className="text-sm text-muted-foreground">No contacts yet.</p>}
-          {company.contacts.map((contact) => (
+          {externalOrganization.contacts.length === 0 && <p className="text-sm text-muted-foreground">No contacts yet.</p>}
+          {externalOrganization.contacts.map((contact) => (
             <div
               key={contact.id}
               className="flex items-center justify-between rounded-md border border-border px-3 py-2"
@@ -225,14 +225,14 @@ function ManageContactsDialog({ company }: { company: Company }) {
   )
 }
 
-export function CompaniesTab() {
-  const { data: companies, isLoading, isError } = useCompanies()
+export function ExternalTab() {
+  const { data: organizations, isLoading, isError } = useExternalOrganizations()
 
   return (
     <AdminSection
-      title="Companies"
-      description="External organizations that use shared equipment."
-      action={<CreateCompanyDialog />}
+      title="External"
+      description="External individuals or departments (e.g. from another university) that use shared equipment."
+      action={<CreateExternalOrganizationDialog />}
     >
       <Table>
         <TableHeader>
@@ -255,22 +255,22 @@ export function CompaniesTab() {
             <TableEmptyState
               colSpan={2}
               tone="error"
-              title="Couldn't load companies."
+              title="Couldn't load external organizations."
               description="Check that the API is running and try again."
             />
           )}
 
-          {!isLoading && !isError && companies?.length === 0 && (
-            <TableEmptyState colSpan={2} title="No companies yet." />
+          {!isLoading && !isError && organizations?.length === 0 && (
+            <TableEmptyState colSpan={2} title="No external organizations yet." />
           )}
 
-          {companies?.map((company) => (
-            <TableRow key={company.id}>
-              <TableCell className="font-medium text-foreground">{company.name}</TableCell>
+          {organizations?.map((externalOrganization) => (
+            <TableRow key={externalOrganization.id}>
+              <TableCell className="font-medium text-foreground">{externalOrganization.name}</TableCell>
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
-                  <ManageContactsDialog company={company} />
-                  <EditCompanyDialog company={company} />
+                  <ManageContactsDialog externalOrganization={externalOrganization} />
+                  <EditExternalOrganizationDialog externalOrganization={externalOrganization} />
                 </div>
               </TableCell>
             </TableRow>

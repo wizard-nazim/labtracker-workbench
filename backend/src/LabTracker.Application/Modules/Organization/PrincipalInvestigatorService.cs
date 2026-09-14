@@ -1,12 +1,18 @@
 using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
+using LabTracker.Domain.Modules.Identity;
+using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrincipalInvestigatorEntity = LabTracker.Domain.Modules.Organization.PrincipalInvestigator;
 
 namespace LabTracker.Application.Modules.Organization;
 
-public class PrincipalInvestigatorService(IApplicationDbContext db, IValidator<UpsertPrincipalInvestigatorRequest> validator)
+public class PrincipalInvestigatorService(
+    IApplicationDbContext db,
+    IValidator<UpsertPrincipalInvestigatorRequest> validator,
+    IPasswordHasher<User> passwordHasher)
 {
     public async Task<List<PrincipalInvestigatorDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -22,6 +28,11 @@ public class PrincipalInvestigatorService(IApplicationDbContext db, IValidator<U
             ?? throw new NotFoundException(nameof(PrincipalInvestigatorEntity), id);
     }
 
+    public async Task<PrincipalInvestigatorDto?> GetByUserIdAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        return await db.PrincipalInvestigators.Where(p => p.UserId == userId).Select(ProjectToDto).SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<PrincipalInvestigatorDto> CreateAsync(UpsertPrincipalInvestigatorRequest request, CancellationToken cancellationToken = default)
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
@@ -31,7 +42,25 @@ public class PrincipalInvestigatorService(IApplicationDbContext db, IValidator<U
             FullName = request.FullName,
             Email = request.Email,
             DepartmentId = request.DepartmentId,
+            HasEquipmentPermissions = request.HasEquipmentPermissions,
         };
+
+        if (request.Password is { } password)
+        {
+            var user = new User
+            {
+                Email = request.Email,
+                Role = Role.PrincipalInvestigator,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+            user.PasswordHash = passwordHasher.HashPassword(user, password);
+            db.Users.Add(user);
+            await db.SaveChangesAsync(cancellationToken);
+
+            pi.UserId = user.Id;
+        }
+
         db.PrincipalInvestigators.Add(pi);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -48,6 +77,7 @@ public class PrincipalInvestigatorService(IApplicationDbContext db, IValidator<U
         pi.FullName = request.FullName;
         pi.Email = request.Email;
         pi.DepartmentId = request.DepartmentId;
+        pi.HasEquipmentPermissions = request.HasEquipmentPermissions;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -60,5 +90,8 @@ public class PrincipalInvestigatorService(IApplicationDbContext db, IValidator<U
         Email = p.Email,
         DepartmentId = p.DepartmentId,
         DepartmentName = p.Department.Name,
+        UserId = p.UserId,
+        HasLogin = p.UserId != null,
+        HasEquipmentPermissions = p.HasEquipmentPermissions,
     };
 }

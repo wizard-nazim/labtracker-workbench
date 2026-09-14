@@ -76,7 +76,10 @@ export function NotificationsPanel() {
 
   return (
     <Popover>
-      <PopoverTrigger className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <PopoverTrigger
+        data-tour="notifications"
+        className="relative flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         <Bell className="size-4.5" aria-hidden="true" />
         {unreadCount > 0 && (
           <span className="absolute right-1.5 top-1.5 flex size-2 rounded-full bg-primary" aria-hidden="true" />
