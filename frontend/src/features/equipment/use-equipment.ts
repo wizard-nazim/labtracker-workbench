@@ -11,6 +11,13 @@ export function useEquipment(status?: EquipmentStatus | 'All') {
   })
 }
 
+export function useEquipmentById(id: number) {
+  return useQuery({
+    queryKey: ['equipment', 'detail', id],
+    queryFn: () => apiClient.get<Equipment>(`/equipment/${id}`),
+  })
+}
+
 export interface UpsertEquipmentRequest {
   name: string
   serialNumber?: string

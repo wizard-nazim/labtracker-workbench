@@ -67,7 +67,7 @@ export function BookingsPage() {
     }
   }
 
-  const columnCount = isManager ? 6 : 5
+  const columnCount = (isManager ? 6 : 5) + 1
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,6 +85,7 @@ export function BookingsPage() {
             <TableRow>
               <TableHead className="w-36">Status</TableHead>
               <TableHead>Equipment</TableHead>
+              <TableHead className="hidden lg:table-cell">Room</TableHead>
               {isManager && <TableHead className="hidden md:table-cell">Booked for</TableHead>}
               <TableHead>Start</TableHead>
               <TableHead className="hidden sm:table-cell">End</TableHead>
@@ -127,6 +128,7 @@ export function BookingsPage() {
                     <BookingStatusIndicator status={booking.status} />
                   </TableCell>
                   <TableCell className="font-medium text-foreground">{booking.equipmentName}</TableCell>
+                  <TableCell className="hidden text-muted-foreground lg:table-cell">{booking.roomLabel}</TableCell>
                   {isManager && (
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {booking.actorDisplayName}

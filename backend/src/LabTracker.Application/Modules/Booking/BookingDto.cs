@@ -11,6 +11,7 @@ public class BookingDto
 
     public int EquipmentId { get; set; }
     public string EquipmentName { get; set; } = string.Empty;
+    public string RoomLabel { get; set; } = string.Empty;
 
     public int? ResearcherId { get; set; }
     public string ActorDisplayName { get; set; } = string.Empty;

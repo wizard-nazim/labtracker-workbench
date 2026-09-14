@@ -8,25 +8,50 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/page-header'
 import { PageBanner } from '@/components/page-banner'
 
+type Tone = 'primary' | 'available' | 'maintenance'
+
+const TILE_TONES: Record<Tone, { accent: string; tint: string; border: string; hoverBorder: string }> = {
+  primary: {
+    accent: 'bg-primary',
+    tint: 'bg-primary/25',
+    border: 'border-primary/30',
+    hoverBorder: 'hover:border-primary/60',
+  },
+  available: {
+    accent: 'bg-status-available',
+    tint: 'bg-status-available/25',
+    border: 'border-status-available/30',
+    hoverBorder: 'hover:border-status-available/60',
+  },
+  maintenance: {
+    accent: 'bg-status-maintenance',
+    tint: 'bg-status-maintenance/25',
+    border: 'border-status-maintenance/30',
+    hoverBorder: 'hover:border-status-maintenance/60',
+  },
+}
+
 function ReadoutPanel({
   label,
   value,
-  accentClass,
+  tone,
   icon: Icon,
   to,
 }: {
   label: string
   value: number | string
-  accentClass: string
+  tone: Tone
   icon: LucideIcon
   to: string
 }) {
+  const { accent, tint, border, hoverBorder } = TILE_TONES[tone]
+
   return (
     <Link
       to={to}
-      className="relative block overflow-hidden rounded-md border border-border bg-card p-5 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={`relative block overflow-hidden rounded-md border p-5 transition-colors ${border} ${tint} ${hoverBorder} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
     >
-      <span className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} aria-hidden="true" />
+      <span className={`absolute inset-y-0 left-0 w-1 ${accent}`} aria-hidden="true" />
       <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
       <p className="mt-2 font-mono text-3xl font-medium tabular-nums text-foreground">{value}</p>
       <p className="mt-1 text-sm text-muted-foreground">{label}</p>
@@ -56,10 +81,14 @@ function HeroReadoutPanel({
   return (
     <Link
       to={to}
-      className="relative block overflow-hidden rounded-md bg-primary p-5 text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="group relative block overflow-hidden rounded-md bg-primary p-5 text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div
         className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10"
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[400%]"
         aria-hidden="true"
       />
       <span className="absolute top-3 right-3 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-medium">
@@ -89,7 +118,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageBanner />
+      <PageBanner src="/banners/overview-banner.jpg" alt="Lab equipment overview" />
 
       <PageHeader
         icon={Gauge}
@@ -105,18 +134,18 @@ export function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <ReadoutPanel label="Total equipment" value={counts.total} accentClass="bg-primary" icon={Boxes} to="/equipment" />
+          <ReadoutPanel label="Total equipment" value={counts.total} tone="primary" icon={Boxes} to="/equipment" />
           <ReadoutPanel
             label="Available now"
             value={counts.available}
-            accentClass="bg-status-available"
+            tone="available"
             icon={CircleCheck}
             to="/equipment?status=Available"
           />
           <ReadoutPanel
             label="Needs attention"
             value={counts.needsAttention}
-            accentClass="bg-status-maintenance"
+            tone="maintenance"
             icon={TriangleAlert}
             to="/equipment?status=Faulty"
           />

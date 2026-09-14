@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { SplashScreen } from '@/components/splash-screen'
+import { AuthTransitionOverlay } from '@/components/auth-transition-overlay'
 import { ProtectedRoute } from '@/components/protected-route'
 import { AppShell } from '@/components/app-shell'
 import { LoginPage } from '@/features/auth/login-page'
 import { DashboardPage } from '@/features/dashboard/dashboard-page'
 import { EquipmentListPage } from '@/features/equipment/equipment-list-page'
+import { EquipmentDetailPage } from '@/features/equipment/equipment-detail-page'
 import { BookingsPage } from '@/features/bookings/bookings-page'
 import { UsageRecordsPage } from '@/features/usage/usage-records-page'
 import { AdminPage } from '@/features/admin/admin-page'
@@ -32,6 +34,7 @@ export function App() {
         >
           <Route path="/" element={<DashboardPage />} />
           <Route path="/equipment" element={<EquipmentListPage />} />
+          <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
           <Route path="/bookings" element={<BookingsPage />} />
           <Route path="/usage" element={<UsageRecordsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
@@ -39,6 +42,7 @@ export function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <AuthTransitionOverlay />
       <Toaster />
     </>
   )

@@ -122,6 +122,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         Status = b.Status,
         EquipmentId = b.EquipmentId,
         EquipmentName = b.Equipment.Name,
+        RoomLabel = b.Equipment.Room.Building + " " + b.Equipment.Room.Floor + " " + b.Equipment.Room.RoomNumber,
         ResearcherId = b.Actor.ResearcherId,
         ActorDisplayName = b.Actor.DisplayNameSnapshot,
         CreatedByUserId = b.CreatedByUserId,

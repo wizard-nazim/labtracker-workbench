@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { FlaskConical } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { PageBanner } from '@/components/page-banner'
@@ -42,7 +42,7 @@ export function EquipmentListPage() {
   const { user } = useAuth()
   const canBook = user?.role === 'Researcher'
   const isSuperAdmin = user?.role === 'SuperAdmin'
-  const columnCount = 8 + (canBook ? 1 : 0) + (isSuperAdmin ? 1 : 0)
+  const columnCount = 7 + (canBook ? 1 : 0) + (isSuperAdmin ? 1 : 0)
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,7 +80,6 @@ export function EquipmentListPage() {
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Room</TableHead>
-              <TableHead className="hidden md:table-cell">Serial no.</TableHead>
               <TableHead className="hidden lg:table-cell">Department</TableHead>
               <TableHead className="text-right">Shared</TableHead>
               {canBook && <TableHead className="w-24" />}
@@ -113,17 +112,20 @@ export function EquipmentListPage() {
             {equipment?.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
-                  <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name={item.name} />
+                  <Link to={`/equipment/${item.id}`}>
+                    <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name={item.name} />
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <StatusIndicator status={item.status} />
                 </TableCell>
-                <TableCell className="font-medium text-foreground">{item.name}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  <Link to={`/equipment/${item.id}`} className="hover:text-primary hover:underline">
+                    {item.name}
+                  </Link>
+                </TableCell>
                 <TableCell className="text-muted-foreground">{item.equipmentTypeName}</TableCell>
                 <TableCell className="text-muted-foreground">{item.roomLabel}</TableCell>
-                <TableCell className="hidden font-mono text-xs text-muted-foreground md:table-cell">
-                  {item.serialNumber ?? '—'}
-                </TableCell>
                 <TableCell className="hidden text-muted-foreground lg:table-cell">
                   {item.owningDepartmentName}
                 </TableCell>
@@ -131,7 +133,7 @@ export function EquipmentListPage() {
                 {canBook && (
                   <TableCell>
                     {item.status === 'Available' && (
-                      <BookEquipmentDialog equipmentId={item.id} equipmentName={item.name} />
+                      <BookEquipmentDialog equipment={item} />
                     )}
                   </TableCell>
                 )}
