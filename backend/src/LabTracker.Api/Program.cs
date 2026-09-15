@@ -83,3 +83,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Exposes the top-level statements' generated Program class so
+// WebApplicationFactory<Program> can reference it from the test assembly.
+public partial class Program { }
