@@ -4,11 +4,13 @@ import { toast } from 'sonner'
 import { ArrowLeft, Info, TriangleAlert } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { canBookEquipment } from '@/types/roles'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getRoleAvatarSrc } from '@/lib/role-avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { apiErrorMessage } from '@/lib/api-error-message'
 import { useBookings, useCreateBooking } from '@/features/bookings/use-bookings'
 import { BookingStatusIndicator } from '@/features/bookings/booking-status-indicator'
@@ -41,6 +43,7 @@ export function EquipmentDetailPage() {
 
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [notes, setNotes] = useState('')
 
   const canBook = canBookEquipment(user?.role)
   const isSuperAdmin = user?.role === 'SuperAdmin'
@@ -53,10 +56,12 @@ export function EquipmentDetailPage() {
         equipmentId: equipment.id,
         scheduledStart: new Date(start).toISOString(),
         scheduledEnd: new Date(end).toISOString(),
+        notes: notes.trim() ? notes.trim() : undefined,
       })
       toast.success(`Booking requested for ${equipment.name}.`)
       setStart('')
       setEnd('')
+      setNotes('')
     } catch (err) {
       toast.error(apiErrorMessage(err))
     }
@@ -133,6 +138,7 @@ export function EquipmentDetailPage() {
 
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <InfoField label="Room" value={equipment.roomLabel} />
+          <InfoField label="Facility" value={equipment.facilityName ?? '—'} />
           <InfoField label="Department" value={equipment.owningDepartmentName} />
           <InfoField label="Serial number" value={equipment.serialNumber ?? '—'} />
           <InfoField label="Shared" value={equipment.isShared ? 'Yes' : 'No'} />
@@ -156,6 +162,16 @@ export function EquipmentDetailPage() {
               {createBooking.isPending ? 'Requesting…' : 'Request booking'}
             </Button>
           </div>
+          <div className="mt-4 flex flex-col gap-1.5">
+            <Label htmlFor="detail-booking-notes">Notes (optional)</Label>
+            <Textarea
+              id="detail-booking-notes"
+              placeholder="e.g. undergrad course name for practicals"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              maxLength={500}
+            />
+          </div>
         </div>
       )}
 
@@ -169,6 +185,7 @@ export function EquipmentDetailPage() {
               <li key={booking.id} className="flex items-center justify-between gap-4 text-sm">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Avatar className="size-7 shrink-0">
+                    <AvatarImage src={getRoleAvatarSrc(booking.actorRole, booking.actorType === 'External')} alt="" />
                     <AvatarFallback className="text-xs">{booking.actorDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">

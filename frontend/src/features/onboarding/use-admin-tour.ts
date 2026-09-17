@@ -12,6 +12,10 @@ const STEPS: Step[] = [
     content: 'Start here — departments own equipment and organize research groups.',
   },
   {
+    target: '[data-tour="admin-tab-equipment-types"]',
+    content: 'Add an equipment type here, then click it to manage its actual units — add machines, upload photos, change status, and assign Science Officers, all in one place.',
+  },
+  {
     target: '[data-tour="admin-tab-facilities"]',
     content: 'Facilities like BSL2 labs can have Science Officers assigned to oversee them.',
   },

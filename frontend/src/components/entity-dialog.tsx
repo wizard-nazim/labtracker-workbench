@@ -67,7 +67,7 @@ export function EntityDialog({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <form className="flex min-w-0 flex-col gap-4" onSubmit={handleSubmit}>
           {children}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>

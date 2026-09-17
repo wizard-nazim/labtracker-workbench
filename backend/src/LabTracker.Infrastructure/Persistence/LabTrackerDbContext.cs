@@ -27,6 +27,7 @@ public class LabTrackerDbContext(DbContextOptions<LabTrackerDbContext> options)
     public DbSet<EquipmentModule.EquipmentType> EquipmentTypes => Set<EquipmentModule.EquipmentType>();
     public DbSet<EquipmentEntity> Equipment => Set<EquipmentEntity>();
     public DbSet<EquipmentModule.EquipmentScienceOfficer> EquipmentScienceOfficers => Set<EquipmentModule.EquipmentScienceOfficer>();
+    public DbSet<EquipmentModule.EquipmentImage> EquipmentImages => Set<EquipmentModule.EquipmentImage>();
 
     public DbSet<UsageActor> UsageActors => Set<UsageActor>();
     public DbSet<Booking> Bookings => Set<Booking>();

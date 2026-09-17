@@ -2,6 +2,8 @@ import { UserRound, FlaskConical, Beaker } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getRoleAvatarSrc } from '@/lib/role-avatar'
 import { useMe } from './use-me'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -46,7 +48,13 @@ export function AccountPage() {
 
       <div className="rounded-md border border-border bg-card p-6">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-sm font-medium text-foreground">Account</h2>
+          <div className="flex items-center gap-4">
+            <Avatar className="size-24">
+              <AvatarImage src={getRoleAvatarSrc(me.role, false)} alt="" />
+              <AvatarFallback className="text-2xl">{me.email.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <h2 className="text-sm font-medium text-foreground">Account</h2>
+          </div>
           <Badge variant={me.isActive ? 'secondary' : 'outline'}>{me.isActive ? 'Active' : 'Inactive'}</Badge>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">

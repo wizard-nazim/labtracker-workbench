@@ -26,6 +26,7 @@ public interface IApplicationDbContext
     DbSet<Domain.Modules.Equipment.EquipmentType> EquipmentTypes { get; }
     DbSet<EquipmentEntity> Equipment { get; }
     DbSet<Domain.Modules.Equipment.EquipmentScienceOfficer> EquipmentScienceOfficers { get; }
+    DbSet<Domain.Modules.Equipment.EquipmentImage> EquipmentImages { get; }
 
     DbSet<UsageActor> UsageActors { get; }
     DbSet<Booking> Bookings { get; }

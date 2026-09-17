@@ -24,24 +24,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Search } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { useResearchGroups } from './research-groups'
 import { useUsers } from './users'
+import { FIELD_OF_STUDY_OPTIONS, type FieldOfStudy } from '@/types/field-of-study'
+import type { UserRole } from '@/types/roles'
 
 export interface Researcher {
   id: number
   fullName: string
   studentNumber: string
-  fieldOfStudy: string | null
+  fieldOfStudy: FieldOfStudy | null
   researchGroupIds: number[]
   researchGroupNames: string[]
   userId: number | null
   userEmail: string | null
+  userRole: UserRole | null
+}
+
+type RoleFilter = 'All' | 'Student' | 'ScienceOfficer' | 'PrincipalInvestigator'
+
+const ROLE_FILTER_LABEL: Record<RoleFilter, string> = {
+  All: 'All roles',
+  Student: 'Student',
+  ScienceOfficer: 'Science Officer',
+  PrincipalInvestigator: 'Principal Investigator',
+}
+
+// Only the "special" linked-account roles get a highlighted badge — a plain
+// Researcher account (or no linked account at all) is just a student, the
+// baseline case, so it stays as quiet text rather than a badge.
+function RoleBadge({ userRole }: { userRole: UserRole | null }) {
+  if (userRole === 'ScienceOfficer') {
+    return <Badge className="bg-teal-500/10 text-teal-700 dark:text-teal-300">Science Officer</Badge>
+  }
+  if (userRole === 'PrincipalInvestigator') {
+    return <Badge className="bg-purple-500/10 text-purple-700 dark:text-purple-300">Principal Investigator</Badge>
+  }
+  return <span className="text-muted-foreground">Student</span>
 }
 
 interface UpsertResearcherRequest {
   fullName: string
   studentNumber: string
-  fieldOfStudy?: string
+  fieldOfStudy?: FieldOfStudy
   researchGroupIds: number[]
   userId?: number
 }
@@ -84,7 +111,7 @@ function ResearcherFields({
   studentNumber: string
   setStudentNumber: (v: string) => void
   fieldOfStudy: string
-  setFieldOfStudy: (v: string) => void
+  setFieldOfStudy: (v: FieldOfStudy | '') => void
   researchGroupIds: number[]
   setResearchGroupIds: (v: number[]) => void
   userId: string
@@ -126,12 +153,22 @@ function ResearcherFields({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="researcher-field-of-study">Field of study (optional)</Label>
-        <Input
-          id="researcher-field-of-study"
-          placeholder="e.g. Honours, Masters, PhD"
-          value={fieldOfStudy}
-          onChange={(e) => setFieldOfStudy(e.target.value)}
-        />
+        <Select
+          value={fieldOfStudy || 'none'}
+          onValueChange={(v) => setFieldOfStudy(v === 'none' ? '' : (v as FieldOfStudy))}
+        >
+          <SelectTrigger id="researcher-field-of-study">
+            <SelectValue placeholder="Not set" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Not set</SelectItem>
+            {FIELD_OF_STUDY_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="researcher-user">Linked account (optional)</Label>
@@ -172,7 +209,7 @@ function ResearcherFields({
 function CreateResearcherDialog() {
   const [fullName, setFullName] = useState('')
   const [studentNumber, setStudentNumber] = useState('')
-  const [fieldOfStudy, setFieldOfStudy] = useState('')
+  const [fieldOfStudy, setFieldOfStudy] = useState<FieldOfStudy | ''>('')
   const [researchGroupIds, setResearchGroupIds] = useState<number[]>([])
   const [userId, setUserId] = useState('')
   const create = useCreateResearcher()
@@ -222,7 +259,7 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
   const [open, setOpen] = useState(false)
   const [fullName, setFullName] = useState(researcher.fullName)
   const [studentNumber, setStudentNumber] = useState(researcher.studentNumber)
-  const [fieldOfStudy, setFieldOfStudy] = useState(researcher.fieldOfStudy ?? '')
+  const [fieldOfStudy, setFieldOfStudy] = useState<FieldOfStudy | ''>(researcher.fieldOfStudy ?? '')
   const [researchGroupIds, setResearchGroupIds] = useState<number[]>(researcher.researchGroupIds)
   const [userId, setUserId] = useState(researcher.userId ? String(researcher.userId) : 'none')
   const update = useUpdateResearcher(researcher.id)
@@ -269,8 +306,23 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
   )
 }
 
+function matchesRoleFilter(researcher: Researcher, filter: RoleFilter) {
+  if (filter === 'All') return true
+  if (filter === 'Student') return researcher.userRole !== 'ScienceOfficer' && researcher.userRole !== 'PrincipalInvestigator'
+  return researcher.userRole === filter
+}
+
 export function ResearchersTab() {
   const { data: researchers, isLoading, isError } = useResearchers()
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('All')
+
+  const query = search.trim().toLowerCase()
+  const filtered = (researchers ?? []).filter(
+    (r) =>
+      matchesRoleFilter(r, roleFilter) &&
+      (query === '' || r.fullName.toLowerCase().includes(query) || r.studentNumber.toLowerCase().includes(query)),
+  )
 
   return (
     <AdminSection
@@ -278,11 +330,36 @@ export function ResearchersTab() {
       description="Students and researchers who use lab equipment."
       action={<CreateResearcherDialog />}
     >
+      <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            placeholder="Search by name or student number…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
+          <SelectTrigger className="sm:w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(ROLE_FILTER_LABEL) as RoleFilter[]).map((value) => (
+              <SelectItem key={value} value={value}>
+                {ROLE_FILTER_LABEL[value]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Student no.</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Field of study</TableHead>
             <TableHead>Research groups</TableHead>
             <TableHead>Account</TableHead>
@@ -293,7 +370,7 @@ export function ResearchersTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -301,7 +378,7 @@ export function ResearchersTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={6}
+              colSpan={7}
               tone="error"
               title="Couldn't load researchers."
               description="Check that the API is running and try again."
@@ -309,13 +386,20 @@ export function ResearchersTab() {
           )}
 
           {!isLoading && !isError && researchers?.length === 0 && (
-            <TableEmptyState colSpan={6} title="No researchers yet." />
+            <TableEmptyState colSpan={7} title="No researchers yet." />
           )}
 
-          {researchers?.map((researcher) => (
+          {!isLoading && !isError && researchers && researchers.length > 0 && filtered.length === 0 && (
+            <TableEmptyState colSpan={7} title="No researchers match your search." />
+          )}
+
+          {filtered.map((researcher) => (
             <TableRow key={researcher.id}>
               <TableCell className="font-medium text-foreground">{researcher.fullName}</TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">{researcher.studentNumber}</TableCell>
+              <TableCell>
+                <RoleBadge userRole={researcher.userRole} />
+              </TableCell>
               <TableCell className="text-muted-foreground">{researcher.fieldOfStudy ?? '—'}</TableCell>
               <TableCell className="text-muted-foreground">{researcher.researchGroupNames.join(', ')}</TableCell>
               <TableCell className="text-muted-foreground">{researcher.userEmail ?? 'No account yet'}</TableCell>

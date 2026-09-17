@@ -1,5 +1,4 @@
 import { createElement } from 'react'
-import { API_ORIGIN } from '@/lib/api-client'
 import { getEquipmentIcon } from './equipment-icons'
 
 interface EquipmentAvatarProps {
@@ -15,7 +14,7 @@ export function EquipmentAvatar({ imageUrl, iconKey, name, className = 'size-9' 
   if (imageUrl) {
     return (
       <img
-        src={`${API_ORIGIN}${imageUrl}`}
+        src={imageUrl}
         alt={name}
         className={`${className} rounded-md border border-border object-cover`}
       />

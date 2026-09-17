@@ -8,6 +8,10 @@ public class FacilityDto
     public string DepartmentName { get; set; } = string.Empty;
     public List<int> OverseerUserIds { get; set; } = [];
     public List<string> OverseerEmails { get; set; } = [];
+
+    // Read-only — a room is assigned to this facility from the Room admin form,
+    // not here.
+    public List<string> RoomLabels { get; set; } = [];
 }
 
 public class UpsertFacilityRequest

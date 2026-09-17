@@ -37,6 +37,19 @@ public class CreateBookingRequestValidator : AbstractValidator<CreateBookingRequ
             .MustAsync((id, ct) => db.Researchers.AnyAsync(r => r.Id == id, ct))
             .When(x => x.ResearcherId.HasValue)
             .WithMessage("ResearcherId does not reference an existing researcher.");
+
+        RuleFor(x => x.ExternalContactId)
+            .MustAsync((id, ct) => db.ExternalContacts.AnyAsync(c => c.Id == id, ct))
+            .When(x => x.ExternalContactId.HasValue)
+            .WithMessage("ExternalContactId does not reference an existing external contact.");
+
+        RuleFor(x => x)
+            .Must(x => x.ResearcherId is null || x.ExternalContactId is null)
+            .WithName("ExternalContactId")
+            .WithMessage("A booking cannot specify both ResearcherId and ExternalContactId.");
+
+        RuleFor(x => x.Notes)
+            .MaximumLength(500);
     }
 
     private static async Task<bool> HasNoConflictAsync(IApplicationDbContext db, CreateBookingRequest request, CancellationToken ct)

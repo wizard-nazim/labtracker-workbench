@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { UserRole } from '@/types/roles'
+import type { FieldOfStudy } from '@/types/field-of-study'
 
 export interface ResearcherProfile {
   id: number
   fullName: string
   studentNumber: string
-  fieldOfStudy: string | null
+  fieldOfStudy: FieldOfStudy | null
   researchGroupNames: string[]
 }
 

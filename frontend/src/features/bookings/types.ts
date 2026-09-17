@@ -1,4 +1,7 @@
+import type { UserRole } from '@/types/roles'
+
 export type BookingStatus = 'Requested' | 'Approved' | 'Rejected' | 'Cancelled' | 'Completed' | 'NoShow'
+export type BookingActorType = 'Internal' | 'External'
 
 export interface Booking {
   id: number
@@ -8,8 +11,12 @@ export interface Booking {
   equipmentId: number
   equipmentName: string
   roomLabel: string
+  actorType: BookingActorType
   researcherId: number | null
+  externalContactId: number | null
   actorDisplayName: string
+  actorRole: UserRole | null
+  notes: string | null
   createdByUserId: number
   createdAt: string
   approvedByUserId: number | null
@@ -20,4 +27,7 @@ export interface CreateBookingRequest {
   equipmentId: number
   scheduledStart: string
   scheduledEnd: string
+  researcherId?: number
+  externalContactId?: number
+  notes?: string
 }

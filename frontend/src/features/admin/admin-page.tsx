@@ -94,6 +94,7 @@ const TABS = [
 
 const TAB_TOUR_ID: Record<string, string> = {
   departments: 'admin-tab-departments',
+  'equipment-types': 'admin-tab-equipment-types',
   facilities: 'admin-tab-facilities',
   users: 'admin-tab-users',
 }
@@ -104,7 +105,7 @@ export function AdminPage() {
   if (user?.role !== 'SuperAdmin') return <Navigate to="/" replace />
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <Joyride
         steps={tour.steps}
         run={tour.run}

@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
 import { useResearchGroups } from './research-groups'
+import { useFacilities } from './facilities'
 
 export interface Room {
   id: number
@@ -35,6 +36,8 @@ export interface Room {
   departmentId: number | null
   researchGroupId: number | null
   researchGroupName: string | null
+  facilityId: number | null
+  facilityName: string | null
 }
 
 interface UpsertRoomRequest {
@@ -43,6 +46,7 @@ interface UpsertRoomRequest {
   roomNumber: string
   departmentId?: number
   researchGroupId?: number
+  facilityId?: number
 }
 
 export function useRooms() {
@@ -76,6 +80,8 @@ function RoomFields({
   setDepartmentId,
   researchGroupId,
   setResearchGroupId,
+  facilityId,
+  setFacilityId,
 }: {
   building: string
   setBuilding: (v: string) => void
@@ -87,9 +93,12 @@ function RoomFields({
   setDepartmentId: (v: string) => void
   researchGroupId: string
   setResearchGroupId: (v: string) => void
+  facilityId: string
+  setFacilityId: (v: string) => void
 }) {
   const { data: departments } = useDepartments()
   const { data: researchGroups } = useResearchGroups()
+  const { data: facilities } = useFacilities()
 
   return (
     <>
@@ -135,6 +144,21 @@ function RoomFields({
           </SelectContent>
         </Select>
       </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="room-facility">Facility (optional — a facility's rooms can span multiple floors)</Label>
+        <Select value={facilityId} onValueChange={setFacilityId}>
+          <SelectTrigger id="room-facility">
+            <SelectValue placeholder="No facility" />
+          </SelectTrigger>
+          <SelectContent>
+            {facilities?.map((facility) => (
+              <SelectItem key={facility.id} value={String(facility.id)}>
+                {facility.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </>
   )
 }
@@ -145,6 +169,7 @@ function CreateRoomDialog() {
   const [roomNumber, setRoomNumber] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [researchGroupId, setResearchGroupId] = useState('')
+  const [facilityId, setFacilityId] = useState('')
   const create = useCreateRoom()
 
   async function handleSubmit() {
@@ -154,6 +179,7 @@ function CreateRoomDialog() {
       roomNumber,
       departmentId: departmentId ? Number(departmentId) : undefined,
       researchGroupId: researchGroupId ? Number(researchGroupId) : undefined,
+      facilityId: facilityId ? Number(facilityId) : undefined,
     })
     toast.success(`Added room ${roomNumber}.`)
     setBuilding('')
@@ -161,6 +187,7 @@ function CreateRoomDialog() {
     setRoomNumber('')
     setDepartmentId('')
     setResearchGroupId('')
+    setFacilityId('')
   }
 
   return (
@@ -181,6 +208,8 @@ function CreateRoomDialog() {
         setDepartmentId={setDepartmentId}
         researchGroupId={researchGroupId}
         setResearchGroupId={setResearchGroupId}
+        facilityId={facilityId}
+        setFacilityId={setFacilityId}
       />
     </EntityDialog>
   )
@@ -193,6 +222,7 @@ function EditRoomDialog({ room }: { room: Room }) {
   const [roomNumber, setRoomNumber] = useState(room.roomNumber)
   const [departmentId, setDepartmentId] = useState(room.departmentId ? String(room.departmentId) : '')
   const [researchGroupId, setResearchGroupId] = useState(room.researchGroupId ? String(room.researchGroupId) : '')
+  const [facilityId, setFacilityId] = useState(room.facilityId ? String(room.facilityId) : '')
   const update = useUpdateRoom(room.id)
 
   async function handleSubmit() {
@@ -202,6 +232,7 @@ function EditRoomDialog({ room }: { room: Room }) {
       roomNumber,
       departmentId: departmentId ? Number(departmentId) : undefined,
       researchGroupId: researchGroupId ? Number(researchGroupId) : undefined,
+      facilityId: facilityId ? Number(facilityId) : undefined,
     })
     toast.success(`Updated room ${roomNumber}.`)
   }
@@ -230,6 +261,8 @@ function EditRoomDialog({ room }: { room: Room }) {
         setDepartmentId={setDepartmentId}
         researchGroupId={researchGroupId}
         setResearchGroupId={setResearchGroupId}
+        facilityId={facilityId}
+        setFacilityId={setFacilityId}
       />
     </EntityDialog>
   )
@@ -247,6 +280,7 @@ export function RoomsTab() {
             <TableHead>Floor</TableHead>
             <TableHead>Room</TableHead>
             <TableHead>Lab</TableHead>
+            <TableHead>Facility</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -254,7 +288,7 @@ export function RoomsTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -262,14 +296,14 @@ export function RoomsTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={5}
+              colSpan={6}
               tone="error"
               title="Couldn't load rooms."
               description="Check that the API is running and try again."
             />
           )}
 
-          {!isLoading && !isError && rooms?.length === 0 && <TableEmptyState colSpan={5} title="No rooms yet." />}
+          {!isLoading && !isError && rooms?.length === 0 && <TableEmptyState colSpan={6} title="No rooms yet." />}
 
           {rooms?.map((room) => (
             <TableRow key={room.id}>
@@ -277,6 +311,7 @@ export function RoomsTab() {
               <TableCell className="text-muted-foreground">{room.floor}</TableCell>
               <TableCell className="font-medium text-foreground">{room.roomNumber}</TableCell>
               <TableCell className="text-muted-foreground">{room.researchGroupName ?? '—'}</TableCell>
+              <TableCell className="text-muted-foreground">{room.facilityName ?? '—'}</TableCell>
               <TableCell className="text-right">
                 <EditRoomDialog room={room} />
               </TableCell>

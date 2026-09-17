@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TableEmptyState } from '@/components/table-empty-state'
+import { Calendar33 } from '@/components/beste/piece/calendar33'
 import { useAuth } from '@/context/auth-context'
 import { ApiError } from '@/lib/api-client'
 import { RecordUsageDialog } from '@/features/usage/record-usage-dialog'
@@ -29,6 +30,17 @@ function formatDateTime(value: string) {
 
 function errorMessage(err: unknown) {
   return err instanceof ApiError ? err.message : 'Something went wrong. Try again.'
+}
+
+// Real upcoming days (not the component's hardcoded demo dates) so the empty
+// state's illustration never shows a date that doesn't match today.
+function upcomingDays() {
+  const today = new Date()
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(today)
+    date.setDate(today.getDate() + i)
+    return { weekday: date.toLocaleDateString(undefined, { weekday: 'short' }), date: String(date.getDate()) }
+  })
 }
 
 export function BookingsPage() {
@@ -70,7 +82,7 @@ export function BookingsPage() {
   const columnCount = (isManager ? 6 : 5) + 1
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageBanner src="/banners/bookings-banner.jpg" alt="Bookings" />
 
       <PageHeader
@@ -112,10 +124,21 @@ export function BookingsPage() {
             )}
 
             {!isLoading && !isError && bookings?.length === 0 && (
-              <TableEmptyState
-                colSpan={columnCount}
-                title={isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
-              />
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={columnCount} className="py-8">
+                  <div className="mx-auto flex max-w-xs flex-col items-center gap-3">
+                    <Calendar33
+                      title="Book a session"
+                      days={upcomingDays()}
+                      slots={['09:00', '13:00', '16:00']}
+                      tone="primary"
+                    />
+                    <p className="text-sm text-foreground">
+                      {isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
             )}
 
             {bookings?.map((booking) => {
@@ -127,11 +150,21 @@ export function BookingsPage() {
                   <TableCell>
                     <BookingStatusIndicator status={booking.status} />
                   </TableCell>
-                  <TableCell className="font-medium text-foreground">{booking.equipmentName}</TableCell>
+                  <TableCell className="font-medium text-foreground">
+                    {booking.equipmentName}
+                    {booking.notes && (
+                      <p className="mt-0.5 max-w-48 truncate text-xs font-normal text-muted-foreground" title={booking.notes}>
+                        {booking.notes}
+                      </p>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">{booking.roomLabel}</TableCell>
                   {isManager && (
                     <TableCell className="hidden text-muted-foreground md:table-cell">
                       {booking.actorDisplayName}
+                      {booking.actorType === 'External' && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">(external)</span>
+                      )}
                     </TableCell>
                   )}
                   <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
@@ -140,7 +173,7 @@ export function BookingsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
-                      {isManager && booking.status === 'Requested' && (
+                      {isManager && booking.status === 'Requested' && booking.actorType === 'External' && (
                         <>
                           <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleApprove(booking)}>
                             Approve

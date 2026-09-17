@@ -1,5 +1,6 @@
 using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
+using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using ResearcherEntity = LabTracker.Domain.Modules.Organization.Researcher;
@@ -83,5 +84,6 @@ public class ResearcherService(IApplicationDbContext db, IValidator<UpsertResear
         ResearchGroupNames = r.ResearchGroups.Select(g => g.Name).ToList(),
         UserId = r.UserId,
         UserEmail = r.User != null ? r.User.Email : null,
+        UserRole = r.User != null ? r.User.Role : (Role?)null,
     };
 }

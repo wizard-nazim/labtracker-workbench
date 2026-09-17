@@ -34,6 +34,7 @@ export interface Facility {
   departmentName: string
   overseerUserIds: number[]
   overseerEmails: string[]
+  roomLabels: string[]
 }
 
 interface UpsertFacilityRequest {
@@ -209,7 +210,7 @@ export function FacilitiesTab() {
   return (
     <AdminSection
       title="Facilities"
-      description="Department-level facilities (e.g. BSL2 labs) that Science Officers can be assigned to oversee."
+      description="Department-level facilities (e.g. BSL2 labs) that Science Officers can be assigned to oversee. Assign a room to a facility from the Rooms tab."
       action={<CreateFacilityDialog />}
     >
       <Table>
@@ -218,6 +219,7 @@ export function FacilitiesTab() {
             <TableHead>Name</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Overseers</TableHead>
+            <TableHead>Rooms</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -225,7 +227,7 @@ export function FacilitiesTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -233,7 +235,7 @@ export function FacilitiesTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={4}
+              colSpan={5}
               tone="error"
               title="Couldn't load facilities."
               description="Check that the API is running and try again."
@@ -241,7 +243,7 @@ export function FacilitiesTab() {
           )}
 
           {!isLoading && !isError && facilities?.length === 0 && (
-            <TableEmptyState colSpan={4} title="No facilities yet." />
+            <TableEmptyState colSpan={5} title="No facilities yet." />
           )}
 
           {facilities?.map((facility) => (
@@ -250,6 +252,9 @@ export function FacilitiesTab() {
               <TableCell className="text-muted-foreground">{facility.departmentName}</TableCell>
               <TableCell className="text-muted-foreground">
                 {facility.overseerEmails.length > 0 ? facility.overseerEmails.join(', ') : '—'}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {facility.roomLabels.length > 0 ? facility.roomLabels.join(', ') : '—'}
               </TableCell>
               <TableCell className="text-right">
                 <EditFacilityDialog facility={facility} />

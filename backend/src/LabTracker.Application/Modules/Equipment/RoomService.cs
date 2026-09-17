@@ -12,6 +12,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
     {
         return await db.Rooms
             .Include(r => r.ResearchGroup)
+            .Include(r => r.Facility)
             .OrderBy(r => r.Building).ThenBy(r => r.Floor).ThenBy(r => r.RoomNumber)
             .Select(r => ToDto(r))
             .ToListAsync(cancellationToken);
@@ -19,7 +20,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
 
     public async Task<RoomDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var room = await db.Rooms.Include(r => r.ResearchGroup).SingleOrDefaultAsync(r => r.Id == id, cancellationToken)
+        var room = await db.Rooms.Include(r => r.ResearchGroup).Include(r => r.Facility).SingleOrDefaultAsync(r => r.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(RoomEntity), id);
 
         return ToDto(room);
@@ -36,6 +37,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
             RoomNumber = request.RoomNumber,
             DepartmentId = request.DepartmentId,
             ResearchGroupId = request.ResearchGroupId,
+            FacilityId = request.FacilityId,
         };
         db.Rooms.Add(room);
         await db.SaveChangesAsync(cancellationToken);
@@ -55,6 +57,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
         room.RoomNumber = request.RoomNumber;
         room.DepartmentId = request.DepartmentId;
         room.ResearchGroupId = request.ResearchGroupId;
+        room.FacilityId = request.FacilityId;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -69,5 +72,7 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
         DepartmentId = r.DepartmentId,
         ResearchGroupId = r.ResearchGroupId,
         ResearchGroupName = r.ResearchGroup?.Name,
+        FacilityId = r.FacilityId,
+        FacilityName = r.Facility?.Name,
     };
 }

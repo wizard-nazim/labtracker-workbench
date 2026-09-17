@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { apiErrorMessage } from '@/lib/api-error-message'
 import { EntityDialog } from '@/components/entity-dialog'
@@ -25,24 +25,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-
-interface ExternalContact {
-  id: number
-  externalOrganizationId: number
-  fullName: string
-  email: string
-  phone: string | null
-}
-
-interface ExternalOrganization {
-  id: number
-  name: string
-  contacts: ExternalContact[]
-}
-
-function useExternalOrganizations() {
-  return useQuery({ queryKey: ['external'], queryFn: () => apiClient.get<ExternalOrganization[]>('/external') })
-}
+import type { ExternalOrganization } from '@/features/external/types'
+import { useExternalOrganizations } from '@/features/external/use-external'
 
 function useCreateExternalOrganization() {
   const queryClient = useQueryClient()

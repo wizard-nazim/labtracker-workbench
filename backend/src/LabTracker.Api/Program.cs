@@ -26,7 +26,16 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddScoped<IEquipmentImageStorage, EquipmentImageStorage>();
+
+var minioSection = builder.Configuration.GetSection("Minio");
+builder.Services.AddSingleton<IBlobStorage>(_ => new S3BlobStorage(new S3BlobStorageOptions
+{
+    ServiceUrl = minioSection["ServiceUrl"] ?? string.Empty,
+    AccessKey = minioSection["AccessKey"] ?? string.Empty,
+    SecretKey = minioSection["SecretKey"] ?? string.Empty,
+    Bucket = minioSection["Bucket"] ?? string.Empty,
+    PublicBaseUrl = minioSection["PublicBaseUrl"] ?? string.Empty,
+}));
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
 builder.Services.AddCors(options =>
@@ -73,8 +82,6 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
-app.UseStaticFiles();
-
 app.UseCors("Frontend");
 
 app.UseAuthentication();
@@ -83,3 +90,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Exposes the top-level statements' generated Program class so
+// WebApplicationFactory<Program> can reference it from the test assembly.
+public partial class Program { }

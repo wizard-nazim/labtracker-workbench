@@ -66,6 +66,10 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int?>("ModifiedByUserId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<DateTime>("ScheduledEnd")
                         .HasColumnType("timestamp with time zone");
 
@@ -229,6 +233,45 @@ namespace LabTracker.Infrastructure.Migrations
                     b.ToTable("Equipment");
                 });
 
+            modelBuilder.Entity("LabTracker.Domain.Modules.Equipment.EquipmentImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BlobKey")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UploadedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("EquipmentImages");
+                });
+
             modelBuilder.Entity("LabTracker.Domain.Modules.Equipment.EquipmentScienceOfficer", b =>
                 {
                     b.Property<int>("EquipmentId")
@@ -288,6 +331,9 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int?>("DepartmentId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("FacilityId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Floor")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -304,6 +350,8 @@ namespace LabTracker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
+
+                    b.HasIndex("FacilityId");
 
                     b.HasIndex("ResearchGroupId");
 
@@ -524,9 +572,8 @@ namespace LabTracker.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("FieldOfStudy")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                    b.Property<int?>("FieldOfStudy")
+                        .HasColumnType("integer");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -699,6 +746,17 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Navigation("Room");
                 });
 
+            modelBuilder.Entity("LabTracker.Domain.Modules.Equipment.EquipmentImage", b =>
+                {
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UploadedByUser");
+                });
+
             modelBuilder.Entity("LabTracker.Domain.Modules.Equipment.EquipmentScienceOfficer", b =>
                 {
                     b.HasOne("LabTracker.Domain.Modules.Equipment.Equipment", "Equipment")
@@ -725,12 +783,19 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("LabTracker.Domain.Modules.Organization.Facility", "Facility")
+                        .WithMany("Rooms")
+                        .HasForeignKey("FacilityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LabTracker.Domain.Modules.Organization.ResearchGroup", "ResearchGroup")
                         .WithMany()
                         .HasForeignKey("ResearchGroupId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Department");
+
+                    b.Navigation("Facility");
 
                     b.Navigation("ResearchGroup");
                 });
@@ -827,6 +892,11 @@ namespace LabTracker.Infrastructure.Migrations
             modelBuilder.Entity("LabTracker.Domain.Modules.External.ExternalOrganization", b =>
                 {
                     b.Navigation("Contacts");
+                });
+
+            modelBuilder.Entity("LabTracker.Domain.Modules.Organization.Facility", b =>
+                {
+                    b.Navigation("Rooms");
                 });
 #pragma warning restore 612, 618
         }

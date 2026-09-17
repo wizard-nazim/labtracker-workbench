@@ -5,9 +5,9 @@ using UsageActorEntity = LabTracker.Domain.Modules.Booking.UsageActor;
 
 namespace LabTracker.Application.Modules.Booking;
 
-// Shared by Bookings and Usage Records: both need to attribute an internal
-// actor to a researcher, reusing the same UsageActor row across all of a
-// researcher's activity rather than creating a new one each time.
+// Shared by Bookings and Usage Records: both need to attribute an actor
+// (internal researcher or external contact), reusing the same UsageActor row
+// across all of that actor's activity rather than creating a new one each time.
 public class UsageActorResolver(IApplicationDbContext db)
 {
     public async Task<int> GetOrCreateInternalActorAsync(int researcherId, CancellationToken cancellationToken)
@@ -27,6 +27,30 @@ public class UsageActorResolver(IApplicationDbContext db)
             ActorType = ActorType.Internal,
             ResearcherId = researcherId,
             DisplayNameSnapshot = researcherName,
+        };
+        db.UsageActors.Add(actor);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return actor.Id;
+    }
+
+    public async Task<int> GetOrCreateExternalActorAsync(int externalContactId, CancellationToken cancellationToken)
+    {
+        var existingActorId = await db.UsageActors
+            .Where(a => a.ActorType == ActorType.External && a.ExternalContactId == externalContactId)
+            .Select(a => a.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (existingActorId != 0)
+        {
+            return existingActorId;
+        }
+
+        var contactName = await db.ExternalContacts.Where(c => c.Id == externalContactId).Select(c => c.FullName).SingleAsync(cancellationToken);
+        var actor = new UsageActorEntity
+        {
+            ActorType = ActorType.External,
+            ExternalContactId = externalContactId,
+            DisplayNameSnapshot = contactName,
         };
         db.UsageActors.Add(actor);
         await db.SaveChangesAsync(cancellationToken);

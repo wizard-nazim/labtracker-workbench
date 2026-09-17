@@ -20,6 +20,10 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await WriteProblemAsync(context, StatusCodes.Status403Forbidden, "Forbidden", ex.Message);
         }
+        catch (ConflictException ex)
+        {
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", ex.Message);
+        }
         catch (FluentValidation.ValidationException ex)
         {
             var errors = ex.Errors

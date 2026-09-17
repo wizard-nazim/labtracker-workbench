@@ -140,6 +140,14 @@ public static class DbSeeder
         db.ResearchGroups.AddRange(okaforLab, chenLab);
         await db.SaveChangesAsync();
 
+        // Ties each seeded room to the lab that uses it, so usage reports (which
+        // attribute by the booked equipment's room, not the researcher's own lab
+        // memberships) show per-lab totals instead of everything landing in
+        // "Unassigned".
+        chemLabRoom.ResearchGroupId = okaforLab.Id;
+        bioLabRoom.ResearchGroupId = chenLab.Id;
+        await db.SaveChangesAsync();
+
         var nadia = new Researcher { FullName = "Nadia Petrov", StudentNumber = "STU1001", ResearchGroups = [okaforLab] };
         var sam = new Researcher { FullName = "Sam Reyes", StudentNumber = "STU1002", ResearchGroups = [okaforLab] };
         var priya = new Researcher { FullName = "Priya Nair", StudentNumber = "STU1003", ResearchGroups = [chenLab] };

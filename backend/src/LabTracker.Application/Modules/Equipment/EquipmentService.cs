@@ -50,6 +50,7 @@ public class EquipmentService(
             SerialNumber = request.SerialNumber,
             Description = request.Description,
             IsShared = request.IsShared,
+            ImageUrl = request.ImageUrl,
             IconKey = request.IconKey,
             EquipmentTypeId = request.EquipmentTypeId,
             RoomId = request.RoomId,
@@ -74,23 +75,11 @@ public class EquipmentService(
         equipment.SerialNumber = request.SerialNumber;
         equipment.Description = request.Description;
         equipment.IsShared = request.IsShared;
+        equipment.ImageUrl = request.ImageUrl;
         equipment.IconKey = request.IconKey;
         equipment.EquipmentTypeId = request.EquipmentTypeId;
         equipment.RoomId = request.RoomId;
         equipment.OwningDepartmentId = request.OwningDepartmentId;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return await GetByIdAsync(id, cancellationToken);
-    }
-
-    // Set by the dedicated image-upload endpoint once the file has been saved to
-    // disk — kept separate from UpdateAsync since that request stays plain JSON.
-    public async Task<EquipmentDto> SetImageAsync(int id, string imageUrl, CancellationToken cancellationToken = default)
-    {
-        var equipment = await db.Equipment.FindAsync([id], cancellationToken)
-            ?? throw new NotFoundException(nameof(EquipmentEntity), id);
-
-        equipment.ImageUrl = imageUrl;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -203,6 +192,7 @@ public class EquipmentService(
         EquipmentTypeName = e.EquipmentType.Name,
         RoomId = e.RoomId,
         RoomLabel = e.Room.Building + " " + e.Room.Floor + " " + e.Room.RoomNumber,
+        FacilityName = e.Room.Facility != null ? e.Room.Facility.Name : null,
         OwningDepartmentId = e.OwningDepartmentId,
         OwningDepartmentName = e.OwningDepartment.Name,
         ScienceOfficers = e.ScienceOfficers.Select(so => new ScienceOfficerAssignmentDto

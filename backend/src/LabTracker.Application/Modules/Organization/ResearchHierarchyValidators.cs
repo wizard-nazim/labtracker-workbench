@@ -59,6 +59,8 @@ public class UpsertResearcherRequestValidator : AbstractValidator<UpsertResearch
             .MustAsync((id, ct) => db.ResearchGroups.AnyAsync(g => g.Id == id, ct))
             .WithMessage("ResearchGroupIds contains an id that does not reference an existing research group.");
 
+        RuleFor(x => x.FieldOfStudy).IsInEnum().When(x => x.FieldOfStudy.HasValue);
+
         // Not restricted to Role.Researcher — a Science Officer or Principal
         // Investigator can also be linked to a Researcher profile so they can
         // book/use equipment for themselves, same as a plain researcher.

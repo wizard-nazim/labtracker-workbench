@@ -74,6 +74,22 @@ public class PrincipalInvestigatorService(
         var pi = await db.PrincipalInvestigators.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(PrincipalInvestigatorEntity), id);
 
+        // A PI's login (when they have one) is keyed on this same Email, so it has
+        // to move with it or the account silently ends up unable to log in with
+        // the email now shown on their profile.
+        if (pi.UserId is { } userId && !string.Equals(pi.Email, request.Email, StringComparison.Ordinal))
+        {
+            var emailTakenByAnotherUser = await db.Users.AnyAsync(u => u.Id != userId && u.Email == request.Email, cancellationToken);
+            if (emailTakenByAnotherUser)
+            {
+                throw new FluentValidation.ValidationException(
+                    [new FluentValidation.Results.ValidationFailure(nameof(request.Email), "A user with this email already exists.")]);
+            }
+
+            var user = await db.Users.FindAsync([userId], cancellationToken);
+            if (user is not null) user.Email = request.Email;
+        }
+
         pi.FullName = request.FullName;
         pi.Email = request.Email;
         pi.DepartmentId = request.DepartmentId;

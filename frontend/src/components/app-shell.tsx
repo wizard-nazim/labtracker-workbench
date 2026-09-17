@@ -4,7 +4,8 @@ import { Joyride } from 'react-joyride'
 import { LogOut, ChevronsLeft, ChevronsRight, ChevronDown, Menu, UserRound, HelpCircle } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { NAV_GROUPS, type NavGroup } from '@/lib/nav-items'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getRoleAvatarSrc } from '@/lib/role-avatar'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { NotificationsPanel } from '@/components/notifications-panel'
 import { GlobalSearch } from '@/components/global-search'
@@ -100,6 +101,7 @@ export function AppShell() {
         }`}
       >
         <Avatar className="size-7 shrink-0">
+          <AvatarImage src={getRoleAvatarSrc(user?.role ?? null, false)} alt="" />
           <AvatarFallback className="text-xs">{user?.email.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         {!collapsed && (

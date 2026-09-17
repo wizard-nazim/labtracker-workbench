@@ -117,7 +117,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageBanner src="/banners/overview-banner.jpg" alt="Lab equipment overview" />
 
       <PageHeader
