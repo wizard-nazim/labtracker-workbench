@@ -2,10 +2,6 @@ import { authStorage } from './auth-storage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
-// VITE_API_BASE_URL includes the /api suffix; static files (uploaded images)
-// are served from the API's origin, not under /api, so strip it back off.
-export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '')
-
 export interface ApiErrorBody {
   title?: string
   detail?: string

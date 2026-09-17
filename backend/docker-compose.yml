@@ -12,6 +12,20 @@ services:
     volumes:
       - labtracker_pg_data:/var/lib/postgresql/data
 
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: labtracker-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-labtracker}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-devpassword_change_me}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - labtracker_minio_data:/data
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: labtracker-pgadmin
@@ -27,3 +41,4 @@ services:
 
 volumes:
   labtracker_pg_data:
+  labtracker_minio_data:

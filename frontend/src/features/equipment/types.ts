@@ -19,6 +19,7 @@ export interface Equipment {
   equipmentTypeName: string
   roomId: number
   roomLabel: string
+  facilityName: string | null
   owningDepartmentId: number
   owningDepartmentName: string
   scienceOfficers: ScienceOfficerAssignment[]

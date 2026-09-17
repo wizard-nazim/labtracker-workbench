@@ -17,6 +17,7 @@ import { TableEmptyState } from '@/components/table-empty-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { EquipmentUnitsPanel } from './equipment-units-panel'
 
 export interface EquipmentType {
   id: number
@@ -105,51 +106,64 @@ function EditEquipmentTypeDialog({ equipmentType }: { equipmentType: EquipmentTy
 
 export function EquipmentTypesTab() {
   const { data: types, isLoading, isError } = useEquipmentTypes()
+  const [managingTypeId, setManagingTypeId] = useState<number | null>(null)
+  const managingType = types?.find((t) => t.id === managingTypeId) ?? null
 
   return (
-    <AdminSection
-      title="Equipment types"
-      description="Categories used to classify equipment, e.g. Centrifuge, Microscope."
-      action={<CreateEquipmentTypeDialog />}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={2}>
-                  <Skeleton className="h-5 w-full" />
+    <div className="flex flex-col gap-4">
+      <AdminSection
+        title="Equipment types"
+        description="Categories used to classify equipment, e.g. Centrifuge, Microscope. Click a type to manage its actual units."
+        action={<CreateEquipmentTypeDialog />}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading &&
+              Array.from({ length: 3 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell colSpan={2}>
+                    <Skeleton className="h-5 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {isError && (
+              <TableEmptyState
+                colSpan={2}
+                tone="error"
+                title="Couldn't load equipment types."
+                description="Check that the API is running and try again."
+              />
+            )}
+
+            {!isLoading && !isError && types?.length === 0 && <TableEmptyState colSpan={2} title="No equipment types yet." />}
+
+            {types?.map((type) => (
+              <TableRow key={type.id} className={managingTypeId === type.id ? 'bg-muted/40' : undefined}>
+                <TableCell className="font-medium text-foreground">{type.name}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant={managingTypeId === type.id ? 'secondary' : 'ghost'}
+                    onClick={() => setManagingTypeId(managingTypeId === type.id ? null : type.id)}
+                  >
+                    Manage units
+                  </Button>
+                  <EditEquipmentTypeDialog equipmentType={type} />
                 </TableCell>
               </TableRow>
             ))}
+          </TableBody>
+        </Table>
+      </AdminSection>
 
-          {isError && (
-            <TableEmptyState
-              colSpan={2}
-              tone="error"
-              title="Couldn't load equipment types."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && types?.length === 0 && <TableEmptyState colSpan={2} title="No equipment types yet." />}
-
-          {types?.map((type) => (
-            <TableRow key={type.id}>
-              <TableCell className="font-medium text-foreground">{type.name}</TableCell>
-              <TableCell className="text-right">
-                <EditEquipmentTypeDialog equipmentType={type} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </AdminSection>
+      {managingType && <EquipmentUnitsPanel equipmentType={managingType} onClose={() => setManagingTypeId(null)} />}
+    </div>
   )
 }

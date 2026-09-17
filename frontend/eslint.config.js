@@ -20,9 +20,10 @@ export default defineConfig([
     },
   },
   {
-    // shadcn/ui components are vendored from the registry, not hand-authored —
-    // they commonly export a variants helper alongside the component.
-    files: ['src/components/ui/**/*.{ts,tsx}'],
+    // shadcn/ui components (and other shadcn-registry pieces, e.g. src/components/beste)
+    // are vendored from the registry, not hand-authored — they commonly export a
+    // variants/demo helper alongside the component.
+    files: ['src/components/ui/**/*.{ts,tsx}', 'src/components/beste/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

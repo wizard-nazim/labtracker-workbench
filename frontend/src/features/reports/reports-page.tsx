@@ -75,7 +75,7 @@ export function ReportsPage() {
   if (user?.role !== 'SuperAdmin') return <Navigate to="/" replace />
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageBanner src="/banners/reports-banner.jpg" alt="Reports" />
 
       <PageHeader

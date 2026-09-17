@@ -41,34 +41,97 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
             ?? throw new NotFoundException(nameof(BookingEntity), id);
     }
 
+    // Roles allowed to book equipment on behalf of a visiting/external person —
+    // a plain Researcher has no supervisory/hosting relationship to a visitor in
+    // this system's role model, so isn't included. Keep this in sync with the
+    // equivalent role gate in the frontend's book-equipment-dialog.tsx.
+    private static readonly Role[] ExternalBookingRoles = [Role.SuperAdmin, Role.ScienceOfficer, Role.PrincipalInvestigator];
+
     public async Task<BookingDto> CreateAsync(CreateBookingRequest request, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
-        // Anyone with their own linked Researcher profile (a plain Researcher, or a
-        // Science Officer/Principal Investigator who also has one) books for
-        // themselves — any ResearcherId in the request body is ignored in that case,
-        // to prevent booking on someone else's behalf. Only when the acting user has
-        // no such profile (e.g. a Super Admin booking on someone's behalf) is an
-        // explicit ResearcherId required.
+        // Who the booking is *for* decides internal-vs-external (and therefore
+        // auto-approval), not who's creating it — a Super Admin booking on behalf
+        // of an internal researcher without a login must still auto-approve, same
+        // as a Science Officer/Principal Investigator booking for themselves.
         var selfResearcherId = await db.Researchers.Where(r => r.UserId == actingUserId).Select(r => r.Id).SingleOrDefaultAsync(cancellationToken);
 
-        int researcherId;
+        ActorType actorType;
+        int? researcherId = null;
+        int? externalContactId = null;
+        var needsSelfResearcherProvisioning = false;
+
         if (selfResearcherId != 0)
         {
+            // Anyone with their own linked Researcher profile (a plain Researcher, or
+            // a Science Officer/Principal Investigator who also has one) books for
+            // themselves — any ResearcherId/ExternalContactId in the request body is
+            // ignored in that case, to prevent booking on someone else's behalf.
+            actorType = ActorType.Internal;
             researcherId = selfResearcherId;
         }
-        else if (request.ResearcherId is { } explicitId)
+        else if (request.ExternalContactId is { } explicitContactId)
         {
-            researcherId = explicitId;
+            if (!ExternalBookingRoles.Contains(actingUserRole))
+            {
+                throw new ForbiddenException("Only a Super Admin, Science Officer, or Principal Investigator can book on behalf of an external visitor.");
+            }
+
+            actorType = ActorType.External;
+            externalContactId = explicitContactId;
+        }
+        else if (request.ResearcherId is { } explicitResearcherId)
+        {
+            actorType = ActorType.Internal;
+            researcherId = explicitResearcherId;
+        }
+        else if (actingUserRole != Role.SuperAdmin)
+        {
+            // Self-booking, but this login has no linked Researcher profile yet
+            // (e.g. a Science Officer/Researcher account created via Admin > Users
+            // without a separate Admin > Researchers link). Provisioning the bare
+            // profile happens after validation below, so a validation failure (e.g.
+            // equipment unavailable) never leaves a stray Researcher row behind.
+            // SuperAdmin is excluded: they manage the system rather than use it, so
+            // they never get a self-booking path at all.
+            actorType = ActorType.Internal;
+            needsSelfResearcherProvisioning = true;
         }
         else
         {
             throw new FluentValidation.ValidationException(
-                [new FluentValidation.Results.ValidationFailure(nameof(request.ResearcherId), "ResearcherId is required when booking on behalf of someone else.")]);
+                [new FluentValidation.Results.ValidationFailure(nameof(request.ResearcherId), "ResearcherId or ExternalContactId is required when booking on behalf of someone else.")]);
         }
 
         await createValidator.ValidateAndThrowAsync(request, cancellationToken);
 
-        var actorId = await actorResolver.GetOrCreateInternalActorAsync(researcherId, cancellationToken);
+        if (needsSelfResearcherProvisioning)
+        {
+            var fullName = await db.PrincipalInvestigators
+                .Where(pi => pi.UserId == actingUserId)
+                .Select(pi => pi.FullName)
+                .SingleOrDefaultAsync(cancellationToken)
+                ?? await db.Users.Where(u => u.Id == actingUserId).Select(u => u.Email).SingleAsync(cancellationToken);
+
+            var newResearcher = new Domain.Modules.Organization.Researcher
+            {
+                FullName = fullName,
+                StudentNumber = string.Empty,
+                UserId = actingUserId,
+            };
+            db.Researchers.Add(newResearcher);
+            await db.SaveChangesAsync(cancellationToken);
+
+            researcherId = newResearcher.Id;
+        }
+
+        var actorId = actorType == ActorType.Internal
+            ? await actorResolver.GetOrCreateInternalActorAsync(researcherId!.Value, cancellationToken)
+            : await actorResolver.GetOrCreateExternalActorAsync(externalContactId!.Value, cancellationToken);
+
+        // Internal bookings (anyone already in the system) are auto-approved —
+        // no manual step. External/visiting bookings still need approval from a
+        // Super Admin/Science Officer (see ApproveAsync/RejectAsync).
+        var isAutoApproved = actorType == ActorType.Internal;
 
         var booking = new BookingEntity
         {
@@ -76,7 +139,9 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
             ActorId = actorId,
             ScheduledStart = request.ScheduledStart,
             ScheduledEnd = request.ScheduledEnd,
-            Status = BookingStatus.Requested,
+            Status = isAutoApproved ? BookingStatus.Approved : BookingStatus.Requested,
+            ApprovedByUserId = isAutoApproved ? actingUserId : null,
+            Notes = request.Notes,
             CreatedByUserId = actingUserId,
             CreatedAt = DateTime.UtcNow,
         };
@@ -86,11 +151,11 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         return await GetByIdAsync(booking.Id, cancellationToken);
     }
 
-    public async Task<BookingDto> ApproveAsync(int id, int actingUserId, CancellationToken cancellationToken = default)
-        => await TransitionAsync(id, BookingStatus.Approved, actingUserId, approvedByUserId: actingUserId, cancellationToken);
+    public async Task<BookingDto> ApproveAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
+        => await TransitionAsync(id, BookingStatus.Approved, actingUserId, actingUserRole, approvedByUserId: actingUserId, cancellationToken);
 
-    public async Task<BookingDto> RejectAsync(int id, int actingUserId, CancellationToken cancellationToken = default)
-        => await TransitionAsync(id, BookingStatus.Rejected, actingUserId, approvedByUserId: actingUserId, cancellationToken);
+    public async Task<BookingDto> RejectAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
+        => await TransitionAsync(id, BookingStatus.Rejected, actingUserId, actingUserRole, approvedByUserId: actingUserId, cancellationToken);
 
     // The booking's own creator, or a Super Admin/Science Officer, may cancel it.
     public async Task<BookingDto> CancelAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
@@ -111,10 +176,27 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         return await GetByIdAsync(id, cancellationToken);
     }
 
-    private async Task<BookingDto> TransitionAsync(int id, BookingStatus newStatus, int actingUserId, int approvedByUserId, CancellationToken cancellationToken)
+    // A Super Admin may approve/reject any booking; a Science Officer only for
+    // equipment they're directly assigned to, or that belongs to a Facility
+    // they oversee — mirroring EquipmentService.UpdateStatusAsync's scoping.
+    private async Task<BookingDto> TransitionAsync(int id, BookingStatus newStatus, int actingUserId, Role actingUserRole, int approvedByUserId, CancellationToken cancellationToken)
     {
         var booking = await db.Bookings.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(BookingEntity), id);
+
+        if (actingUserRole != Role.SuperAdmin)
+        {
+            var isAssignedScienceOfficer = await db.EquipmentScienceOfficers
+                .AnyAsync(so => so.EquipmentId == booking.EquipmentId && so.UserId == actingUserId, cancellationToken);
+
+            var isFacilityOverseer = await db.Equipment
+                .AnyAsync(e => e.Id == booking.EquipmentId && e.Room.Facility != null && e.Room.Facility.Overseers.Any(u => u.Id == actingUserId), cancellationToken);
+
+            if (!isAssignedScienceOfficer && !isFacilityOverseer)
+            {
+                throw new ForbiddenException("Only a Super Admin, or a Science Officer assigned to this equipment or its facility, can approve/reject this booking.");
+            }
+        }
 
         booking.Status = newStatus;
         booking.ApprovedByUserId = approvedByUserId;
@@ -134,8 +216,12 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         EquipmentId = b.EquipmentId,
         EquipmentName = b.Equipment.Name,
         RoomLabel = b.Equipment.Room.Building + " " + b.Equipment.Room.Floor + " " + b.Equipment.Room.RoomNumber,
+        ActorType = b.Actor.ActorType,
         ResearcherId = b.Actor.ResearcherId,
+        ExternalContactId = b.Actor.ExternalContactId,
         ActorDisplayName = b.Actor.DisplayNameSnapshot,
+        ActorRole = b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId != null ? b.Actor.Researcher!.User!.Role : (Role?)null,
+        Notes = b.Notes,
         CreatedByUserId = b.CreatedByUserId,
         CreatedAt = b.CreatedAt,
         ApprovedByUserId = b.ApprovedByUserId,

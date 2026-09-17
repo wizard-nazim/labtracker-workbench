@@ -227,9 +227,91 @@ public class BookingServiceTests
         await db.SaveChangesAsync();
 
         var sut = new BookingService(db, null!, null!);
-        var result = await sut.ApproveAsync(booking.Id, actingUserId: 7);
+        var result = await sut.ApproveAsync(booking.Id, actingUserId: 7, Role.SuperAdmin);
 
         result.Status.Should().Be(BookingStatus.Approved);
         result.ApprovedByUserId.Should().Be(7);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_AllowsScienceOfficer_WhenAssignedDirectlyToTheEquipment()
+    {
+        using var db = TestDbContextFactory.Create();
+        var department = db.AddDepartment();
+        var pi = db.AddPrincipalInvestigator(department);
+        var group = db.AddResearchGroup(department, pi);
+        var room = db.AddRoom(department);
+        var type = db.AddEquipmentType();
+        var equipment = db.AddEquipment(room, type, department);
+        var researcher = db.AddResearcher(group);
+        var actor = new UsageActor { ActorType = ActorType.Internal, ResearcherId = researcher.Id, DisplayNameSnapshot = researcher.FullName };
+        db.UsageActors.Add(actor);
+        await db.SaveChangesAsync();
+
+        var scienceOfficer = db.AddUser("so@labtracker.local", Role.ScienceOfficer);
+        db.AddEquipmentScienceOfficer(equipment, scienceOfficer);
+
+        var booking = NewBooking(equipment.Id, actor.Id, createdByUserId: 42, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(2));
+        db.Bookings.Add(booking);
+        await db.SaveChangesAsync();
+
+        var sut = new BookingService(db, null!, null!);
+        var result = await sut.ApproveAsync(booking.Id, scienceOfficer.Id, Role.ScienceOfficer);
+
+        result.Status.Should().Be(BookingStatus.Approved);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_AllowsScienceOfficer_WhenOverseeingTheEquipmentsFacility()
+    {
+        using var db = TestDbContextFactory.Create();
+        var department = db.AddDepartment();
+        var pi = db.AddPrincipalInvestigator(department);
+        var group = db.AddResearchGroup(department, pi);
+        var scienceOfficer = db.AddUser("so@labtracker.local", Role.ScienceOfficer);
+        var facility = db.AddFacility(department, overseers: scienceOfficer);
+        var room = db.AddRoom(department, facility: facility);
+        var type = db.AddEquipmentType();
+        var equipment = db.AddEquipment(room, type, department);
+        var researcher = db.AddResearcher(group);
+        var actor = new UsageActor { ActorType = ActorType.Internal, ResearcherId = researcher.Id, DisplayNameSnapshot = researcher.FullName };
+        db.UsageActors.Add(actor);
+        await db.SaveChangesAsync();
+
+        var booking = NewBooking(equipment.Id, actor.Id, createdByUserId: 42, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(2));
+        db.Bookings.Add(booking);
+        await db.SaveChangesAsync();
+
+        var sut = new BookingService(db, null!, null!);
+        var result = await sut.ApproveAsync(booking.Id, scienceOfficer.Id, Role.ScienceOfficer);
+
+        result.Status.Should().Be(BookingStatus.Approved);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_ThrowsForbidden_ForScienceOfficerNotAssignedToEquipmentOrItsFacility()
+    {
+        using var db = TestDbContextFactory.Create();
+        var department = db.AddDepartment();
+        var pi = db.AddPrincipalInvestigator(department);
+        var group = db.AddResearchGroup(department, pi);
+        var room = db.AddRoom(department);
+        var type = db.AddEquipmentType();
+        var equipment = db.AddEquipment(room, type, department);
+        var researcher = db.AddResearcher(group);
+        var actor = new UsageActor { ActorType = ActorType.Internal, ResearcherId = researcher.Id, DisplayNameSnapshot = researcher.FullName };
+        db.UsageActors.Add(actor);
+        await db.SaveChangesAsync();
+
+        var unassignedScienceOfficer = db.AddUser("unassigned-so@labtracker.local", Role.ScienceOfficer);
+
+        var booking = NewBooking(equipment.Id, actor.Id, createdByUserId: 42, DateTime.UtcNow.AddHours(1), DateTime.UtcNow.AddHours(2));
+        db.Bookings.Add(booking);
+        await db.SaveChangesAsync();
+
+        var sut = new BookingService(db, null!, null!);
+        var act = () => sut.ApproveAsync(booking.Id, unassignedScienceOfficer.Id, Role.ScienceOfficer);
+
+        await act.Should().ThrowAsync<ForbiddenException>();
     }
 }

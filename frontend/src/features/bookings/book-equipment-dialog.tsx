@@ -5,11 +5,26 @@ import { EntityDialog } from '@/components/entity-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Textarea } from '@/components/ui/textarea'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getRoleAvatarSrc } from '@/lib/role-avatar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useAuth } from '@/context/auth-context'
 import { EquipmentAvatar } from '@/features/equipment/equipment-avatar'
 import type { Equipment } from '@/features/equipment/types'
+import { useExternalOrganizations } from '@/features/external/use-external'
 import { useBookings, useCreateBooking } from './use-bookings'
 import { BookingStatusIndicator } from './booking-status-indicator'
+
+// Who's allowed to book on behalf of a visiting/external person — keep in sync
+// with BookingService.ExternalBookingRoles on the backend.
+const EXTERNAL_BOOKING_ROLES = ['SuperAdmin', 'ScienceOfficer', 'PrincipalInvestigator']
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
@@ -25,11 +40,21 @@ function formatDateTime(value: string) {
 }
 
 export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [bookingFor, setBookingFor] = useState<'self' | 'external'>('self')
+  const [externalOrgId, setExternalOrgId] = useState('')
+  const [externalContactId, setExternalContactId] = useState('')
+  const [notes, setNotes] = useState('')
   const createBooking = useCreateBooking()
   const { data: bookings } = useBookings({ equipmentId: equipment.id })
+  const { data: organizations } = useExternalOrganizations()
+
+  const canBookForExternal = user ? EXTERNAL_BOOKING_ROLES.includes(user.role) : false
+  const isBookingForExternal = canBookForExternal && bookingFor === 'external'
+  const availableContacts = organizations?.find((org) => String(org.id) === externalOrgId)?.contacts ?? []
 
   const needsAttention = equipment.status === 'Faulty' || equipment.status === 'UnderMaintenance'
 
@@ -38,14 +63,24 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
     .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime())
 
   async function handleSubmit() {
-    await createBooking.mutateAsync({
+    const booking = await createBooking.mutateAsync({
       equipmentId: equipment.id,
       scheduledStart: new Date(start).toISOString(),
       scheduledEnd: new Date(end).toISOString(),
+      externalContactId: isBookingForExternal && externalContactId ? Number(externalContactId) : undefined,
+      notes: notes.trim() ? notes.trim() : undefined,
     })
-    toast.success(`Booking requested for ${equipment.name}.`)
+    toast.success(
+      booking.status === 'Approved'
+        ? `Booking confirmed for ${equipment.name}.`
+        : `Booking submitted for ${equipment.name} — awaiting approval.`,
+    )
     setStart('')
     setEnd('')
+    setBookingFor('self')
+    setExternalOrgId('')
+    setExternalContactId('')
+    setNotes('')
   }
 
   return (
@@ -58,6 +93,7 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
       title={`Book ${equipment.name}`}
       description="Choose a start and end time. The equipment must be free for the whole window."
       submitLabel="Request booking"
+      submitDisabled={isBookingForExternal && !externalContactId}
       onSubmit={handleSubmit}
       open={open}
       onOpenChange={setOpen}
@@ -87,6 +123,7 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
                 <li key={booking.id} className="flex items-center justify-between gap-3 text-sm">
                   <div className="flex min-w-0 items-center gap-2">
                     <Avatar className="size-6 shrink-0">
+                      <AvatarImage src={getRoleAvatarSrc(booking.actorRole, booking.actorType === 'External')} alt="" />
                       <AvatarFallback className="text-[10px]">{booking.actorDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
@@ -119,6 +156,62 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
         </div>
       )}
 
+      {canBookForExternal && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="booking-for">Booking for</Label>
+          <Select value={bookingFor} onValueChange={(v) => setBookingFor(v as 'self' | 'external')}>
+            <SelectTrigger id="booking-for">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="self">Myself</SelectItem>
+              <SelectItem value="external">External visitor</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {isBookingForExternal && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="booking-external-org">Organization</Label>
+            <Select
+              value={externalOrgId}
+              onValueChange={(v) => {
+                setExternalOrgId(v)
+                setExternalContactId('')
+              }}
+            >
+              <SelectTrigger id="booking-external-org">
+                <SelectValue placeholder="Select an organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations?.map((org) => (
+                  <SelectItem key={org.id} value={String(org.id)}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="booking-external-contact">Contact</Label>
+            <Select value={externalContactId} onValueChange={setExternalContactId}>
+              <SelectTrigger id="booking-external-contact">
+                <SelectValue placeholder={externalOrgId ? 'Select a contact' : 'Select an organization first'} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableContacts.map((contact) => (
+                  <SelectItem key={contact.id} value={String(contact.id)}>
+                    {contact.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="booking-start">Start</Label>
         <Input
@@ -137,6 +230,16 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
           required
           value={end}
           onChange={(e) => setEnd(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="booking-notes">Notes (optional)</Label>
+        <Textarea
+          id="booking-notes"
+          placeholder="e.g. undergrad course name for practicals"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          maxLength={500}
         />
       </div>
     </EntityDialog>

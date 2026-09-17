@@ -17,6 +17,8 @@ public class Booking
     public int ActorId { get; set; }
     public UsageActor Actor { get; set; } = null!;
 
+    public string? Notes { get; set; }
+
     public int? ApprovedByUserId { get; set; }
     public User? ApprovedByUser { get; set; }
 

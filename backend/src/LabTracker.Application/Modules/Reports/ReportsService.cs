@@ -1,5 +1,6 @@
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Domain.Modules.Organization;
+using LabTracker.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace LabTracker.Application.Modules.Reports;
@@ -7,14 +8,17 @@ namespace LabTracker.Application.Modules.Reports;
 public class ReportsService(IApplicationDbContext db)
 {
     private const string ExternalBucketName = "External";
+    private const string UnassignedBucketName = "Unassigned";
 
-    // Attributes each usage session to the research group(s) of the researcher who
-    // used the equipment, grouped over the requested period. A researcher who
-    // belongs to more than one lab has their session counted toward *all* of
-    // them (an explicit assumption, pending confirmation of how multi-group
-    // attribution should work — see the Phase 1 plan). External (company
-    // contact) usage has no research group, so it's bucketed separately rather
-    // than silently dropped from the totals.
+    // Attributes each usage session to the research group that owns the room the
+    // booked equipment lives in — i.e. by what was actually booked, not by every
+    // lab the researcher happens to belong to. A researcher in two labs no longer
+    // has a single session double-counted toward both (that used to fan out over
+    // Researcher.ResearchGroups; each session now lands in exactly one bucket).
+    // External (company contact) usage keeps its own separate bucket regardless
+    // of room. Internal usage against equipment whose room isn't tied to any lab
+    // (shared equipment) lands in "Unassigned" rather than being conflated with
+    // "External".
     public async Task<List<UsageStatsRow>> GetEquipmentUsageStatsAsync(UsageStatsFilter filter, CancellationToken cancellationToken = default)
     {
         // Query-string model binding produces DateTime.Kind=Unspecified, which
@@ -25,7 +29,8 @@ public class ReportsService(IApplicationDbContext db)
         var to = DateTime.SpecifyKind(filter.To, DateTimeKind.Utc);
 
         var query = db.UsageRecords
-            .Include(u => u.Actor).ThenInclude(a => a!.Researcher).ThenInclude(r => r!.ResearchGroups).ThenInclude(g => g.PrincipalInvestigator)
+            .Include(u => u.Actor)
+            .Include(u => u.Equipment).ThenInclude(e => e.Room).ThenInclude(r => r.ResearchGroup).ThenInclude(g => g!.PrincipalInvestigator)
             .Where(u => u.ActualStart >= from && u.ActualStart < to)
             .AsQueryable();
 
@@ -34,23 +39,23 @@ public class ReportsService(IApplicationDbContext db)
 
         var records = await query.ToListAsync(cancellationToken);
 
-        var attributions = records.SelectMany(record =>
+        var attributions = records.Select(record =>
         {
-            var groups = record.Actor.Researcher?.ResearchGroups;
-            return groups is { Count: > 0 }
-                ? groups.Select(group => (Record: record, Group: (ResearchGroup?)group))
-                : [(Record: record, Group: (ResearchGroup?)null)];
+            var isExternal = record.Actor.ActorType == ActorType.External;
+            var group = isExternal ? null : record.Equipment.Room.ResearchGroup;
+            return (Record: record, Group: group, IsExternal: isExternal);
         });
 
         return attributions
-            .GroupBy(a => a.Group?.Id)
+            .GroupBy(a => a.Group?.Id ?? (a.IsExternal ? ExternalBucketKey : UnassignedBucketKey))
             .Select(group =>
             {
                 var researchGroup = group.First().Group;
+                var bucketName = researchGroup?.Name ?? (group.Key == ExternalBucketKey ? ExternalBucketName : UnassignedBucketName);
                 return new UsageStatsRow
                 {
-                    ResearchGroupId = group.Key,
-                    ResearchGroupName = researchGroup?.Name ?? ExternalBucketName,
+                    ResearchGroupId = researchGroup?.Id,
+                    ResearchGroupName = bucketName,
                     PrincipalInvestigatorName = researchGroup?.PrincipalInvestigator.FullName,
                     SessionCount = group.Count(),
                     TotalHours = Math.Round(group.Sum(a => (a.Record.ActualEnd - a.Record.ActualStart).TotalHours), 1),
@@ -59,4 +64,9 @@ public class ReportsService(IApplicationDbContext db)
             .OrderByDescending(row => row.TotalHours)
             .ToList();
     }
+
+    // Sentinel keys for the GroupBy above — real ResearchGroup ids are always
+    // positive (identity columns), so these never collide with one.
+    private const int ExternalBucketKey = -1;
+    private const int UnassignedBucketKey = -2;
 }

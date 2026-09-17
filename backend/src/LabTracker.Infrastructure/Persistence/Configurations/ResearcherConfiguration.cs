@@ -10,7 +10,6 @@ public class ResearcherConfiguration : IEntityTypeConfiguration<Researcher>
     {
         builder.Property(r => r.FullName).HasMaxLength(200).IsRequired();
         builder.Property(r => r.StudentNumber).HasMaxLength(50).IsRequired();
-        builder.Property(r => r.FieldOfStudy).HasMaxLength(100);
 
         builder.HasOne(r => r.User)
             .WithMany()

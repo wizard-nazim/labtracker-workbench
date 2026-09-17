@@ -28,12 +28,12 @@ public class BookingsController(BookingService service) : ControllerBase
     [HttpPost("{id:int}/approve")]
     [Authorize(Roles = "SuperAdmin,ScienceOfficer")]
     public async Task<ActionResult<BookingDto>> Approve(int id, CancellationToken cancellationToken)
-        => Ok(await service.ApproveAsync(id, User.GetUserId(), cancellationToken));
+        => Ok(await service.ApproveAsync(id, User.GetUserId(), User.GetRole(), cancellationToken));
 
     [HttpPost("{id:int}/reject")]
     [Authorize(Roles = "SuperAdmin,ScienceOfficer")]
     public async Task<ActionResult<BookingDto>> Reject(int id, CancellationToken cancellationToken)
-        => Ok(await service.RejectAsync(id, User.GetUserId(), cancellationToken));
+        => Ok(await service.RejectAsync(id, User.GetUserId(), User.GetRole(), cancellationToken));
 
     [HttpPost("{id:int}/cancel")]
     public async Task<ActionResult<BookingDto>> Cancel(int id, CancellationToken cancellationToken)

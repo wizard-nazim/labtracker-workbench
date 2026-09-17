@@ -28,6 +28,8 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
             .WithMany()
             .HasForeignKey(b => b.ModifiedByUserId);
 
+        builder.Property(b => b.Notes).HasMaxLength(500);
+
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Booking_ValidTimeRange",
             "\"ScheduledEnd\" > \"ScheduledStart\""));

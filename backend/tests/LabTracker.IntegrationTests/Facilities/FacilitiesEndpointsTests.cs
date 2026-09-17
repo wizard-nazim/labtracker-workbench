@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using LabTracker.Application.Modules.Equipment;
 using LabTracker.Application.Modules.Organization;
 using LabTracker.Infrastructure.Persistence;
 using LabTracker.IntegrationTests.TestSupport;
@@ -90,6 +91,33 @@ public class FacilitiesEndpointsTests(PostgresApiFactory factory) : IntegrationT
         var response = await client.GetAsync("/api/facilities");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AssigningARoomToAFacility_ShowsUpInTheFacilitysRoomList()
+    {
+        var admin = await SeedUserAsync("admin@labtracker.local", Role.SuperAdmin);
+        var department = await CreateDepartmentAsync();
+        var client = await CreateAuthenticatedClientAsync(admin.Email);
+
+        var facilityResponse = await client.PostAsJsonAsync("/api/facilities", new UpsertFacilityRequest { Name = "BSL2 - Mammalian", DepartmentId = department.Id });
+        var facility = await facilityResponse.Content.ReadFromJsonAsync<FacilityDto>();
+
+        var roomResponse = await client.PostAsJsonAsync("/api/rooms", new UpsertRoomRequest
+        {
+            Building = "Science Building",
+            Floor = "4",
+            RoomNumber = "432.2",
+            FacilityId = facility!.Id,
+        });
+        roomResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var room = await roomResponse.Content.ReadFromJsonAsync<RoomDto>();
+        room!.FacilityId.Should().Be(facility.Id);
+        room.FacilityName.Should().Be("BSL2 - Mammalian");
+
+        var getFacilityResponse = await client.GetAsync($"/api/facilities/{facility.Id}");
+        var updatedFacility = await getFacilityResponse.Content.ReadFromJsonAsync<FacilityDto>();
+        updatedFacility!.RoomLabels.Should().ContainSingle(label => label.Contains("432.2"));
     }
 
     private async Task<LabTracker.Domain.Modules.Organization.Department> CreateDepartmentAsync()

@@ -12,7 +12,7 @@ namespace LabTracker.IntegrationTests.Bookings;
 public class BookingsEndpointsTests(PostgresApiFactory factory) : IntegrationTestBase(factory)
 {
     [Fact]
-    public async Task Create_ForOwnResearcherProfile_Succeeds()
+    public async Task Create_ForOwnResearcherProfile_IsAutoApproved()
     {
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
@@ -38,7 +38,75 @@ public class BookingsEndpointsTests(PostgresApiFactory factory) : IntegrationTes
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await response.Content.ReadFromJsonAsync<BookingDto>(TestJson.Options);
+        created!.Status.Should().Be(BookingStatus.Approved);
+        created.ActorType.Should().Be(ActorType.Internal);
+    }
+
+    [Fact]
+    public async Task Create_ForExternalContact_ByScienceOfficer_RequiresApproval()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
+        var department = await db.AddDepartmentAsync();
+        var room = await db.AddRoomAsync(department);
+        var type = await db.AddEquipmentTypeAsync();
+        var equipment = await db.AddEquipmentAsync(room, type, department);
+
+        var so = await SeedUserAsync("so@labtracker.local", Role.ScienceOfficer);
+        var org = new LabTracker.Domain.Modules.External.ExternalOrganization { Name = "Acme Labs" };
+        db.ExternalOrganizations.Add(org);
+        await db.SaveChangesAsync();
+        var contact = new LabTracker.Domain.Modules.External.ExternalContact { FullName = "Visiting Researcher", Email = "visitor@acme.test", ExternalOrganizationId = org.Id };
+        db.ExternalContacts.Add(contact);
+        await db.SaveChangesAsync();
+
+        var client = await CreateAuthenticatedClientAsync(so.Email);
+        var request = new CreateBookingRequest
+        {
+            EquipmentId = equipment.Id,
+            ScheduledStart = DateTime.UtcNow.AddHours(2),
+            ScheduledEnd = DateTime.UtcNow.AddHours(3),
+            ExternalContactId = contact.Id,
+        };
+
+        var response = await client.PostAsJsonAsync("/api/bookings", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await response.Content.ReadFromJsonAsync<BookingDto>(TestJson.Options);
         created!.Status.Should().Be(BookingStatus.Requested);
+        created.ActorType.Should().Be(ActorType.External);
+    }
+
+    [Fact]
+    public async Task Create_ForExternalContact_ByPlainResearcher_ReturnsForbidden()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
+        var department = await db.AddDepartmentAsync();
+        var room = await db.AddRoomAsync(department);
+        var type = await db.AddEquipmentTypeAsync();
+        var equipment = await db.AddEquipmentAsync(room, type, department);
+
+        var researcher = await SeedUserAsync("researcher@labtracker.local", Role.Researcher);
+        var org = new LabTracker.Domain.Modules.External.ExternalOrganization { Name = "Acme Labs" };
+        db.ExternalOrganizations.Add(org);
+        await db.SaveChangesAsync();
+        var contact = new LabTracker.Domain.Modules.External.ExternalContact { FullName = "Visiting Researcher", Email = "visitor@acme.test", ExternalOrganizationId = org.Id };
+        db.ExternalContacts.Add(contact);
+        await db.SaveChangesAsync();
+
+        var client = await CreateAuthenticatedClientAsync(researcher.Email);
+        var request = new CreateBookingRequest
+        {
+            EquipmentId = equipment.Id,
+            ScheduledStart = DateTime.UtcNow.AddHours(2),
+            ScheduledEnd = DateTime.UtcNow.AddHours(3),
+            ExternalContactId = contact.Id,
+        };
+
+        var response = await client.PostAsJsonAsync("/api/bookings", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]

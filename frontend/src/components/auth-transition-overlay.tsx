@@ -1,12 +1,7 @@
 import { useAuth } from '@/context/auth-context'
-import { OrbitMark } from '@/features/auth/orbit-mark'
+import { Shapes80 } from '@/components/beste/piece/shapes80'
 
-const CYCLE_MS = 1800
-
-const CAPTION = {
-  login: 'Welcome back',
-  logout: 'Signed out',
-} as const
+const CYCLE_MS = 4000
 
 // Reduced-motion is handled at the source (auth-context.tsx only sets
 // `transition` when motion is allowed), so this component can stay purely
@@ -20,13 +15,12 @@ export function AuthTransitionOverlay() {
   return (
     <div
       key={transition}
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-background opacity-0"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background p-6 opacity-0"
       style={{ animation: `labtracker-overlay-cycle ${CYCLE_MS}ms ease-in-out forwards` }}
       onAnimationEnd={clearTransition}
       role="status"
     >
-      <OrbitMark className="size-32 sm:size-40" />
-      <p className="text-sm font-medium text-foreground">{CAPTION[transition]}</p>
+      <Shapes80 tone="primary" />
     </div>
   )
 }

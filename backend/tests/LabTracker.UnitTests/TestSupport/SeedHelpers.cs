@@ -1,4 +1,5 @@
 using LabTracker.Domain.Modules.Equipment;
+using LabTracker.Domain.Modules.External;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Domain.Modules.Organization;
 using LabTracker.Infrastructure.Persistence;
@@ -70,12 +71,28 @@ public static class SeedHelpers
         return researcher;
     }
 
-    public static Room AddRoom(this LabTrackerDbContext db, Department? department = null, string building = "Science Building", string floor = "1", string roomNumber = "101")
+    public static Room AddRoom(this LabTrackerDbContext db, Department? department = null, string building = "Science Building", string floor = "1", string roomNumber = "101", Facility? facility = null)
     {
-        var room = new Room { Building = building, Floor = floor, RoomNumber = roomNumber, DepartmentId = department?.Id };
+        var room = new Room { Building = building, Floor = floor, RoomNumber = roomNumber, DepartmentId = department?.Id, FacilityId = facility?.Id };
         db.Rooms.Add(room);
         db.SaveChanges();
         return room;
+    }
+
+    public static Facility AddFacility(this LabTrackerDbContext db, Department department, string name = "BSL2 - Mammalian", params User[] overseers)
+    {
+        var facility = new Facility { Name = name, DepartmentId = department.Id, Overseers = overseers };
+        db.Facilities.Add(facility);
+        db.SaveChanges();
+        return facility;
+    }
+
+    public static EquipmentScienceOfficer AddEquipmentScienceOfficer(this LabTrackerDbContext db, EquipmentEntity equipment, User user, bool isPrimary = true)
+    {
+        var assignment = new EquipmentScienceOfficer { EquipmentId = equipment.Id, UserId = user.Id, IsPrimary = isPrimary };
+        db.EquipmentScienceOfficers.Add(assignment);
+        db.SaveChanges();
+        return assignment;
     }
 
     public static EquipmentType AddEquipmentType(this LabTrackerDbContext db, string name = "Centrifuge")
@@ -106,5 +123,17 @@ public static class SeedHelpers
         db.Equipment.Add(equipment);
         db.SaveChanges();
         return equipment;
+    }
+
+    public static ExternalContact AddExternalContact(this LabTrackerDbContext db, string fullName = "Visiting Researcher", string orgName = "Acme Labs")
+    {
+        var org = new ExternalOrganization { Name = orgName };
+        db.ExternalOrganizations.Add(org);
+        db.SaveChanges();
+
+        var contact = new ExternalContact { FullName = fullName, Email = "visitor@acme.test", ExternalOrganizationId = org.Id };
+        db.ExternalContacts.Add(contact);
+        db.SaveChanges();
+        return contact;
     }
 }

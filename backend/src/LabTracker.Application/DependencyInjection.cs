@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<EquipmentTypeService>();
         services.AddScoped<RoomService>();
         services.AddScoped<EquipmentService>();
+        services.AddScoped<EquipmentImageService>();
         services.AddScoped<UsageActorResolver>();
         services.AddScoped<BookingService>();
         services.AddScoped<UsageRecordService>();

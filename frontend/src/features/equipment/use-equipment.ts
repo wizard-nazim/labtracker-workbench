@@ -23,6 +23,7 @@ export interface UpsertEquipmentRequest {
   serialNumber?: string
   description?: string
   isShared: boolean
+  imageUrl?: string
   iconKey?: string
   equipmentTypeId: number
   roomId: number
@@ -45,12 +46,29 @@ export function useUpdateEquipment(id: number) {
   })
 }
 
-export function useUploadEquipmentImage() {
+export function useUpdateEquipmentStatus() {
   const queryClient = useQueryClient()
   return useMutation({
-    // id is passed per-call (not fixed at hook creation) since the Create dialog
-    // only learns the new equipment's id from the create mutation's own result.
-    mutationFn: ({ id, file }: { id: number; file: File }) => apiClient.uploadFile<Equipment>(`/equipment/${id}/image`, file),
+    mutationFn: ({ id, status }: { id: number; status: EquipmentStatus }) =>
+      apiClient.patch<Equipment>(`/equipment/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
+  })
+}
+
+export function useAssignScienceOfficer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ equipmentId, userId, isPrimary }: { equipmentId: number; userId: number; isPrimary: boolean }) =>
+      apiClient.post<Equipment>(`/equipment/${equipmentId}/science-officers`, { userId, isPrimary }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
+  })
+}
+
+export function useRemoveScienceOfficer() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ equipmentId, userId }: { equipmentId: number; userId: number }) =>
+      apiClient.delete<void>(`/equipment/${equipmentId}/science-officers/${userId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
   })
 }

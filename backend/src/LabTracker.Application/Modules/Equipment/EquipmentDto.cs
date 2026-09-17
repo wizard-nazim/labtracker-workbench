@@ -20,6 +20,10 @@ public class EquipmentDto
     public int RoomId { get; set; }
     public string RoomLabel { get; set; } = string.Empty;
 
+    // Derived through the room (see Room.FacilityId) — null when the room isn't
+    // part of a named facility.
+    public string? FacilityName { get; set; }
+
     public int OwningDepartmentId { get; set; }
     public string OwningDepartmentName { get; set; } = string.Empty;
 
@@ -39,6 +43,7 @@ public class UpsertEquipmentRequest
     public string? SerialNumber { get; set; }
     public string? Description { get; set; }
     public bool IsShared { get; set; }
+    public string? ImageUrl { get; set; }
     public string? IconKey { get; set; }
     public int EquipmentTypeId { get; set; }
     public int RoomId { get; set; }

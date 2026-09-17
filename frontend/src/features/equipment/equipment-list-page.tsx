@@ -47,7 +47,7 @@ export function EquipmentListPage() {
   const columnCount = 7 + (canBook ? 1 : 0) + (canManageEquipment ? 1 : 0)
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <PageBanner src="/banners/equipment-banner.jpg" alt="Equipment" />
 
       <PageHeader

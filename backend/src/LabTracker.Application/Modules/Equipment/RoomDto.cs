@@ -12,6 +12,10 @@ public class RoomDto
     // multiple floors/buildings, so this is independent of Building/Floor.
     public int? ResearchGroupId { get; set; }
     public string? ResearchGroupName { get; set; }
+
+    // Null when not part of a named facility — same independence as ResearchGroupId.
+    public int? FacilityId { get; set; }
+    public string? FacilityName { get; set; }
 }
 
 public class UpsertRoomRequest
@@ -21,4 +25,5 @@ public class UpsertRoomRequest
     public string RoomNumber { get; set; } = string.Empty;
     public int? DepartmentId { get; set; }
     public int? ResearchGroupId { get; set; }
+    public int? FacilityId { get; set; }
 }

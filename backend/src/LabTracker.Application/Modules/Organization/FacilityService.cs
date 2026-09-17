@@ -13,6 +13,7 @@ public class FacilityService(IApplicationDbContext db, IValidator<UpsertFacility
         return await db.Facilities
             .Include(f => f.Department)
             .Include(f => f.Overseers)
+            .Include(f => f.Rooms)
             .OrderBy(f => f.Name)
             .Select(f => ToDto(f))
             .ToListAsync(cancellationToken);
@@ -23,6 +24,7 @@ public class FacilityService(IApplicationDbContext db, IValidator<UpsertFacility
         var facility = await db.Facilities
             .Include(f => f.Department)
             .Include(f => f.Overseers)
+            .Include(f => f.Rooms)
             .SingleOrDefaultAsync(f => f.Id == id, cancellationToken)
             ?? throw new NotFoundException(nameof(FacilityEntity), id);
 
@@ -73,5 +75,6 @@ public class FacilityService(IApplicationDbContext db, IValidator<UpsertFacility
         DepartmentName = f.Department.Name,
         OverseerUserIds = f.Overseers.Select(o => o.Id).ToList(),
         OverseerEmails = f.Overseers.Select(o => o.Email).ToList(),
+        RoomLabels = f.Rooms.Select(r => $"{r.Building} {r.Floor} {r.RoomNumber}").ToList(),
     };
 }

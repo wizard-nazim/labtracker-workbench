@@ -10,7 +10,9 @@ public class UsageStatsFilter
 
 public class UsageStatsRow
 {
-    // Null for the "External" bucket (company-contact usage — no research group).
+    // Null for the "External" bucket (external-contact usage) or the
+    // "Unassigned" bucket (internal usage against equipment whose room isn't
+    // tied to any lab) — see ResearchGroupName to tell them apart.
     public int? ResearchGroupId { get; set; }
     public string ResearchGroupName { get; set; } = string.Empty;
     public string? PrincipalInvestigatorName { get; set; }

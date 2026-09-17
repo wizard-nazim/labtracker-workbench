@@ -89,4 +89,20 @@ public class FacilityServiceTests
 
         await act.Should().ThrowAsync<NotFoundException>();
     }
+
+    [Fact]
+    public async Task GetByIdAsync_IncludesRoomsAssignedToTheFacility()
+    {
+        var (db, sut) = BuildSut();
+        var department = db.AddDepartment();
+        var created = await sut.CreateAsync(new UpsertFacilityRequest { Name = "BSL2 - Mammalian", DepartmentId = department.Id });
+
+        var room = db.AddRoom(department, "Science Building", "4", "432.2");
+        room.FacilityId = created.Id;
+        db.SaveChanges();
+
+        var result = await sut.GetByIdAsync(created.Id);
+
+        result.RoomLabels.Should().ContainSingle(label => label.Contains("432.2"));
+    }
 }

@@ -30,6 +30,11 @@ public class UpsertRoomRequestValidator : AbstractValidator<UpsertRoomRequest>
             .MustAsync((id, ct) => db.ResearchGroups.AnyAsync(g => g.Id == id, ct))
             .When(x => x.ResearchGroupId.HasValue)
             .WithMessage("ResearchGroupId does not reference an existing research group.");
+
+        RuleFor(x => x.FacilityId)
+            .MustAsync((id, ct) => db.Facilities.AnyAsync(f => f.Id == id, ct))
+            .When(x => x.FacilityId.HasValue)
+            .WithMessage("FacilityId does not reference an existing facility.");
     }
 }
 
@@ -39,6 +44,7 @@ public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipment
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.SerialNumber).MaximumLength(100);
+        RuleFor(x => x.ImageUrl).MaximumLength(300);
 
         RuleFor(x => x.IconKey)
             .Must(key => key is null || EquipmentIconCatalog.AllowedKeys.Contains(key))

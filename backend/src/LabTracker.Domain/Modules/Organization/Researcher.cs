@@ -1,4 +1,5 @@
 using LabTracker.Domain.Modules.Identity;
+using LabTracker.Shared.Enums;
 
 namespace LabTracker.Domain.Modules.Organization;
 
@@ -8,8 +9,7 @@ public class Researcher
     public string FullName { get; set; } = string.Empty;
     public string StudentNumber { get; set; } = string.Empty;
 
-    // e.g. "Honours", "Masters", "PhD" — free text for now (no fixed list confirmed yet).
-    public string? FieldOfStudy { get; set; }
+    public FieldOfStudy? FieldOfStudy { get; set; }
 
     public int? UserId { get; set; }
     public User? User { get; set; }
