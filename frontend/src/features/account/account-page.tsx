@@ -4,15 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getRoleAvatarSrc } from '@/lib/role-avatar'
+import { ROLE_LABEL } from '@/types/roles'
 import { useMe } from './use-me'
 import { ContactSettingsCard } from './contact-settings-card'
 
-const ROLE_LABEL: Record<string, string> = {
-  SuperAdmin: 'Super Admin',
-  ScienceOfficer: 'Science Officer',
-  Researcher: 'Researcher',
-  PrincipalInvestigator: 'Principal Investigator',
-}
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
@@ -60,7 +55,7 @@ export function AccountPage() {
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
           <InfoField label="Email" value={me.email} />
-          <InfoField label="Role" value={ROLE_LABEL[me.role] ?? me.role} />
+          <InfoField label="Role" value={ROLE_LABEL[me.role]} />
           <InfoField label="Member since" value={formatDate(me.createdAt)} />
         </div>
       </div>

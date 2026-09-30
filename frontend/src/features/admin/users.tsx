@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-type UserRole = 'SuperAdmin' | 'ScienceOfficer' | 'Researcher' | 'PrincipalInvestigator'
+import { ROLE_LABEL, type UserRole } from '@/types/roles'
 
 export interface User {
   id: number
@@ -43,12 +43,6 @@ interface CreateUserRequest {
   role: UserRole
 }
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  SuperAdmin: 'Super Admin',
-  ScienceOfficer: 'Science Officer',
-  Researcher: 'Researcher',
-  PrincipalInvestigator: 'Principal Investigator',
-}
 
 // Principal Investigator accounts are provisioned from the Admin → Principal
 // Investigators tab instead, so they're not offered as a role here.

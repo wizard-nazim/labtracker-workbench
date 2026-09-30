@@ -242,8 +242,8 @@ export function PrincipalInvestigatorsTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Department</TableHead>
+            <TableHead className="hidden md:table-cell">Email</TableHead>
+            <TableHead className="hidden lg:table-cell">Department</TableHead>
             <TableHead>Login</TableHead>
             <TableHead>Permissions</TableHead>
             <TableHead className="text-right">Actions</TableHead>
@@ -275,8 +275,8 @@ export function PrincipalInvestigatorsTab() {
           {pis?.map((pi) => (
             <TableRow key={pi.id}>
               <TableCell className="font-medium text-foreground">{pi.fullName}</TableCell>
-              <TableCell className="text-muted-foreground">{pi.email}</TableCell>
-              <TableCell className="text-muted-foreground">{pi.departmentName}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{pi.email}</TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">{pi.departmentName}</TableCell>
               <TableCell>
                 <Badge variant={pi.hasLogin ? 'secondary' : 'outline'}>{pi.hasLogin ? 'Active' : 'No login'}</Badge>
               </TableCell>
