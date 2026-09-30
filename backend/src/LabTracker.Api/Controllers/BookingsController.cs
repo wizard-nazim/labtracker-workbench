@@ -16,7 +16,7 @@ public class BookingsController(BookingService service) : ControllerBase
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BookingDto>> GetById(int id, CancellationToken cancellationToken)
-        => Ok(await service.GetByIdAsync(id, cancellationToken));
+        => Ok(await service.GetByIdAsync(id, User.GetUserId(), User.GetRole(), cancellationToken));
 
     [HttpPost]
     public async Task<ActionResult<BookingDto>> Create(CreateBookingRequest request, CancellationToken cancellationToken)

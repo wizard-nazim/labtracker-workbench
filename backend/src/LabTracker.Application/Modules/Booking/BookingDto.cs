@@ -29,6 +29,11 @@ public class BookingDto
 
     public int? ApprovedByUserId { get; set; }
     public DateTime? ModifiedAt { get; set; }
+
+    // Computed per acting user: true when they may approve/reject this booking
+    // right now (it's Requested and they're a Super Admin, or a Science Officer
+    // for its equipment/facility).
+    public bool CanApprove { get; set; }
 }
 
 public class CreateBookingRequest

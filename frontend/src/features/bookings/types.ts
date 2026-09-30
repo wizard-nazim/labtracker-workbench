@@ -21,6 +21,8 @@ export interface Booking {
   createdAt: string
   approvedByUserId: number | null
   modifiedAt: string | null
+  // True when the signed-in user may approve/reject this booking right now.
+  canApprove: boolean
 }
 
 export interface CreateBookingRequest {
