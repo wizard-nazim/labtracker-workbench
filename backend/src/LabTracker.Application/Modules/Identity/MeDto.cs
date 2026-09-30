@@ -11,7 +11,15 @@ public class MeDto
     public DateTime CreatedAt { get; set; }
     public bool HasCompletedOnboarding { get; set; }
     public bool HasCompletedAdminTour { get; set; }
+    public string? Phone { get; set; }
+    public bool NotifyOnEquipmentChanges { get; set; }
 
     public ResearcherDto? ResearcherProfile { get; set; }
     public PrincipalInvestigatorDto? PrincipalInvestigatorProfile { get; set; }
+}
+
+public class UpdateMeRequest
+{
+    public string? Phone { get; set; }
+    public bool NotifyOnEquipmentChanges { get; set; } = true;
 }

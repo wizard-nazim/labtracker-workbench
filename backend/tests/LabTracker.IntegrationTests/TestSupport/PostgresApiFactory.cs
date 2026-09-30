@@ -58,7 +58,7 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync(
             """
             TRUNCATE TABLE
-                "UsageRecords", "Bookings", "UsageActors",
+                "Notifications", "UsageRecords", "Bookings", "UsageActors",
                 "EquipmentScienceOfficers", "Equipment", "EquipmentTypes", "Rooms",
                 "ExternalContacts", "ExternalOrganizations",
                 "Researchers", "ResearchGroups", "PrincipalInvestigators",

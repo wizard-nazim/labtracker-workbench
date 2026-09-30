@@ -2,12 +2,13 @@ using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
+using LabTracker.Application.Modules.Notifications;
 using Microsoft.EntityFrameworkCore;
 using BookingEntity = LabTracker.Domain.Modules.Booking.Booking;
 
 namespace LabTracker.Application.Modules.Booking;
 
-public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver)
+public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver, NotificationService notifications)
 {
     // Researchers only ever see their own bookings; a Principal Investigator sees
     // bookings across the research group(s) they lead (lab-wide, not just their
@@ -33,7 +34,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         if (filter.Status is { } status) query = query.Where(b => b.Status == status);
 
         var bookings = await query.OrderByDescending(b => b.ScheduledStart).Select(ProjectToDto).ToListAsync(cancellationToken);
-        await SetCanApproveAsync(bookings, actingUserId, actingUserRole, cancellationToken);
+        await ApplyViewerFieldsAsync(bookings, actingUserId, actingUserRole, cancellationToken);
         return bookings;
     }
 
@@ -41,7 +42,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
     {
         var booking = await db.Bookings.Where(b => b.Id == id).Select(ProjectToDto).SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException(nameof(BookingEntity), id);
-        await SetCanApproveAsync([booking], actingUserId, actingUserRole, cancellationToken);
+        await ApplyViewerFieldsAsync([booking], actingUserId, actingUserRole, cancellationToken);
         return booking;
     }
 
@@ -64,16 +65,10 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         int? externalContactId = null;
         var needsSelfResearcherProvisioning = false;
 
-        if (selfResearcherId != 0)
-        {
-            // Anyone with their own linked Researcher profile (a plain Researcher, or
-            // a Science Officer/Principal Investigator who also has one) books for
-            // themselves — any ResearcherId/ExternalContactId in the request body is
-            // ignored in that case, to prevent booking on someone else's behalf.
-            actorType = ActorType.Internal;
-            researcherId = selfResearcherId;
-        }
-        else if (request.ExternalContactId is { } explicitContactId)
+        // Checked first: booking for a visitor is an explicit, role-gated choice,
+        // so it must win even when the acting user has their own Researcher
+        // profile (which every Science Officer/PI gets on their first self-booking).
+        if (request.ExternalContactId is { } explicitContactId)
         {
             if (!ExternalBookingRoles.Contains(actingUserRole))
             {
@@ -82,6 +77,15 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
 
             actorType = ActorType.External;
             externalContactId = explicitContactId;
+        }
+        else if (selfResearcherId != 0)
+        {
+            // Anyone with their own linked Researcher profile (a plain Researcher, or
+            // a Science Officer/Principal Investigator who also has one) books for
+            // themselves — any ResearcherId in the request body is ignored in that
+            // case, to prevent booking on another internal person's behalf.
+            actorType = ActorType.Internal;
+            researcherId = selfResearcherId;
         }
         else if (request.ResearcherId is { } explicitResearcherId)
         {
@@ -205,6 +209,7 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         if (newStatus == BookingStatus.Approved) booking.ApprovedByUserId = actingUserId;
         booking.ModifiedByUserId = actingUserId;
         booking.ModifiedAt = DateTime.UtcNow;
+        await notifications.NotifyBookingDecidedAsync(booking, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, actingUserId, actingUserRole, cancellationToken);
@@ -218,10 +223,15 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
                 .Where(e => e.Room.Facility != null && e.Room.Facility.Overseers.Any(u => u.Id == userId))
                 .Select(e => e.Id));
 
-    // Lets the frontend show Approve/Reject only where the backend would allow it.
-    private async Task SetCanApproveAsync(IReadOnlyCollection<BookingDto> bookings, int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
+    // Per-viewer fields: CanApprove (so the frontend only shows Approve/Reject
+    // where the backend would allow it) and hiding ActorPhone from non-staff.
+    private async Task ApplyViewerFieldsAsync(IReadOnlyCollection<BookingDto> bookings, int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
     {
-        if (actingUserRole is not (Role.SuperAdmin or Role.ScienceOfficer)) return;
+        if (actingUserRole is not (Role.SuperAdmin or Role.ScienceOfficer))
+        {
+            foreach (var b in bookings) b.ActorPhone = null;
+            return;
+        }
         if (!bookings.Any(b => b.Status == BookingStatus.Requested)) return;
 
         HashSet<int>? approvable = actingUserRole == Role.SuperAdmin
@@ -248,6 +258,9 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         ExternalContactId = b.Actor.ExternalContactId,
         ActorDisplayName = b.Actor.DisplayNameSnapshot,
         ActorRole = b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId != null ? b.Actor.Researcher!.User!.Role : (Role?)null,
+        ActorPhone = b.Actor.ExternalContactId != null
+            ? b.Actor.ExternalContact!.Phone
+            : b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId != null ? b.Actor.Researcher!.User!.Phone : null,
         Notes = b.Notes,
         CreatedByUserId = b.CreatedByUserId,
         CreatedAt = b.CreatedAt,

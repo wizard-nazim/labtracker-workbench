@@ -13,7 +13,7 @@ public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwor
     {
         return await db.Users
             .OrderBy(u => u.Email)
-            .Select(u => new UserDto { Id = u.Id, Email = u.Email, Role = u.Role, IsActive = u.IsActive, CreatedAt = u.CreatedAt })
+            .Select(u => new UserDto { Id = u.Id, Email = u.Email, Role = u.Role, IsActive = u.IsActive, CreatedAt = u.CreatedAt, Phone = u.Phone })
             .ToListAsync(cancellationToken);
     }
 
@@ -33,7 +33,7 @@ public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwor
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt };
+        return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt, Phone = user.Phone };
     }
 
     public async Task<UserDto> UpdateStatusAsync(int id, bool isActive, CancellationToken cancellationToken = default)
@@ -44,6 +44,6 @@ public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwor
         user.IsActive = isActive;
         await db.SaveChangesAsync(cancellationToken);
 
-        return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt };
+        return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt, Phone = user.Phone };
     }
 }

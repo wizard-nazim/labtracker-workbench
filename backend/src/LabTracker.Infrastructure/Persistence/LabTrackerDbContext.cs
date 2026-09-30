@@ -33,6 +33,8 @@ public class LabTrackerDbContext(DbContextOptions<LabTrackerDbContext> options)
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<UsageRecord> UsageRecords => Set<UsageRecord>();
 
+    public DbSet<Domain.Modules.Notifications.Notification> Notifications => Set<Domain.Modules.Notifications.Notification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(LabTrackerDbContext).Assembly);

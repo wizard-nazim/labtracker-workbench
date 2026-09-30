@@ -9,6 +9,7 @@ public class UserDto
     public Role Role { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? Phone { get; set; }
 }
 
 public class CreateUserRequest

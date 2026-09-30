@@ -4,6 +4,7 @@ using LabTracker.Application.Modules.Booking;
 using LabTracker.Application.Modules.Equipment;
 using LabTracker.Application.Modules.External;
 using LabTracker.Application.Modules.Identity;
+using LabTracker.Application.Modules.Notifications;
 using LabTracker.Application.Modules.Organization;
 using LabTracker.Application.Modules.Reports;
 using LabTracker.Domain.Modules.Identity;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<UsageRecordService>();
         services.AddScoped<ExternalOrganizationService>();
         services.AddScoped<ReportsService>();
+        services.AddScoped<NotificationService>();
 
         return services;
     }

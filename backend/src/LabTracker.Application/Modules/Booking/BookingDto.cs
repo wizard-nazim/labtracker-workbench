@@ -22,6 +22,11 @@ public class BookingDto
     // login — the frontend falls back to a generic avatar in both cases.
     public Role? ActorRole { get; set; }
 
+    // How to reach the person booked for: an external contact's phone, or the
+    // internal person's own login phone. Only sent to Super Admins and Science
+    // Officers (who host visitors and manage equipment); null for everyone else.
+    public string? ActorPhone { get; set; }
+
     public string? Notes { get; set; }
 
     public int CreatedByUserId { get; set; }

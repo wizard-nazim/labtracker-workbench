@@ -16,6 +16,8 @@ export interface Booking {
   externalContactId: number | null
   actorDisplayName: string
   actorRole: UserRole | null
+  // Only sent to Super Admins and Science Officers.
+  actorPhone: string | null
   notes: string | null
   createdByUserId: number
   createdAt: string

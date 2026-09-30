@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { getRoleAvatarSrc } from '@/lib/role-avatar'
 import { useMe } from './use-me'
+import { ContactSettingsCard } from './contact-settings-card'
 
 const ROLE_LABEL: Record<string, string> = {
   SuperAdmin: 'Super Admin',
@@ -17,7 +18,7 @@ function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm text-foreground">{value}</p>
+      <p className="text-sm text-foreground wrap-anywhere">{value}</p>
     </div>
   )
 }
@@ -57,12 +58,14 @@ export function AccountPage() {
           </div>
           <Badge variant={me.isActive ? 'secondary' : 'outline'}>{me.isActive ? 'Active' : 'Inactive'}</Badge>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
           <InfoField label="Email" value={me.email} />
           <InfoField label="Role" value={ROLE_LABEL[me.role] ?? me.role} />
           <InfoField label="Member since" value={formatDate(me.createdAt)} />
         </div>
       </div>
+
+      <ContactSettingsCard me={me} />
 
       {me.researcherProfile && (
         <div className="rounded-md border border-border bg-card p-6">
@@ -70,7 +73,7 @@ export function AccountPage() {
             <FlaskConical className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-sm font-medium text-foreground">Researcher profile</h2>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
             <InfoField label="Student number" value={me.researcherProfile.studentNumber} />
             <InfoField label="Field of study" value={me.researcherProfile.fieldOfStudy ?? '—'} />
             <InfoField
@@ -87,7 +90,7 @@ export function AccountPage() {
             <Beaker className="size-4 text-muted-foreground" aria-hidden="true" />
             <h2 className="text-sm font-medium text-foreground">Principal Investigator profile</h2>
           </div>
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:grid-cols-3">
             <InfoField label="Department" value={me.principalInvestigatorProfile.departmentName} />
             <InfoField label="Equipment permissions" value={me.principalInvestigatorProfile.hasEquipmentPermissions ? 'Yes' : 'No'} />
           </div>

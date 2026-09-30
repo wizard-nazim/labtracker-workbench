@@ -27,6 +27,11 @@ public class AuthController(AuthService authService, AccountService accountServi
     public async Task<ActionResult<MeDto>> Me(CancellationToken cancellationToken)
         => Ok(await accountService.GetMeAsync(User.GetUserId(), cancellationToken));
 
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<ActionResult<MeDto>> UpdateMe(UpdateMeRequest request, CancellationToken cancellationToken)
+        => Ok(await accountService.UpdateMeAsync(User.GetUserId(), request, cancellationToken));
+
     [HttpPost("onboarding/complete")]
     [Authorize]
     public async Task<IActionResult> CompleteOnboarding(CancellationToken cancellationToken)

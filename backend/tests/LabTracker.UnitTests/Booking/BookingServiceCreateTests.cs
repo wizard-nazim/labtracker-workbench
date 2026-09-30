@@ -1,5 +1,6 @@
 using FluentAssertions;
 using LabTracker.Application.Modules.Booking;
+using LabTracker.Application.Modules.Notifications;
 using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
 using LabTracker.UnitTests.TestSupport;
@@ -13,7 +14,7 @@ public class BookingServiceCreateTests
         var db = TestDbContextFactory.Create();
         var validator = new CreateBookingRequestValidator(db);
         var resolver = new UsageActorResolver(db);
-        return (db, new BookingService(db, validator, resolver));
+        return (db, new BookingService(db, validator, resolver, new NotificationService(db)));
     }
 
     [Fact]
@@ -132,6 +133,41 @@ public class BookingServiceCreateTests
         result.ExternalContactId.Should().Be(contact.Id);
         result.Status.Should().Be(BookingStatus.Requested);
         result.ApprovedByUserId.Should().BeNull();
+    }
+
+    // Regression: a Science Officer/PI who also has their own Researcher profile
+    // (always true after their first self-booking, which provisions one) must
+    // still be able to book for a visitor — previously the self-profile path won
+    // and the visitor booking was silently recorded, auto-approved, as their own.
+    [Theory]
+    [InlineData(Role.ScienceOfficer)]
+    [InlineData(Role.PrincipalInvestigator)]
+    public async Task CreateAsync_ForExternalContact_ByAuthorizedRoleWithOwnResearcherProfile_IsStillExternalAndRequiresApproval(Role role)
+    {
+        var (db, sut) = BuildSut();
+        var department = db.AddDepartment();
+        var pi = db.AddPrincipalInvestigator(department);
+        var group = db.AddResearchGroup(department, pi);
+        var room = db.AddRoom(department);
+        var type = db.AddEquipmentType();
+        var equipment = db.AddEquipment(room, type, department);
+        var actingUser = db.AddUser($"{role}@labtracker.local", role);
+        db.AddResearcher(group, "Own Profile", "STU1005", actingUser.Id);
+        var contact = db.AddExternalContact();
+
+        var request = new CreateBookingRequest
+        {
+            EquipmentId = equipment.Id,
+            ScheduledStart = DateTime.UtcNow.AddHours(1),
+            ScheduledEnd = DateTime.UtcNow.AddHours(2),
+            ExternalContactId = contact.Id,
+        };
+
+        var result = await sut.CreateAsync(request, actingUser.Id, role);
+
+        result.ActorType.Should().Be(ActorType.External);
+        result.ExternalContactId.Should().Be(contact.Id);
+        result.Status.Should().Be(BookingStatus.Requested);
     }
 
     [Fact]

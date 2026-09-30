@@ -16,7 +16,7 @@ public class AccountServiceTests
         var db = TestDbContextFactory.Create();
         var researcherService = new ResearcherService(db, new UpsertResearcherRequestValidator(db));
         var piService = new PrincipalInvestigatorService(db, new UpsertPrincipalInvestigatorRequestValidator(db), new PasswordHasher<User>());
-        return (db, new AccountService(db, researcherService, piService));
+        return (db, new AccountService(db, researcherService, piService, new UpdateMeRequestValidator()));
     }
 
     [Fact]
@@ -94,5 +94,42 @@ public class AccountServiceTests
         await sut.CompleteAdminTourAsync(user.Id);
 
         (await sut.GetMeAsync(user.Id)).HasCompletedAdminTour.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateMeAsync_SavesTrimmedPhone_AndNotificationPreference()
+    {
+        var (db, sut) = BuildSut();
+        var user = db.AddUser("me@labtracker.local", Role.Researcher);
+
+        var result = await sut.UpdateMeAsync(user.Id, new UpdateMeRequest { Phone = "  +27 21 650 1234 ", NotifyOnEquipmentChanges = false });
+
+        result.Phone.Should().Be("+27 21 650 1234");
+        result.NotifyOnEquipmentChanges.Should().BeFalse();
+        db.Users.Single(u => u.Id == user.Id).Phone.Should().Be("+27 21 650 1234");
+    }
+
+    [Fact]
+    public async Task UpdateMeAsync_StoresBlankPhoneAsNull()
+    {
+        var (db, sut) = BuildSut();
+        var user = db.AddUser("me@labtracker.local", Role.Researcher);
+        user.Phone = "021 650 1234";
+        db.SaveChanges();
+
+        var result = await sut.UpdateMeAsync(user.Id, new UpdateMeRequest { Phone = "   " });
+
+        result.Phone.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("call me maybe")]
+    [InlineData("+27 21 650 1234 5678 9012 3456 7890")]
+    public async Task UpdateMeAsync_RejectsInvalidPhone(string phone)
+    {
+        var (db, sut) = BuildSut();
+        var user = db.AddUser("me@labtracker.local", Role.Researcher);
+
+        await sut.Invoking(s => s.UpdateMeAsync(user.Id, new UpdateMeRequest { Phone = phone })).Should().ThrowAsync<FluentValidation.ValidationException>();
     }
 }

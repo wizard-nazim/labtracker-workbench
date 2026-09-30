@@ -189,6 +189,11 @@ export function BookingsPage() {
                       {booking.actorType === 'External' && (
                         <span className="ml-1.5 text-xs text-muted-foreground">(external)</span>
                       )}
+                      {booking.actorPhone && (
+                        <a href={`tel:${booking.actorPhone}`} className="block text-xs text-primary hover:underline">
+                          {booking.actorPhone}
+                        </a>
+                      )}
                     </TableCell>
                   )}
                   <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
