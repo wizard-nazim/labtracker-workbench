@@ -23,11 +23,11 @@ jobs:
       - run: dotnet restore LabTracker.slnx
       - run: dotnet build LabTracker.slnx --no-restore -c Release
       # Integration tests start Postgres via Testcontainers (Docker is on the runner).
-      - run: dotnet test LabTracker.slnx --no-build -c Release
+      - run: dotnet test LabTracker.slnx --no-build --configuration Release
       - name: Fail if the model has changes without a migration
         run: |
           dotnet tool restore
-          dotnet ef migrations has-pending-model-changes -p src/LabTracker.Infrastructure -s src/LabTracker.Api --no-build -c Release
+          dotnet ef migrations has-pending-model-changes -p src/LabTracker.Infrastructure -s src/LabTracker.Api --no-build --configuration Release
 
   frontend:
     runs-on: ubuntu-latest
