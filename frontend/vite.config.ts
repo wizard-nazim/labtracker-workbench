@@ -11,4 +11,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Lets the default same-origin '/api' base (src/lib/api-client.ts) reach the
+  // API's launchSettings port without a .env file.
+  server: {
+    proxy: {
+      '/api': 'http://localhost:5119',
+    },
+  },
 })

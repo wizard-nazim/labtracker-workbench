@@ -29,7 +29,10 @@ const STEPS: Step[] = [
   },
 ]
 
-export function useAdminTour() {
+// The danger-zone step only exists where demo-data reset is enabled
+// (development); elsewhere its target isn't rendered.
+export function useAdminTour(includeDangerZone: boolean) {
   const { data: me } = useMe()
-  return useTour(STEPS, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
+  const steps = includeDangerZone ? STEPS : STEPS.filter((s) => s.target !== '[data-tour="danger-zone"]')
+  return useTour(steps, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
 }
