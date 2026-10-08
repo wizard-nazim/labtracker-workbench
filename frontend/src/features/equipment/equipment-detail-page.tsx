@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
+import { showBookingCreatedToast } from '@/features/bookings/booking-toast'
 import { ArrowLeft, Info, TriangleAlert } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { canBookEquipment } from '@/types/roles'
@@ -52,13 +53,13 @@ export function EquipmentDetailPage() {
   async function handleBook() {
     if (!equipment) return
     try {
-      await createBooking.mutateAsync({
+      const booking = await createBooking.mutateAsync({
         equipmentId: equipment.id,
         scheduledStart: new Date(start).toISOString(),
         scheduledEnd: new Date(end).toISOString(),
         notes: notes.trim() ? notes.trim() : undefined,
       })
-      toast.success(`Booking requested for ${equipment.name}.`)
+      showBookingCreatedToast(booking)
       setStart('')
       setEnd('')
       setNotes('')

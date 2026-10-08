@@ -30,6 +30,14 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
 
         builder.Property(b => b.Notes).HasMaxLength(500);
 
+        // Optimistic concurrency on Postgres's xmin system column, so two people
+        // approving/rejecting the same booking at once can't both win
+        // (BookingService.TransitionAsync turns the loser into a 409).
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Booking_ValidTimeRange",
             "\"ScheduledEnd\" > \"ScheduledStart\""));

@@ -75,9 +75,9 @@ export function EquipmentUnitsPanel({ equipmentType, onClose }: { equipmentType:
             <TableRow>
               <TableHead className="w-12" />
               <TableHead>Name</TableHead>
-              <TableHead>Room</TableHead>
+              <TableHead className="hidden md:table-cell">Room</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Shared</TableHead>
+              <TableHead className="hidden sm:table-cell">Shared</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -105,11 +105,11 @@ export function EquipmentUnitsPanel({ equipmentType, onClose }: { equipmentType:
                   <EquipmentAvatar imageUrl={unit.imageUrl} iconKey={unit.iconKey} name={unit.name} className="size-8" />
                 </TableCell>
                 <TableCell className="font-medium text-foreground">{unit.name}</TableCell>
-                <TableCell className="text-muted-foreground">{unit.roomLabel}</TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">{unit.roomLabel}</TableCell>
                 <TableCell>
                   <StatusIndicator status={unit.status} />
                 </TableCell>
-                <TableCell className="text-muted-foreground">{unit.isShared ? 'Yes' : 'No'}</TableCell>
+                <TableCell className="hidden text-muted-foreground sm:table-cell">{unit.isShared ? 'Yes' : 'No'}</TableCell>
                 <TableCell className="text-right">
                   <Button size="sm" variant="ghost" onClick={() => setEditingUnitId(unit.id)}>
                     Edit

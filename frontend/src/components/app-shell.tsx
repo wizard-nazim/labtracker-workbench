@@ -18,14 +18,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ROLE_LABEL } from '@/types/roles'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 
-const ROLE_LABEL: Record<string, string> = {
-  SuperAdmin: 'Super Admin',
-  ScienceOfficer: 'Science Officer',
-  Researcher: 'Researcher',
-  PrincipalInvestigator: 'Principal Investigator',
-}
 
 function LabTrackerMark() {
   return (
@@ -58,6 +53,7 @@ function NavList({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collap
                 to={to}
                 end={end}
                 title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 onClick={onNavigate}
                 data-tour={`nav-${to === '/' ? 'dashboard' : to.slice(1)}`}
                 className={({ isActive }) =>
@@ -96,7 +92,8 @@ export function AppShell() {
     <DropdownMenu>
       <DropdownMenuTrigger
         data-tour="profile-menu"
-        className={`flex w-full items-center gap-2.5 p-3 text-left outline-none transition-colors hover:bg-sidebar-accent/60 ${
+        aria-label={collapsed ? `Account menu for ${user?.email ?? 'you'}` : undefined}
+        className={`flex w-full items-center gap-2.5 p-3 text-left outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:bg-sidebar-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
           collapsed ? 'justify-center' : ''
         }`}
       >

@@ -55,9 +55,9 @@ export function EquipmentListPage() {
         title="Equipment"
         description="Browse instruments, their location, and current availability."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="flex-1 sm:w-48 sm:flex-none" aria-label="Filter by status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

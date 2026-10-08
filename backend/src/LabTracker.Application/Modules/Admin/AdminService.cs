@@ -32,6 +32,7 @@ public class AdminService(IApplicationDbContext db, IPasswordHasher<User> passwo
     // before inserting the new one with the same email in one batch.
     public async Task ResetDemoDataAsync(CancellationToken cancellationToken = default)
     {
+        db.Notifications.RemoveRange(db.Notifications);
         db.UsageRecords.RemoveRange(db.UsageRecords);
         db.Bookings.RemoveRange(db.Bookings);
         db.EquipmentScienceOfficers.RemoveRange(db.EquipmentScienceOfficers);

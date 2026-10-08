@@ -2,12 +2,13 @@ using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
+using LabTracker.Application.Modules.Notifications;
 using Microsoft.EntityFrameworkCore;
 using BookingEntity = LabTracker.Domain.Modules.Booking.Booking;
 
 namespace LabTracker.Application.Modules.Booking;
 
-public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver)
+public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRequest> createValidator, UsageActorResolver actorResolver, NotificationService notifications)
 {
     // Researchers only ever see their own bookings; a Principal Investigator sees
     // bookings across the research group(s) they lead (lab-wide, not just their
@@ -32,13 +33,17 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         if (filter.EquipmentId is { } equipmentId) query = query.Where(b => b.EquipmentId == equipmentId);
         if (filter.Status is { } status) query = query.Where(b => b.Status == status);
 
-        return await query.OrderByDescending(b => b.ScheduledStart).Select(ProjectToDto).ToListAsync(cancellationToken);
+        var bookings = await query.OrderByDescending(b => b.ScheduledStart).Select(ProjectToDto).ToListAsync(cancellationToken);
+        await ApplyViewerFieldsAsync(bookings, actingUserId, actingUserRole, cancellationToken);
+        return bookings;
     }
 
-    public async Task<BookingDto> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<BookingDto> GetByIdAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
     {
-        return await db.Bookings.Where(b => b.Id == id).Select(ProjectToDto).SingleOrDefaultAsync(cancellationToken)
+        var booking = await db.Bookings.Where(b => b.Id == id).Select(ProjectToDto).SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException(nameof(BookingEntity), id);
+        await ApplyViewerFieldsAsync([booking], actingUserId, actingUserRole, cancellationToken);
+        return booking;
     }
 
     // Roles allowed to book equipment on behalf of a visiting/external person —
@@ -60,16 +65,10 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         int? externalContactId = null;
         var needsSelfResearcherProvisioning = false;
 
-        if (selfResearcherId != 0)
-        {
-            // Anyone with their own linked Researcher profile (a plain Researcher, or
-            // a Science Officer/Principal Investigator who also has one) books for
-            // themselves — any ResearcherId/ExternalContactId in the request body is
-            // ignored in that case, to prevent booking on someone else's behalf.
-            actorType = ActorType.Internal;
-            researcherId = selfResearcherId;
-        }
-        else if (request.ExternalContactId is { } explicitContactId)
+        // Checked first: booking for a visitor is an explicit, role-gated choice,
+        // so it must win even when the acting user has their own Researcher
+        // profile (which every Science Officer/PI gets on their first self-booking).
+        if (request.ExternalContactId is { } explicitContactId)
         {
             if (!ExternalBookingRoles.Contains(actingUserRole))
             {
@@ -78,6 +77,15 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
 
             actorType = ActorType.External;
             externalContactId = explicitContactId;
+        }
+        else if (selfResearcherId != 0)
+        {
+            // Anyone with their own linked Researcher profile (a plain Researcher, or
+            // a Science Officer/Principal Investigator who also has one) books for
+            // themselves — any ResearcherId in the request body is ignored in that
+            // case, to prevent booking on another internal person's behalf.
+            actorType = ActorType.Internal;
+            researcherId = selfResearcherId;
         }
         else if (request.ResearcherId is { } explicitResearcherId)
         {
@@ -148,14 +156,14 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         db.Bookings.Add(booking);
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetByIdAsync(booking.Id, cancellationToken);
+        return await GetByIdAsync(booking.Id, actingUserId, actingUserRole, cancellationToken);
     }
 
     public async Task<BookingDto> ApproveAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
-        => await TransitionAsync(id, BookingStatus.Approved, actingUserId, actingUserRole, approvedByUserId: actingUserId, cancellationToken);
+        => await TransitionAsync(id, BookingStatus.Approved, actingUserId, actingUserRole, cancellationToken);
 
     public async Task<BookingDto> RejectAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
-        => await TransitionAsync(id, BookingStatus.Rejected, actingUserId, actingUserRole, approvedByUserId: actingUserId, cancellationToken);
+        => await TransitionAsync(id, BookingStatus.Rejected, actingUserId, actingUserRole, cancellationToken);
 
     // The booking's own creator, or a Super Admin/Science Officer, may cancel it.
     public async Task<BookingDto> CancelAsync(int id, int actingUserId, Role actingUserRole, CancellationToken cancellationToken = default)
@@ -173,38 +181,77 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         booking.ModifiedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
-        return await GetByIdAsync(id, cancellationToken);
+        return await GetByIdAsync(id, actingUserId, actingUserRole, cancellationToken);
     }
 
     // A Super Admin may approve/reject any booking; a Science Officer only for
     // equipment they're directly assigned to, or that belongs to a Facility
     // they oversee — mirroring EquipmentService.UpdateStatusAsync's scoping.
-    private async Task<BookingDto> TransitionAsync(int id, BookingStatus newStatus, int actingUserId, Role actingUserRole, int approvedByUserId, CancellationToken cancellationToken)
+    // Only a still-Requested booking can be decided; ApprovedByUserId is only
+    // written on approval (ModifiedByUserId records who rejected).
+    private async Task<BookingDto> TransitionAsync(int id, BookingStatus newStatus, int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
     {
         var booking = await db.Bookings.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(BookingEntity), id);
 
-        if (actingUserRole != Role.SuperAdmin)
+        if (actingUserRole != Role.SuperAdmin
+            && !await ApprovableEquipmentIds(actingUserId).ContainsAsync(booking.EquipmentId, cancellationToken))
         {
-            var isAssignedScienceOfficer = await db.EquipmentScienceOfficers
-                .AnyAsync(so => so.EquipmentId == booking.EquipmentId && so.UserId == actingUserId, cancellationToken);
+            throw new ForbiddenException("Only a Super Admin, or a Science Officer assigned to this equipment or its facility, can approve/reject this booking.");
+        }
 
-            var isFacilityOverseer = await db.Equipment
-                .AnyAsync(e => e.Id == booking.EquipmentId && e.Room.Facility != null && e.Room.Facility.Overseers.Any(u => u.Id == actingUserId), cancellationToken);
-
-            if (!isAssignedScienceOfficer && !isFacilityOverseer)
-            {
-                throw new ForbiddenException("Only a Super Admin, or a Science Officer assigned to this equipment or its facility, can approve/reject this booking.");
-            }
+        if (booking.Status != BookingStatus.Requested)
+        {
+            throw new ConflictException($"This booking is already {booking.Status.ToString().ToLowerInvariant()} and can no longer be approved or rejected.");
         }
 
         booking.Status = newStatus;
-        booking.ApprovedByUserId = approvedByUserId;
+        if (newStatus == BookingStatus.Approved) booking.ApprovedByUserId = actingUserId;
         booking.ModifiedByUserId = actingUserId;
         booking.ModifiedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
+        await notifications.NotifyBookingDecidedAsync(booking, cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else decided it between our read and our write (Booking's
+            // xmin concurrency token, see BookingConfiguration). Their decision
+            // stands; ours — and its notification — is rolled back with the save.
+            throw new ConflictException("This booking was just approved or rejected by someone else and can no longer be changed.");
+        }
 
-        return await GetByIdAsync(id, cancellationToken);
+        return await GetByIdAsync(id, actingUserId, actingUserRole, cancellationToken);
+    }
+
+    // Equipment a (non-Super-Admin) user may approve bookings for: directly
+    // assigned as a Science Officer, or overseeing the equipment's Facility.
+    private IQueryable<int> ApprovableEquipmentIds(int userId) =>
+        db.EquipmentScienceOfficers.Where(so => so.UserId == userId).Select(so => so.EquipmentId)
+            .Concat(db.Equipment
+                .Where(e => e.Room.Facility != null && e.Room.Facility.Overseers.Any(u => u.Id == userId))
+                .Select(e => e.Id));
+
+    // Per-viewer fields: CanApprove (so the frontend only shows Approve/Reject
+    // where the backend would allow it) and hiding ActorPhone from non-staff.
+    private async Task ApplyViewerFieldsAsync(IReadOnlyCollection<BookingDto> bookings, int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
+    {
+        if (actingUserRole is not (Role.SuperAdmin or Role.ScienceOfficer))
+        {
+            foreach (var b in bookings) b.ActorPhone = null;
+            return;
+        }
+        if (!bookings.Any(b => b.Status == BookingStatus.Requested)) return;
+
+        HashSet<int>? approvable = actingUserRole == Role.SuperAdmin
+            ? null
+            : (await ApprovableEquipmentIds(actingUserId).ToListAsync(cancellationToken)).ToHashSet();
+
+        foreach (var b in bookings)
+        {
+            b.CanApprove = b.Status == BookingStatus.Requested && (approvable is null || approvable.Contains(b.EquipmentId));
+        }
     }
 
     private static readonly System.Linq.Expressions.Expression<Func<BookingEntity, BookingDto>> ProjectToDto = b => new BookingDto
@@ -221,6 +268,9 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         ExternalContactId = b.Actor.ExternalContactId,
         ActorDisplayName = b.Actor.DisplayNameSnapshot,
         ActorRole = b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId != null ? b.Actor.Researcher!.User!.Role : (Role?)null,
+        ActorPhone = b.Actor.ExternalContactId != null
+            ? b.Actor.ExternalContact!.Phone
+            : b.Actor.ResearcherId != null && b.Actor.Researcher!.UserId != null ? b.Actor.Researcher!.User!.Phone : null,
         Notes = b.Notes,
         CreatedByUserId = b.CreatedByUserId,
         CreatedAt = b.CreatedAt,

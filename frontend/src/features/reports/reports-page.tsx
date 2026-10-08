@@ -83,9 +83,9 @@ export function ReportsPage() {
         title="Reports"
         description="Equipment usage by research group over a selected period."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 min-[420px]:flex-row sm:w-auto sm:items-center">
             <Select value={equipmentId} onValueChange={setEquipmentId}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full min-[420px]:flex-1 sm:w-48 sm:flex-none" aria-label="Equipment">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -99,9 +99,10 @@ export function ReportsPage() {
             </Select>
             <input
               type="month"
+              aria-label="Month"
               value={month}
               onChange={(e) => setMonth(e.target.value)}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
             />
           </div>
         }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Joyride } from 'react-joyride'
@@ -101,7 +102,8 @@ const TAB_TOUR_ID: Record<string, string> = {
 
 export function AdminPage() {
   const { user } = useAuth()
-  const tour = useAdminTour()
+  const demoDataReset = useDemoDataReset(user?.role === 'SuperAdmin')
+  const tour = useAdminTour(demoDataReset)
   if (user?.role !== 'SuperAdmin') return <Navigate to="/" replace />
 
   return (
@@ -182,9 +184,21 @@ export function AdminPage() {
         </TabsContent>
       </Tabs>
 
-      <DangerZone />
+      {demoDataReset && <DangerZone />}
     </div>
   )
+}
+
+// Off outside development (Features:DemoDataReset); the API 404s the reset
+// itself when disabled, so this only decides whether to offer it.
+function useDemoDataReset(isSuperAdmin: boolean) {
+  const { data } = useQuery({
+    queryKey: ['admin', 'demo-data-reset'],
+    queryFn: () => apiClient.get<{ enabled: boolean }>('/admin/demo-data-reset'),
+    staleTime: Infinity,
+    enabled: isSuperAdmin,
+  })
+  return data?.enabled ?? false
 }
 
 function DangerZone() {

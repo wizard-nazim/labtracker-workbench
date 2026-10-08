@@ -32,5 +32,7 @@ public interface IApplicationDbContext
     DbSet<Booking> Bookings { get; }
     DbSet<UsageRecord> UsageRecords { get; }
 
+    DbSet<Domain.Modules.Notifications.Notification> Notifications { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

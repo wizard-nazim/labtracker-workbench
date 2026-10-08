@@ -1,3 +1,4 @@
+using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Application.Modules.Organization;
 using LabTracker.Shared.Enums;
@@ -7,7 +8,11 @@ using UserEntity = LabTracker.Domain.Modules.Identity.User;
 
 namespace LabTracker.Application.Modules.Identity;
 
-public class AccountService(IApplicationDbContext db, ResearcherService researcherService, PrincipalInvestigatorService principalInvestigatorService)
+public class AccountService(
+    IApplicationDbContext db,
+    ResearcherService researcherService,
+    PrincipalInvestigatorService principalInvestigatorService,
+    IValidator<UpdateMeRequest> updateMeValidator)
 {
     public async Task<MeDto> GetMeAsync(int userId, CancellationToken cancellationToken = default)
     {
@@ -28,9 +33,26 @@ public class AccountService(IApplicationDbContext db, ResearcherService research
             CreatedAt = user.CreatedAt,
             HasCompletedOnboarding = user.HasCompletedOnboarding,
             HasCompletedAdminTour = user.HasCompletedAdminTour,
+            Phone = user.Phone,
+            NotifyOnEquipmentChanges = user.NotifyOnEquipmentChanges,
             ResearcherProfile = researcherProfile,
             PrincipalInvestigatorProfile = piProfile,
         };
+    }
+
+    // The signed-in user's own contact details and notification preference.
+    public async Task<MeDto> UpdateMeAsync(int userId, UpdateMeRequest request, CancellationToken cancellationToken = default)
+    {
+        await updateMeValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var user = await db.Users.FindAsync([userId], cancellationToken)
+            ?? throw new NotFoundException(nameof(UserEntity), userId);
+
+        user.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+        user.NotifyOnEquipmentChanges = request.NotifyOnEquipmentChanges;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return await GetMeAsync(userId, cancellationToken);
     }
 
     public async Task CompleteOnboardingAsync(int userId, CancellationToken cancellationToken = default)

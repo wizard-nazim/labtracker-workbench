@@ -334,6 +334,7 @@ export function ResearchersTab() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
           <Input
+            aria-label="Search researchers"
             placeholder="Search by name or student number…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -341,7 +342,7 @@ export function ResearchersTab() {
           />
         </div>
         <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
-          <SelectTrigger className="sm:w-56">
+          <SelectTrigger className="sm:w-56" aria-label="Filter by role">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -358,11 +359,11 @@ export function ResearchersTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Student no.</TableHead>
+            <TableHead className="hidden sm:table-cell">Student no.</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Field of study</TableHead>
-            <TableHead>Research groups</TableHead>
-            <TableHead>Account</TableHead>
+            <TableHead className="hidden lg:table-cell">Field of study</TableHead>
+            <TableHead className="hidden md:table-cell">Research groups</TableHead>
+            <TableHead className="hidden lg:table-cell">Account</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -396,13 +397,13 @@ export function ResearchersTab() {
           {filtered.map((researcher) => (
             <TableRow key={researcher.id}>
               <TableCell className="font-medium text-foreground">{researcher.fullName}</TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">{researcher.studentNumber}</TableCell>
+              <TableCell className="hidden font-mono text-xs text-muted-foreground sm:table-cell">{researcher.studentNumber}</TableCell>
               <TableCell>
                 <RoleBadge userRole={researcher.userRole} />
               </TableCell>
-              <TableCell className="text-muted-foreground">{researcher.fieldOfStudy ?? '—'}</TableCell>
-              <TableCell className="text-muted-foreground">{researcher.researchGroupNames.join(', ')}</TableCell>
-              <TableCell className="text-muted-foreground">{researcher.userEmail ?? 'No account yet'}</TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">{researcher.fieldOfStudy ?? '—'}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{researcher.researchGroupNames.join(', ')}</TableCell>
+              <TableCell className="hidden text-muted-foreground lg:table-cell">{researcher.userEmail ?? 'No account yet'}</TableCell>
               <TableCell className="text-right">
                 <EditResearcherDialog researcher={researcher} />
               </TableCell>

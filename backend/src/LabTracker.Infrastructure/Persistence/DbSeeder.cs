@@ -2,6 +2,7 @@ using LabTracker.Domain.Modules.Booking;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Domain.Modules.Organization;
 using LabTracker.Shared.Enums;
+using LabTracker.Shared.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EquipmentEntity = LabTracker.Domain.Modules.Equipment.Equipment;
@@ -45,6 +46,30 @@ public static class DbSeeder
         }
 
         await db.SaveChangesAsync();
+    }
+
+    // Production bootstrap: the one way to get the first login on an empty
+    // database (dev seeding and demo reset are both off outside Development).
+    // Does nothing once any user exists, so the credentials can be removed from
+    // config after first start — and should be, then the password changed.
+    public static async Task<bool> SeedInitialAdminAsync(LabTrackerDbContext db, IPasswordHasher<User> passwordHasher, string email, string password)
+    {
+        if (await db.Users.AnyAsync())
+        {
+            return false;
+        }
+
+        var admin = new User
+        {
+            Email = EmailAddress.Normalize(email),
+            Role = Role.SuperAdmin,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+        admin.PasswordHash = passwordHasher.HashPassword(admin, password);
+        db.Users.Add(admin);
+        await db.SaveChangesAsync();
+        return true;
     }
 
     private const string SampleResearchGroupMarker = "Okafor Lab";

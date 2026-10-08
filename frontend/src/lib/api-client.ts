@@ -1,6 +1,9 @@
 import { authStorage } from './auth-storage'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+// Same-origin by default: in production nginx proxies /api to the backend,
+// and in dev Vite does (vite.config.ts). Set VITE_API_BASE_URL only when the
+// API lives on another origin.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export interface ApiErrorBody {
   title?: string

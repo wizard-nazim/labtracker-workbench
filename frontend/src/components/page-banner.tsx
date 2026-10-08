@@ -9,7 +9,9 @@ export function PageBanner({ src, alt = '' }: PageBannerProps) {
   if (src) {
     return (
       <div className="overflow-hidden rounded-md border border-border shadow-lg ring-1 ring-foreground/10">
-        <img src={src} alt={alt} className="h-40 w-full object-cover" />
+        {/* Banners are 4:1 with the title lettered on the left: show the whole
+            image on phones, and crop from the right (never the title) above that. */}
+        <img src={src} alt={alt} className="aspect-[4/1] w-full object-cover object-left sm:aspect-auto sm:h-40" />
       </div>
     )
   }

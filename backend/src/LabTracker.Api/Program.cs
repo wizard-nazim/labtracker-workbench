@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using LabTracker.Api.Extensions;
 using LabTracker.Api.Middleware;
 using LabTracker.Api.Serialization;
 using LabTracker.Api.Services;
@@ -8,7 +9,9 @@ using LabTracker.Domain.Modules.Identity;
 using LabTracker.Infrastructure;
 using LabTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -63,7 +66,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Deployed behind nginx (frontend/nginx.conf), which terminates TLS and sets
+// X-Forwarded-*. The API port is only reachable from that proxy, so trust it
+// whatever its container address is.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+// After Build() so `dotnet ef` (which stops the host at Build) isn't affected.
+StartupConfiguration.Validate(app.Configuration, app.Logger);
+
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    await scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>().Database.MigrateAsync();
+}
+
+var bootstrapEmail = app.Configuration["Bootstrap:AdminEmail"];
+var bootstrapPassword = app.Configuration["Bootstrap:AdminPassword"];
+if (!string.IsNullOrWhiteSpace(bootstrapEmail) && !string.IsNullOrWhiteSpace(bootstrapPassword))
+{
+    using var scope = app.Services.CreateScope();
+    var created = await DbSeeder.SeedInitialAdminAsync(
+        scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>(),
+        scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>(),
+        bootstrapEmail,
+        bootstrapPassword);
+    if (created)
+        app.Logger.LogWarning("Created initial Super Admin {Email}. Remove Bootstrap:* from config and change this password.", bootstrapEmail);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -78,6 +114,13 @@ if (app.Environment.IsDevelopment())
     await DbSeeder.SeedDevelopmentSampleDataAsync(db);
 }
 
+app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
@@ -88,6 +131,12 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Liveness + database reachability, for container/platform health checks.
+app.MapGet("/health", async (LabTrackerDbContext db, CancellationToken cancellationToken) =>
+    await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "healthy" })
+        : Results.Json(new { status = "database unreachable" }, statusCode: StatusCodes.Status503ServiceUnavailable));
 
 app.Run();
 

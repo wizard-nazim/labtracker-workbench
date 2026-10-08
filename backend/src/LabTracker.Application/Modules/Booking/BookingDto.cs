@@ -22,6 +22,11 @@ public class BookingDto
     // login — the frontend falls back to a generic avatar in both cases.
     public Role? ActorRole { get; set; }
 
+    // How to reach the person booked for: an external contact's phone, or the
+    // internal person's own login phone. Only sent to Super Admins and Science
+    // Officers (who host visitors and manage equipment); null for everyone else.
+    public string? ActorPhone { get; set; }
+
     public string? Notes { get; set; }
 
     public int CreatedByUserId { get; set; }
@@ -29,6 +34,11 @@ public class BookingDto
 
     public int? ApprovedByUserId { get; set; }
     public DateTime? ModifiedAt { get; set; }
+
+    // Computed per acting user: true when they may approve/reject this booking
+    // right now (it's Requested and they're a Super Admin, or a Science Officer
+    // for its equipment/facility).
+    public bool CanApprove { get; set; }
 }
 
 public class CreateBookingRequest

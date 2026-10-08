@@ -2,6 +2,7 @@ using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Shared.Enums;
 using LabTracker.Shared.Exceptions;
+using LabTracker.Application.Modules.Notifications;
 using Microsoft.EntityFrameworkCore;
 using EquipmentEntity = LabTracker.Domain.Modules.Equipment.Equipment;
 using EquipmentScienceOfficerEntity = LabTracker.Domain.Modules.Equipment.EquipmentScienceOfficer;
@@ -19,7 +20,8 @@ public class EquipmentFilter
 public class EquipmentService(
     IApplicationDbContext db,
     IValidator<UpsertEquipmentRequest> upsertValidator,
-    IValidator<AssignScienceOfficerRequest> assignScienceOfficerValidator)
+    IValidator<AssignScienceOfficerRequest> assignScienceOfficerValidator,
+    NotificationService notifications)
 {
     public async Task<List<EquipmentDto>> GetAllAsync(EquipmentFilter filter, CancellationToken cancellationToken = default)
     {
@@ -71,6 +73,8 @@ public class EquipmentService(
         var equipment = await db.Equipment.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(EquipmentEntity), id);
 
+        var noteChanged = NormalizeNote(equipment.Description) != NormalizeNote(request.Description);
+
         equipment.Name = request.Name;
         equipment.SerialNumber = request.SerialNumber;
         equipment.Description = request.Description;
@@ -80,6 +84,18 @@ public class EquipmentService(
         equipment.EquipmentTypeId = request.EquipmentTypeId;
         equipment.RoomId = request.RoomId;
         equipment.OwningDepartmentId = request.OwningDepartmentId;
+
+        if (noteChanged)
+        {
+            var note = NormalizeNote(request.Description);
+            await notifications.BroadcastEquipmentChangeAsync(
+                equipment,
+                $"{equipment.Name}: note updated",
+                note is null ? "The note on this equipment was removed." : Truncate(note, 300),
+                actingUserId,
+                cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -105,7 +121,25 @@ public class EquipmentService(
             }
         }
 
+        var previousStatus = equipment.Status;
         equipment.Status = newStatus;
+
+        // Going out of service, or coming back into it, is worth telling people
+        // about; a no-op or a move between two out-of-service states isn't.
+        var wasInService = previousStatus == EquipmentStatus.Available;
+        var isInService = newStatus == EquipmentStatus.Available;
+        if (wasInService != isInService)
+        {
+            await notifications.BroadcastEquipmentChangeAsync(
+                equipment,
+                isInService ? $"{equipment.Name} is available again" : $"{equipment.Name} is {DescribeStatus(newStatus)}",
+                isInService
+                    ? "It can be booked again."
+                    : "It can't be used until it's back in service. Existing bookings may be affected.",
+                actingUserId,
+                cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
@@ -201,5 +235,17 @@ public class EquipmentService(
             Email = so.User.Email,
             IsPrimary = so.IsPrimary,
         }).ToList(),
+    };
+
+    private static string? NormalizeNote(string? note) => string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+
+    private static string Truncate(string text, int max) => text.Length <= max ? text : text[..(max - 1)] + "…";
+
+    private static string DescribeStatus(EquipmentStatus status) => status switch
+    {
+        EquipmentStatus.Faulty => "marked faulty",
+        EquipmentStatus.UnderMaintenance => "under maintenance",
+        EquipmentStatus.Retired => "retired",
+        _ => status.ToString().ToLowerInvariant(),
     };
 }

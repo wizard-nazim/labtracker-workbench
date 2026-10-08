@@ -14,7 +14,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { data: equipment } = useEquipment('All')
+  const { data: equipment, isLoading: isEquipmentLoading, isError: isEquipmentError } = useEquipment('All')
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -65,6 +65,7 @@ export function GlobalSearch() {
       <button
         type="button"
         data-tour="global-search"
+        aria-label="Search equipment and pages"
         onClick={() => setOpen(true)}
         className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent sm:w-auto sm:min-w-48 sm:justify-start sm:gap-2 sm:rounded-md sm:border sm:border-border sm:px-3 sm:hover:bg-transparent sm:hover:border-primary/40"
       >
@@ -82,6 +83,7 @@ export function GlobalSearch() {
             <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <Input
               autoFocus
+              aria-label="Search equipment and pages"
               placeholder="Search equipment, pages…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -130,7 +132,14 @@ export function GlobalSearch() {
                 </div>
               )}
 
-              {normalizedQuery && matchedPages.length === 0 && matchedEquipment.length === 0 && (
+              {normalizedQuery && isEquipmentLoading && (
+                <p className="px-2 py-3 text-sm text-muted-foreground">Loading equipment…</p>
+              )}
+              {normalizedQuery && isEquipmentError && (
+                <p className="px-2 py-3 text-sm text-muted-foreground">Couldn't load equipment, so only pages are searched.</p>
+              )}
+
+              {normalizedQuery && !isEquipmentLoading && matchedPages.length === 0 && matchedEquipment.length === 0 && (
                 <p className="px-2 py-6 text-center text-sm text-muted-foreground">No results for "{query}".</p>
               )}
             </div>

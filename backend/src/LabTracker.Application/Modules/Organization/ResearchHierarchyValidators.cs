@@ -2,6 +2,7 @@ using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using LabTracker.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
+using LabTracker.Shared.Identity;
 
 namespace LabTracker.Application.Modules.Organization;
 
@@ -27,7 +28,7 @@ public class UpsertPrincipalInvestigatorRequestValidator : AbstractValidator<Ups
     }
 
     private static async Task<bool> IsEmailAvailableForLoginAsync(IApplicationDbContext db, string email, CancellationToken ct)
-        => !await db.Users.AnyAsync(u => u.Email == email, ct);
+        => !await db.Users.AnyAsync(u => u.Email == EmailAddress.Normalize(email), ct);
 }
 
 public class UpsertResearchGroupRequestValidator : AbstractValidator<UpsertResearchGroupRequest>

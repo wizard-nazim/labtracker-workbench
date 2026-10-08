@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Gauge, Boxes, CircleCheck, TriangleAlert, CalendarClock } from 'lucide-react'
+import { Gauge, Boxes, CircleCheck, TriangleAlert, CalendarClock, AlertCircle } from 'lucide-react'
 import { useEquipment } from '@/features/equipment/use-equipment'
 import { useBookings } from '@/features/bookings/use-bookings'
 import { useAuth } from '@/context/auth-context'
+import { ROLE_LABEL } from '@/types/roles'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/page-header'
 import { PageBanner } from '@/components/page-banner'
@@ -105,9 +106,10 @@ function HeroReadoutPanel({
 
 export function DashboardPage() {
   const { user } = useAuth()
-  const { data: equipment, isLoading: isEquipmentLoading } = useEquipment('All')
-  const { data: bookings, isLoading: isBookingsLoading } = useBookings()
+  const { data: equipment, isLoading: isEquipmentLoading, isError: isEquipmentError } = useEquipment('All')
+  const { data: bookings, isLoading: isBookingsLoading, isError: isBookingsError } = useBookings()
   const isLoading = isEquipmentLoading || isBookingsLoading
+  const isError = isEquipmentError || isBookingsError
 
   const counts = {
     total: equipment?.length ?? 0,
@@ -123,8 +125,20 @@ export function DashboardPage() {
       <PageHeader
         icon={Gauge}
         title="Overview"
-        description={`Signed in as ${user?.email} — ${user?.role === 'ScienceOfficer' ? 'Science Officer' : user?.role}.`}
+        description={user ? `Signed in as ${user.email}, ${ROLE_LABEL[user.role]}.` : ''}
       />
+
+      {isError && (
+        <div role="alert" className="flex items-start gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4">
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Couldn't load the latest counts.</p>
+            <p className="text-sm text-muted-foreground">
+              The numbers below may be out of date. Check that the API is running, then refresh the page.
+            </p>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

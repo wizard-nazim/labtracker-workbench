@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-type UserRole = 'SuperAdmin' | 'ScienceOfficer' | 'Researcher' | 'PrincipalInvestigator'
+import { ROLE_LABEL, type UserRole } from '@/types/roles'
 
 export interface User {
   id: number
@@ -34,6 +34,7 @@ export interface User {
   role: UserRole
   isActive: boolean
   createdAt: string
+  phone: string | null
 }
 
 interface CreateUserRequest {
@@ -42,12 +43,6 @@ interface CreateUserRequest {
   role: UserRole
 }
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  SuperAdmin: 'Super Admin',
-  ScienceOfficer: 'Science Officer',
-  Researcher: 'Researcher',
-  PrincipalInvestigator: 'Principal Investigator',
-}
 
 // Principal Investigator accounts are provisioned from the Admin → Principal
 // Investigators tab instead, so they're not offered as a role here.
@@ -154,6 +149,7 @@ export function UsersTab() {
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead className="hidden md:table-cell">Phone</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -162,7 +158,7 @@ export function UsersTab() {
           {isLoading &&
             Array.from({ length: 3 }).map((_, i) => (
               <TableRow key={i}>
-                <TableCell colSpan={4}>
+                <TableCell colSpan={5}>
                   <Skeleton className="h-5 w-full" />
                 </TableCell>
               </TableRow>
@@ -170,19 +166,20 @@ export function UsersTab() {
 
           {isError && (
             <TableEmptyState
-              colSpan={4}
+              colSpan={5}
               tone="error"
               title="Couldn't load users."
               description="Check that the API is running and try again."
             />
           )}
 
-          {!isLoading && !isError && users?.length === 0 && <TableEmptyState colSpan={4} title="No users yet." />}
+          {!isLoading && !isError && users?.length === 0 && <TableEmptyState colSpan={5} title="No users yet." />}
 
           {users?.map((user) => (
             <TableRow key={user.id}>
               <TableCell className="font-medium text-foreground">{user.email}</TableCell>
               <TableCell className="text-muted-foreground">{ROLE_LABEL[user.role]}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{user.phone ?? '—'}</TableCell>
               <TableCell>
                 <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
               </TableCell>

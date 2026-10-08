@@ -16,11 +16,15 @@ export interface Booking {
   externalContactId: number | null
   actorDisplayName: string
   actorRole: UserRole | null
+  // Only sent to Super Admins and Science Officers.
+  actorPhone: string | null
   notes: string | null
   createdByUserId: number
   createdAt: string
   approvedByUserId: number | null
   modifiedAt: string | null
+  // True when the signed-in user may approve/reject this booking right now.
+  canApprove: boolean
 }
 
 export interface CreateBookingRequest {

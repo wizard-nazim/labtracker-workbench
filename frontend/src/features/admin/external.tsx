@@ -183,8 +183,9 @@ function ManageContactsDialog({ externalOrganization }: { externalOrganization: 
 
         <form className="flex flex-col gap-3 border-t border-border pt-4" onSubmit={handleAddContact}>
           <p className="text-sm font-medium text-foreground">Add a contact</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
+              aria-label="Full name"
               placeholder="Full name"
               required
               value={fullName}
@@ -192,13 +193,21 @@ function ManageContactsDialog({ externalOrganization }: { externalOrganization: 
             />
             <Input
               type="email"
+              aria-label="Email"
               placeholder="Email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <Input placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <Input
+            type="tel"
+            aria-label="Phone (optional)"
+            placeholder="Phone (optional)"
+            maxLength={30}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" size="sm" disabled={addContact.isPending}>
             {addContact.isPending ? 'Adding…' : 'Add contact'}

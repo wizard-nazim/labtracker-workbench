@@ -277,10 +277,10 @@ export function RoomsTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Building</TableHead>
-            <TableHead>Floor</TableHead>
+            <TableHead className="hidden sm:table-cell">Floor</TableHead>
             <TableHead>Room</TableHead>
-            <TableHead>Lab</TableHead>
-            <TableHead>Facility</TableHead>
+            <TableHead className="hidden md:table-cell">Lab</TableHead>
+            <TableHead className="hidden md:table-cell">Facility</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -308,10 +308,10 @@ export function RoomsTab() {
           {rooms?.map((room) => (
             <TableRow key={room.id}>
               <TableCell className="text-muted-foreground">{room.building}</TableCell>
-              <TableCell className="text-muted-foreground">{room.floor}</TableCell>
+              <TableCell className="hidden text-muted-foreground sm:table-cell">{room.floor}</TableCell>
               <TableCell className="font-medium text-foreground">{room.roomNumber}</TableCell>
-              <TableCell className="text-muted-foreground">{room.researchGroupName ?? '—'}</TableCell>
-              <TableCell className="text-muted-foreground">{room.facilityName ?? '—'}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{room.researchGroupName ?? '—'}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{room.facilityName ?? '—'}</TableCell>
               <TableCell className="text-right">
                 <EditRoomDialog room={room} />
               </TableCell>

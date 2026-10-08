@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { toast } from 'sonner'
+import { showBookingCreatedToast } from './booking-toast'
 import { Info, TriangleAlert } from 'lucide-react'
 import { EntityDialog } from '@/components/entity-dialog'
 import { Button } from '@/components/ui/button'
@@ -70,11 +70,7 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
       externalContactId: isBookingForExternal && externalContactId ? Number(externalContactId) : undefined,
       notes: notes.trim() ? notes.trim() : undefined,
     })
-    toast.success(
-      booking.status === 'Approved'
-        ? `Booking confirmed for ${equipment.name}.`
-        : `Booking submitted for ${equipment.name} — awaiting approval.`,
-    )
+    showBookingCreatedToast(booking)
     setStart('')
     setEnd('')
     setBookingFor('self')

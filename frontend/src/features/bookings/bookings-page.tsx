@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { CalendarClock } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
@@ -47,7 +48,10 @@ export function BookingsPage() {
   const { user } = useAuth()
   const isManager = user?.role === 'SuperAdmin' || user?.role === 'ScienceOfficer'
 
-  const { data: bookings, isLoading, isError } = useBookings()
+  const { data: allBookings, isLoading, isError } = useBookings()
+  const [needsMyApproval, setNeedsMyApproval] = useState(false)
+  const awaitingMe = allBookings?.filter((b) => b.canApprove) ?? []
+  const bookings = needsMyApproval ? awaitingMe : allBookings
   const approve = useApproveBooking()
   const reject = useRejectBooking()
   const cancel = useCancelBooking()
@@ -89,6 +93,18 @@ export function BookingsPage() {
         icon={CalendarClock}
         title="Bookings"
         description={isManager ? 'All equipment bookings across the department.' : 'Your equipment bookings.'}
+        action={
+          isManager && (awaitingMe.length > 0 || needsMyApproval) ? (
+            <Button
+              size="sm"
+              variant={needsMyApproval ? 'default' : 'outline'}
+              aria-pressed={needsMyApproval}
+              onClick={() => setNeedsMyApproval((v) => !v)}
+            >
+              Needs my approval ({awaitingMe.length})
+            </Button>
+          ) : undefined
+        }
       />
 
       <div className="overflow-hidden rounded-md border border-border">
@@ -123,7 +139,15 @@ export function BookingsPage() {
               />
             )}
 
-            {!isLoading && !isError && bookings?.length === 0 && (
+            {!isLoading && !isError && needsMyApproval && bookings?.length === 0 && (
+              <TableEmptyState
+                colSpan={columnCount}
+                title="Nothing is waiting for your approval."
+                description="New requests for equipment you look after will show up here."
+              />
+            )}
+
+            {!isLoading && !isError && !needsMyApproval && bookings?.length === 0 && (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={columnCount} className="py-8">
                   <div className="mx-auto flex max-w-xs flex-col items-center gap-3">
@@ -165,6 +189,11 @@ export function BookingsPage() {
                       {booking.actorType === 'External' && (
                         <span className="ml-1.5 text-xs text-muted-foreground">(external)</span>
                       )}
+                      {booking.actorPhone && (
+                        <a href={`tel:${booking.actorPhone}`} className="block text-xs text-primary hover:underline">
+                          {booking.actorPhone}
+                        </a>
+                      )}
                     </TableCell>
                   )}
                   <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
@@ -172,8 +201,8 @@ export function BookingsPage() {
                     {formatDateTime(booking.scheduledEnd)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-end gap-2">
-                      {isManager && booking.status === 'Requested' && booking.actorType === 'External' && (
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {booking.canApprove && (
                         <>
                           <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleApprove(booking)}>
                             Approve
