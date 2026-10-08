@@ -27,6 +27,11 @@ public class NotificationService(IApplicationDbContext db)
 {
     private const int MaxListed = 50;
 
+    // Matches the Notifications.Title column (NotificationConfiguration). Titles
+    // embed an equipment name that can itself be 200 chars, so clamp rather than
+    // let the insert fail and take the equipment change down with it.
+    private const int TitleMaxLength = 200;
+
     public async Task<List<NotificationDto>> GetMineAsync(int userId, bool unreadOnly, CancellationToken cancellationToken = default)
     {
         var query = db.Notifications.Where(n => n.UserId == userId);
@@ -81,7 +86,7 @@ public class NotificationService(IApplicationDbContext db)
         {
             UserId = userId,
             Type = NotificationType.EquipmentUpdated,
-            Title = title,
+            Title = ClampTitle(title),
             Body = body,
             EquipmentId = equipment.Id,
             CreatedAt = now,
@@ -108,4 +113,7 @@ public class NotificationService(IApplicationDbContext db)
             CreatedAt = DateTime.UtcNow,
         });
     }
+
+    private static string ClampTitle(string title) =>
+        title.Length <= TitleMaxLength ? title : title[..(TitleMaxLength - 1)] + "…";
 }

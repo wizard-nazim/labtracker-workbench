@@ -79,6 +79,12 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActorId");
@@ -121,9 +127,13 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalContactId");
+                    b.HasIndex("ExternalContactId")
+                        .IsUnique()
+                        .HasFilter("\"ExternalContactId\" IS NOT NULL");
 
-                    b.HasIndex("ResearcherId");
+                    b.HasIndex("ResearcherId")
+                        .IsUnique()
+                        .HasFilter("\"ResearcherId\" IS NOT NULL");
 
                     b.ToTable("UsageActors", t =>
                         {
@@ -455,7 +465,10 @@ namespace LabTracker.Infrastructure.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", t =>
+                        {
+                            t.HasCheckConstraint("CK_User_EmailLowercase", "\"Email\" = lower(btrim(\"Email\"))");
+                        });
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Notifications.Notification", b =>

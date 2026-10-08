@@ -210,7 +210,17 @@ public class BookingService(IApplicationDbContext db, IValidator<CreateBookingRe
         booking.ModifiedByUserId = actingUserId;
         booking.ModifiedAt = DateTime.UtcNow;
         await notifications.NotifyBookingDecidedAsync(booking, cancellationToken);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Someone else decided it between our read and our write (Booking's
+            // xmin concurrency token, see BookingConfiguration). Their decision
+            // stands; ours — and its notification — is rolled back with the save.
+            throw new ConflictException("This booking was just approved or rejected by someone else and can no longer be changed.");
+        }
 
         return await GetByIdAsync(id, actingUserId, actingUserRole, cancellationToken);
     }

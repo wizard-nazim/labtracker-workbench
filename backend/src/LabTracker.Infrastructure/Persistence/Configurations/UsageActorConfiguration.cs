@@ -18,6 +18,12 @@ public class UsageActorConfiguration : IEntityTypeConfiguration<UsageActor>
             .WithMany()
             .HasForeignKey(a => a.ExternalContactId);
 
+        // One actor row per researcher/contact (UsageActorResolver reuses it);
+        // without these a concurrent first booking could create a duplicate and
+        // break every later SingleOrDefault lookup for that person.
+        builder.HasIndex(a => a.ResearcherId).IsUnique().HasFilter("\"ResearcherId\" IS NOT NULL");
+        builder.HasIndex(a => a.ExternalContactId).IsUnique().HasFilter("\"ExternalContactId\" IS NOT NULL");
+
         // Exactly one of Researcher/ExternalContact set, matching ActorType.
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_UsageActor_ExactlyOneParty",

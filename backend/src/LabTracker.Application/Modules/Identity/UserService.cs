@@ -4,6 +4,7 @@ using LabTracker.Domain.Modules.Identity;
 using LabTracker.Shared.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using LabTracker.Shared.Identity;
 
 namespace LabTracker.Application.Modules.Identity;
 
@@ -23,7 +24,7 @@ public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwor
 
         var user = new User
         {
-            Email = request.Email,
+            Email = EmailAddress.Normalize(request.Email),
             Role = request.Role,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,

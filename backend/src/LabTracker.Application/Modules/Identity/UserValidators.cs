@@ -1,6 +1,7 @@
 using FluentValidation;
 using LabTracker.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using LabTracker.Shared.Identity;
 
 namespace LabTracker.Application.Modules.Identity;
 
@@ -18,7 +19,7 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
     }
 
     private static async Task<bool> IsEmailUniqueAsync(IApplicationDbContext db, string email, CancellationToken ct)
-        => !await db.Users.AnyAsync(u => u.Email == email, ct);
+        => !await db.Users.AnyAsync(u => u.Email == EmailAddress.Normalize(email), ct);
 }
 
 public class UpdateMeRequestValidator : AbstractValidator<UpdateMeRequest>

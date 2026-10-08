@@ -11,6 +11,12 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Email).HasMaxLength(256).IsRequired();
         builder.HasIndex(u => u.Email).IsUnique();
 
+        // Emails are normalised on write (EmailAddress.Normalize); this keeps any
+        // path that forgets from reintroducing case-variant duplicates.
+        builder.ToTable(t => t.HasCheckConstraint(
+            "CK_User_EmailLowercase",
+            "\"Email\" = lower(btrim(\"Email\"))"));
+
         builder.Property(u => u.PasswordHash).IsRequired();
 
         builder.Property(u => u.Phone).HasMaxLength(30);

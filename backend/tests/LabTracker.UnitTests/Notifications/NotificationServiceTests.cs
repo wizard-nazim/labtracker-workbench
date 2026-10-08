@@ -92,6 +92,25 @@ public class NotificationServiceTests
         db.Notifications.Should().HaveCount(expected);
     }
 
+    // Equipment names can be 200 chars and so can the Title column, so the
+    // suffix would overflow it and fail the whole equipment save on Postgres.
+    [Fact]
+    public async Task UpdateStatusAsync_ClampsTitle_ForMaxLengthEquipmentName()
+    {
+        using var db = TestDbContextFactory.Create();
+        var admin = db.AddUser("admin@labtracker.local", Role.SuperAdmin);
+        db.AddUser("in@labtracker.local", Role.Researcher);
+        var equipment = SeedEquipment(db);
+        equipment.Name = new string('x', 200);
+        db.SaveChanges();
+
+        await NewEquipmentService(db).UpdateStatusAsync(equipment.Id, EquipmentStatus.UnderMaintenance, admin.Id, Role.SuperAdmin);
+
+        var title = db.Notifications.Single().Title;
+        title.Should().HaveLength(200);
+        title.Should().EndWith("…");
+    }
+
     [Fact]
     public async Task GetMineAsync_ReturnsOnlyTheUsersOwn_NewestFirst_AndFiltersUnread()
     {

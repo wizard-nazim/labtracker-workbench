@@ -6,6 +6,7 @@ using LabTracker.Shared.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PrincipalInvestigatorEntity = LabTracker.Domain.Modules.Organization.PrincipalInvestigator;
+using LabTracker.Shared.Identity;
 
 namespace LabTracker.Application.Modules.Organization;
 
@@ -49,7 +50,7 @@ public class PrincipalInvestigatorService(
         {
             var user = new User
             {
-                Email = request.Email,
+                Email = EmailAddress.Normalize(request.Email),
                 Role = Role.PrincipalInvestigator,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
@@ -79,7 +80,7 @@ public class PrincipalInvestigatorService(
         // the email now shown on their profile.
         if (pi.UserId is { } userId && !string.Equals(pi.Email, request.Email, StringComparison.Ordinal))
         {
-            var emailTakenByAnotherUser = await db.Users.AnyAsync(u => u.Id != userId && u.Email == request.Email, cancellationToken);
+            var emailTakenByAnotherUser = await db.Users.AnyAsync(u => u.Id != userId && u.Email == EmailAddress.Normalize(request.Email), cancellationToken);
             if (emailTakenByAnotherUser)
             {
                 throw new FluentValidation.ValidationException(
@@ -87,7 +88,7 @@ public class PrincipalInvestigatorService(
             }
 
             var user = await db.Users.FindAsync([userId], cancellationToken);
-            if (user is not null) user.Email = request.Email;
+            if (user is not null) user.Email = EmailAddress.Normalize(request.Email);
         }
 
         pi.FullName = request.FullName;

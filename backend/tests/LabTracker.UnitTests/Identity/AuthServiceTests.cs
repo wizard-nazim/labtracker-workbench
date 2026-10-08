@@ -57,6 +57,18 @@ public class AuthServiceTests
         result.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("Nadia@LabTracker.local")]
+    [InlineData("  nadia@labtracker.local ")]
+    public async Task LoginAsync_IgnoresEmailCaseAndSurroundingWhitespace(string typed)
+    {
+        var (_, sut, _) = BuildSutWithUser();
+
+        var result = await sut.LoginAsync(new LoginRequest { Email = typed, Password = Password });
+
+        result.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task LoginAsync_ForUnknownEmail_ReturnsNull()
     {

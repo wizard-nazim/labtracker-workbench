@@ -38,7 +38,7 @@ public class FacilitiesEndpointsTests(PostgresApiFactory factory) : IntegrationT
     [InlineData(Role.PrincipalInvestigator)]
     public async Task Create_AsNonSuperAdmin_ReturnsForbidden(Role role)
     {
-        var user = await SeedUserAsync($"{role}@labtracker.local", role);
+        var user = await SeedUserAsync($"{role}@labtracker.local".ToLowerInvariant(), role);
         var department = await CreateDepartmentAsync();
         var client = await CreateAuthenticatedClientAsync(user.Email);
 
