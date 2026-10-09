@@ -99,5 +99,30 @@ public class SignInProtectionTests(PostgresApiFactory factory) : IntegrationTest
         blocked.Headers.RetryAfter.Should().NotBeNull();
     }
 
+    [Fact]
+    public async Task Login_ManyFailuresFromChangingSpoofedIps_StillLocksTheAccount()
+    {
+        // A distinct account: the throttle is per app instance and outlives ResetDatabaseAsync.
+        var user = await SeedUserAsync("spoofed-ip-target@labtracker.local", Role.Researcher);
+        var client = Factory.CreateClient();
+        var wrong = new LoginRequest { Email = user.Email, Password = "WrongPassword1!" };
+
+        for (var attempt = 0; attempt < LoginAttemptThrottle.MaxFailures; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login") { Content = JsonContent.Create(wrong) };
+            request.Headers.Add("X-Forwarded-For", $"203.0.113.{attempt + 1}");
+            (await client.SendAsync(request)).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        }
+
+        var blocked = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest { Email = user.Email, Password = DefaultPassword });
+
+        blocked.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+        blocked.Headers.RetryAfter.Should().NotBeNull();
+
+        // Google sign-in is the way back in while password sign-in is locked.
+        var google = await client.PostAsJsonAsync("/api/auth/google", Credential($"{StubGoogleTokenValidator.ValidPrefix}{user.Email}"));
+        google.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
     private static GoogleLoginRequest Credential(string credential) => new() { Credential = credential };
 }

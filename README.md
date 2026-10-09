@@ -72,14 +72,16 @@ API settings (environment variables use `__` for `:`, e.g. `Jwt__SigningKey`):
 | `Features:DemoDataReset` | no | enables Admin → "Reset demo data" (wipes everything). On only in Development |
 | `Google:ClientId` | no | OAuth client ID for "Sign in with Google"; empty disables it. The client secret is not used |
 | `RateLimiting:Login:PermitLimit`, `WindowSeconds` | no | sign-in attempts allowed per client IP per window (default 10 per 60 s); excess gets `429` |
-| `ForwardedHeaders:ForwardLimit` | no | proxy hops in front of the API (default 1); the rate limit keys on the client IP they forward |
+| `ForwardedHeaders:ForwardLimit` | no | proxy hops whose `X-Forwarded-For` entries are trusted (default 1). Keep 1 whenever the API is publicly reachable: a higher value lets a client spoof its IP |
 
 Frontend (build time): `VITE_API_BASE_URL` only if the API is on a different
 origin (it defaults to same-origin `/api`), and `VITE_GOOGLE_CLIENT_ID` to show
 the Google button (same value as `Google:ClientId`).
 
 **Google sign-in** only lets in people who already have an active LabTracker
-login, matched by email; it never creates accounts. In Google Cloud Console →
+login, matched by email; it never creates accounts. It accepts Gmail addresses
+and Google Workspace accounts only: for any other address Google doesn't vouch
+for the current owner, so those users sign in with their password. In Google Cloud Console →
 Credentials → the OAuth client, add every site origin under *Authorized
 JavaScript origins* (`http://localhost`, `http://localhost:5173`, and the
 production URL). No redirect URIs are needed. While the consent screen is in
@@ -133,9 +135,14 @@ Set the health check path to `/health` and generate a public domain.
 domain. Variable: `VITE_GOOGLE_CLIENT_ID`. Then add the Vercel URL to the
 Google client's authorized JavaScript origins.
 
-Requests reach the API through Vercel and Railway's proxy. After the first
-deploy, check the API logs: if the rate limit groups every user under one
-proxy IP, set `ForwardedHeaders__ForwardLimit=2`.
+Requests reach the API through Vercel and then Railway's proxy, so the per-IP
+limit sees Vercel's addresses and many users can share one bucket. If people
+hit `429`s during normal use, raise `RateLimiting__Login__PermitLimit` (e.g. 60)
+rather than `ForwardedHeaders__ForwardLimit`: the Railway domain is public, and
+trusting more forwarded hops would let anyone fake their IP. Password guessing
+is capped separately per account (10 failures in 15 minutes locks that account's
+password sign-in for the rest of the window; Google sign-in still works), which
+no IP trick gets around.
 
 **Supabase**: the app talks to Postgres directly and does not use Supabase's
 Data API. Disable it (Project Settings → Data API), or the public publishable

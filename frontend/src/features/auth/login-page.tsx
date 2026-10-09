@@ -12,7 +12,7 @@ import { LoginBackground } from './constellation-background'
 import { GoogleSignInButton } from './google-sign-in-button'
 
 function signInErrorMessage(err: unknown, method: 'password' | 'google'): string {
-  if (err instanceof ApiError && err.status === 429) return 'Too many sign-in attempts. Try again in a minute.'
+  if (err instanceof ApiError && err.status === 429) return 'Too many sign-in attempts. Please wait a few minutes and try again.'
   if (err instanceof ApiError && err.status === 401) {
     return method === 'google'
       ? "This Google account isn't registered in LabTracker. Ask an admin to add your email."

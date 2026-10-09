@@ -22,11 +22,29 @@ public class GoogleTokenValidator(IConfiguration configuration) : IGoogleTokenVa
             var payload = await GoogleJsonWebSignature.ValidateAsync(
                 credential,
                 new GoogleJsonWebSignature.ValidationSettings { Audience = [clientId!] });
-            return payload.EmailVerified ? payload.Email : null;
+            return IsAuthoritativeEmail(payload.Email, payload.EmailVerified, payload.HostedDomain) ? payload.Email : null;
         }
         catch (InvalidJwtException)
         {
             return null;
         }
+    }
+
+    // Google vouches for who owns an email only for Gmail addresses and for
+    // Google Workspace accounts (which carry the `hd` claim). Any other address
+    // can be attached to a personal Google account after a one-off check, so
+    // whoever controlled it once (e.g. a previous holder of a reassigned
+    // address) could still sign in as its current owner. Those are refused;
+    // such users sign in with their password.
+    public static bool IsAuthoritativeEmail(string? email, bool emailVerified, string? hostedDomain)
+    {
+        if (!emailVerified || string.IsNullOrWhiteSpace(email))
+            return false;
+
+        if (!string.IsNullOrWhiteSpace(hostedDomain))
+            return email.EndsWith("@" + hostedDomain, StringComparison.OrdinalIgnoreCase);
+
+        return email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase)
+            || email.EndsWith("@googlemail.com", StringComparison.OrdinalIgnoreCase);
     }
 }

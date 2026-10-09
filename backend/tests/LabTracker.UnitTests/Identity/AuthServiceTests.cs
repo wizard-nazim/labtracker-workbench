@@ -2,6 +2,7 @@ using FluentAssertions;
 using LabTracker.Application.Modules.Identity;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Shared.Enums;
+using LabTracker.Shared.Exceptions;
 using LabTracker.UnitTests.TestSupport;
 using Microsoft.AspNetCore.Identity;
 
@@ -20,7 +21,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         db.SaveChanges();
 
-        var sut = new AuthService(db, hasher, new StubJwtTokenGenerator(), new StubGoogleTokenValidator());
+        var sut = new AuthService(db, hasher, new StubJwtTokenGenerator(), new StubGoogleTokenValidator(), new LoginAttemptThrottle(TimeProvider.System));
         return (db, sut, user);
     }
 
@@ -77,6 +78,49 @@ public class AuthServiceTests
         var result = await sut.LoginAsync(new LoginRequest { Email = "unknown@labtracker.local", Password = Password });
 
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task LoginAsync_AfterTooManyFailures_RejectsEvenTheRightPassword()
+    {
+        var (_, sut, user) = BuildSutWithUser();
+        for (var i = 0; i < LoginAttemptThrottle.MaxFailures; i++)
+        {
+            (await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" })).Should().BeNull();
+        }
+
+        var act = () => sut.LoginAsync(new LoginRequest { Email = "Nadia@LabTracker.local", Password = Password });
+
+        await act.Should().ThrowAsync<TooManyRequestsException>();
+    }
+
+    [Fact]
+    public async Task LoginAsync_Success_ClearsEarlierFailures()
+    {
+        var (_, sut, user) = BuildSutWithUser();
+        for (var i = 0; i < LoginAttemptThrottle.MaxFailures - 1; i++)
+        {
+            await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" });
+        }
+        (await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = Password })).Should().NotBeNull();
+
+        await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" });
+
+        (await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = Password })).Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_StillWorksWhilePasswordSignInIsLocked()
+    {
+        var (_, sut, user) = BuildSutWithUser();
+        for (var i = 0; i < LoginAttemptThrottle.MaxFailures; i++)
+        {
+            await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" });
+        }
+
+        var result = await sut.GoogleLoginAsync(new GoogleLoginRequest { Credential = StubGoogleTokenValidator.For(user.Email) });
+
+        result.Should().NotBeNull();
     }
 
     [Theory]
