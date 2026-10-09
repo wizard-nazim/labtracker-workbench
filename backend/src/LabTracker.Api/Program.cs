@@ -65,13 +65,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddLoginRateLimiting();
 
-// Deployed behind nginx (frontend/nginx.conf), which terminates TLS and sets
-// X-Forwarded-*. The API port is only reachable from that proxy, so trust it
-// whatever its container address is.
+// Deployed behind a proxy (nginx in frontend/nginx.conf, or Vercel in front of
+// Railway's edge) that terminates TLS and sets X-Forwarded-*. The API port is
+// only reachable through it, so trust it whatever its address is. ForwardLimit
+// is the number of proxy hops in front of the API.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
     options.KnownIPNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -126,6 +129,8 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseCors("Frontend");
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -2,18 +2,42 @@ using LabTracker.Api.Extensions;
 using LabTracker.Application.Modules.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LabTracker.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AuthService authService, AccountService accountService) : ControllerBase
+public class AuthController(
+    AuthService authService,
+    AccountService accountService,
+    IGoogleTokenValidator googleTokenValidator) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.LoginPolicy)]
     public async Task<ActionResult<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
         var result = await authService.LoginAsync(request, cancellationToken);
+        if (result is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(result);
+    }
+
+    [HttpPost("google")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.LoginPolicy)]
+    public async Task<ActionResult<LoginResult>> Google(GoogleLoginRequest request, CancellationToken cancellationToken)
+    {
+        if (!googleTokenValidator.IsEnabled)
+        {
+            return NotFound();
+        }
+
+        var result = await authService.GoogleLoginAsync(request, cancellationToken);
         if (result is null)
         {
             return Unauthorized();

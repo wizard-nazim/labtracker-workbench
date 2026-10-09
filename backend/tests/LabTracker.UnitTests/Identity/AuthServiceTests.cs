@@ -20,7 +20,7 @@ public class AuthServiceTests
         db.Users.Add(user);
         db.SaveChanges();
 
-        var sut = new AuthService(db, hasher, new StubJwtTokenGenerator());
+        var sut = new AuthService(db, hasher, new StubJwtTokenGenerator(), new StubGoogleTokenValidator());
         return (db, sut, user);
     }
 
@@ -79,9 +79,63 @@ public class AuthServiceTests
         result.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("nadia@labtracker.local")]
+    [InlineData("Nadia@LabTracker.local")]
+    public async Task GoogleLoginAsync_ForAnActiveUsersVerifiedEmail_ReturnsToken(string googleEmail)
+    {
+        var (_, sut, user) = BuildSutWithUser();
+
+        var result = await sut.GoogleLoginAsync(new GoogleLoginRequest { Credential = StubGoogleTokenValidator.For(googleEmail) });
+
+        result.Should().NotBeNull();
+        result!.Email.Should().Be(user.Email);
+        result.Token.Should().Be(StubJwtTokenGenerator.FixedToken);
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_ForAnEmailWithNoAccount_ReturnsNull()
+    {
+        var (_, sut, _) = BuildSutWithUser();
+
+        var result = await sut.GoogleLoginAsync(new GoogleLoginRequest { Credential = StubGoogleTokenValidator.For("stranger@gmail.com") });
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_ForAnInactiveUser_ReturnsNull()
+    {
+        var (_, sut, user) = BuildSutWithUser(isActive: false);
+
+        var result = await sut.GoogleLoginAsync(new GoogleLoginRequest { Credential = StubGoogleTokenValidator.For(user.Email) });
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GoogleLoginAsync_WhenTheTokenIsRejected_ReturnsNull()
+    {
+        var (_, sut, _) = BuildSutWithUser();
+
+        var result = await sut.GoogleLoginAsync(new GoogleLoginRequest { Credential = "forged-token" });
+
+        result.Should().BeNull();
+    }
+
     private class StubJwtTokenGenerator : IJwtTokenGenerator
     {
         public const string FixedToken = "stub-token";
         public string GenerateToken(User user) => FixedToken;
+    }
+
+    // "valid:<email>" stands for a verified Google token for that email.
+    private class StubGoogleTokenValidator : IGoogleTokenValidator
+    {
+        private const string Prefix = "valid:";
+        public static string For(string email) => Prefix + email;
+        public bool IsEnabled => true;
+        public Task<string?> ValidateAsync(string credential, CancellationToken cancellationToken = default)
+            => Task.FromResult(credential.StartsWith(Prefix, StringComparison.Ordinal) ? credential[Prefix.Length..] : null);
     }
 }

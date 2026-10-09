@@ -19,12 +19,16 @@ services:
       Minio__SecretKey: ${S3_SECRET_KEY:-}
       Minio__Bucket: ${S3_BUCKET:-labtracker-equipment}
       Minio__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
+      Google__ClientId: ${GOOGLE_CLIENT_ID:-}
     # No published port: only reachable through the web container.
     expose:
       - "8080"
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
       - api

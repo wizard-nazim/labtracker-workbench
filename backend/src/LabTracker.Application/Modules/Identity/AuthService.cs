@@ -9,12 +9,13 @@ namespace LabTracker.Application.Modules.Identity;
 public class AuthService(
     IApplicationDbContext db,
     IPasswordHasher<User> passwordHasher,
-    IJwtTokenGenerator jwtTokenGenerator)
+    IJwtTokenGenerator jwtTokenGenerator,
+    IGoogleTokenValidator googleTokenValidator)
 {
     public async Task<LoginResult?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
-        var user = await db.Users.SingleOrDefaultAsync(u => u.Email == EmailAddress.Normalize(request.Email), cancellationToken);
-        if (user is null || !user.IsActive)
+        var user = await FindActiveUserAsync(request.Email, cancellationToken);
+        if (user is null)
         {
             return null;
         }
@@ -25,11 +26,33 @@ public class AuthService(
             return null;
         }
 
-        return new LoginResult
-        {
-            Token = jwtTokenGenerator.GenerateToken(user),
-            Email = user.Email,
-            Role = user.Role.ToString(),
-        };
+        return IssueToken(user);
     }
+
+    // Google only signs in people who already have an active LabTracker login,
+    // matched by email; it never creates accounts.
+    public async Task<LoginResult?> GoogleLoginAsync(GoogleLoginRequest request, CancellationToken cancellationToken = default)
+    {
+        var email = await googleTokenValidator.ValidateAsync(request.Credential, cancellationToken);
+        if (email is null)
+        {
+            return null;
+        }
+
+        var user = await FindActiveUserAsync(email, cancellationToken);
+        return user is null ? null : IssueToken(user);
+    }
+
+    private async Task<User?> FindActiveUserAsync(string email, CancellationToken cancellationToken)
+    {
+        var user = await db.Users.SingleOrDefaultAsync(u => u.Email == EmailAddress.Normalize(email), cancellationToken);
+        return user is { IsActive: true } ? user : null;
+    }
+
+    private LoginResult IssueToken(User user) => new()
+    {
+        Token = jwtTokenGenerator.GenerateToken(user),
+        Email = user.Email,
+        Role = user.Role.ToString(),
+    };
 }

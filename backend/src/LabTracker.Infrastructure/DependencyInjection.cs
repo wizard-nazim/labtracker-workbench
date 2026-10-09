@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<LabTrackerDbContext>());
 
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddSingleton<IGoogleTokenValidator, GoogleTokenValidator>();
 
         return services;
     }

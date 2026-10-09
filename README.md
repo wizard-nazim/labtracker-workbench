@@ -70,9 +70,20 @@ API settings (environment variables use `__` for `:`, e.g. `Jwt__SigningKey`):
 | `Database:MigrateOnStartup` | no | apply pending migrations when the API starts |
 | `Bootstrap:AdminEmail`, `Bootstrap:AdminPassword` | first start | creates the first Super Admin on an empty database; remove afterwards |
 | `Features:DemoDataReset` | no | enables Admin → "Reset demo data" (wipes everything). On only in Development |
+| `Google:ClientId` | no | OAuth client ID for "Sign in with Google"; empty disables it. The client secret is not used |
+| `RateLimiting:Login:PermitLimit`, `WindowSeconds` | no | sign-in attempts allowed per client IP per window (default 10 per 60 s); excess gets `429` |
+| `ForwardedHeaders:ForwardLimit` | no | proxy hops in front of the API (default 1); the rate limit keys on the client IP they forward |
 
-Frontend: `VITE_API_BASE_URL` (build time) only if the API is on a different
-origin; it defaults to same-origin `/api`.
+Frontend (build time): `VITE_API_BASE_URL` only if the API is on a different
+origin (it defaults to same-origin `/api`), and `VITE_GOOGLE_CLIENT_ID` to show
+the Google button (same value as `Google:ClientId`).
+
+**Google sign-in** only lets in people who already have an active LabTracker
+login, matched by email; it never creates accounts. In Google Cloud Console →
+Credentials → the OAuth client, add every site origin under *Authorized
+JavaScript origins* (`http://localhost`, `http://localhost:5173`, and the
+production URL). No redirect URIs are needed. While the consent screen is in
+*Testing*, only listed test users can sign in.
 
 Health check: `GET /health` (also reports whether the database is reachable).
 
@@ -94,3 +105,39 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
   first start, sign in, change the password, then remove them.
 - **TLS**: terminate HTTPS in front of the web container (load balancer or
   reverse proxy) and set `ALLOWED_HOSTS` to your hostname.
+
+### Vercel (frontend) + Railway (API)
+
+The SPA can be hosted on Vercel and the API on Railway instead of the compose
+stack. `frontend/vercel.json` rewrites `/api/*` and `/health` to the API, so the
+browser stays same-origin and no CORS setup is needed.
+
+**Railway** (API): new service from this repo, root directory `backend`
+(it builds `backend/Dockerfile`). Variables:
+
+| Variable | Value |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | Supabase **session pooler** string (Connect → Session pooler; port 5432), as `Host=...;Port=5432;Database=postgres;Username=postgres.<ref>;Password=...;SSL Mode=Require`. The direct `db.<ref>.supabase.co` host is IPv6-only |
+| `Jwt__SigningKey` | `openssl rand -base64 48` |
+| `Google__ClientId` | the OAuth client ID |
+| `Database__MigrateOnStartup` | `true` |
+| `Bootstrap__AdminEmail`, `Bootstrap__AdminPassword` | first start only, then remove |
+| `Minio__ServiceUrl`, `Minio__AccessKey`, `Minio__SecretKey`, `Minio__Bucket`, `Minio__PublicBaseUrl` | S3 storage, e.g. Supabase Storage's S3 endpoint |
+| `PORT` | `8080` |
+
+Set the health check path to `/health` and generate a public domain.
+
+**Vercel** (frontend): import the repo with root directory `frontend`
+(framework Vite, build `npm run build`, output `dist`). Replace
+`YOUR-RAILWAY-API.up.railway.app` in `frontend/vercel.json` with the Railway
+domain. Variable: `VITE_GOOGLE_CLIENT_ID`. Then add the Vercel URL to the
+Google client's authorized JavaScript origins.
+
+Requests reach the API through Vercel and Railway's proxy. After the first
+deploy, check the API logs: if the rate limit groups every user under one
+proxy IP, set `ForwardedHeaders__ForwardLimit=2`.
+
+**Supabase**: the app talks to Postgres directly and does not use Supabase's
+Data API. Disable it (Project Settings → Data API), or the public publishable
+key could read and write the app's tables over REST, since they have no RLS.
+Schema changes come from EF migrations, not a `supabase/` folder.
