@@ -63,6 +63,28 @@ public class LoginAttemptThrottleTests
     }
 
     [Fact]
+    public void TryBeginUnknownEmailAttempt_LocksAfterTheLimit_WithoutAffectingRealAccounts()
+    {
+        var (sut, _) = BuildSut();
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts; i++) sut.TryBeginUnknownEmailAttempt("made-up@labtracker.local");
+
+        sut.TryBeginUnknownEmailAttempt("made-up@labtracker.local").Should().NotBeNull();
+        sut.TryBeginAttempt(UserId).Should().BeNull();
+    }
+
+    [Fact]
+    public void TryBeginUnknownEmailAttempt_SprayingManyEmails_NeverLocksARealAccount()
+    {
+        var (sut, _) = BuildSut();
+        Attempt(sut, LoginAttemptThrottle.MaxAttempts);
+
+        for (var i = 0; i < 25_000; i++) sut.TryBeginUnknownEmailAttempt($"spray-{i}@example.com");
+
+        // The real account's count is untouched by the unknown-email map being cleared.
+        sut.TryBeginAttempt(UserId).Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task TryBeginAttempt_UnderParallelLoad_AllowsExactlyTheLimit()
     {
         var (sut, _) = BuildSut();

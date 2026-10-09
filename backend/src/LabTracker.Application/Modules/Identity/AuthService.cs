@@ -14,17 +14,29 @@ public class AuthService(
     IGoogleTokenValidator googleTokenValidator,
     LoginAttemptThrottle loginAttemptThrottle)
 {
+    // Verified against for unknown emails, so they cost the same hashing time as
+    // a real account's wrong password.
+    private static readonly User TimingDummyUser = new();
+    private static readonly string TimingDummyHash = new PasswordHasher<User>().HashPassword(TimingDummyUser, Guid.NewGuid().ToString());
+
     public async Task<LoginResult?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
         var user = await FindActiveUserAsync(request.Email, cancellationToken);
-        if (user is null)
+
+        // Unknown emails are throttled and hashed exactly like real accounts, so
+        // neither a 429 nor the response time reveals whether an account exists.
+        var lockedFor = user is null
+            ? loginAttemptThrottle.TryBeginUnknownEmailAttempt(EmailAddress.Normalize(request.Email))
+            : loginAttemptThrottle.TryBeginAttempt(user.Id);
+        if (lockedFor is { } retryAfter)
         {
-            return null;
+            throw new TooManyRequestsException("Too many failed sign-in attempts for this account. Try again later.", retryAfter);
         }
 
-        if (loginAttemptThrottle.TryBeginAttempt(user.Id) is { } lockedFor)
+        if (user is null)
         {
-            throw new TooManyRequestsException("Too many failed sign-in attempts for this account. Try again later.", lockedFor);
+            passwordHasher.VerifyHashedPassword(TimingDummyUser, TimingDummyHash, request.Password);
+            return null;
         }
 
         if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)

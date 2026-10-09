@@ -110,14 +110,18 @@ public class AuthServiceTests
     }
 
     [Fact]
-    public async Task LoginAsync_ForUnknownEmails_NeverLocksOrTracksThem()
+    public async Task LoginAsync_ForAnUnknownEmail_LocksLikeARealAccount()
     {
         var (_, sut, _) = BuildSutWithUser();
-
-        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts * 3; i++)
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts; i++)
         {
             (await sut.LoginAsync(new LoginRequest { Email = "made-up@labtracker.local", Password = "x" })).Should().BeNull();
         }
+
+        // Same 429 as a real account, so lockouts don't reveal which emails exist.
+        var act = () => sut.LoginAsync(new LoginRequest { Email = "Made-Up@labtracker.local", Password = "x" });
+
+        await act.Should().ThrowAsync<TooManyRequestsException>();
     }
 
     [Fact]
