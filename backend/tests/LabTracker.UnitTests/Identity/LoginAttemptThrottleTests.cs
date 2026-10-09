@@ -5,7 +5,7 @@ namespace LabTracker.UnitTests.Identity;
 
 public class LoginAttemptThrottleTests
 {
-    private const string Email = "nadia@labtracker.local";
+    private const int UserId = 7;
 
     private static (LoginAttemptThrottle Sut, ManualTimeProvider Clock) BuildSut()
     {
@@ -13,56 +13,63 @@ public class LoginAttemptThrottleTests
         return (new LoginAttemptThrottle(clock), clock);
     }
 
-    private static void Fail(LoginAttemptThrottle sut, int times)
+    private static void Attempt(LoginAttemptThrottle sut, int times)
     {
-        for (var i = 0; i < times; i++) sut.RecordFailure(Email);
+        for (var i = 0; i < times; i++) sut.TryBeginAttempt(UserId);
     }
 
     [Fact]
-    public void LockedFor_BelowTheLimit_IsNull()
+    public void TryBeginAttempt_UpToTheLimit_IsAllowed()
     {
         var (sut, _) = BuildSut();
 
-        Fail(sut, LoginAttemptThrottle.MaxFailures - 1);
+        Attempt(sut, LoginAttemptThrottle.MaxAttempts - 1);
 
-        sut.LockedFor(Email).Should().BeNull();
+        sut.TryBeginAttempt(UserId).Should().BeNull();
     }
 
     [Fact]
-    public void LockedFor_AtTheLimit_ReturnsTimeUntilTheWindowEnds()
+    public void TryBeginAttempt_OverTheLimit_ReturnsTimeUntilTheWindowEnds()
     {
         var (sut, clock) = BuildSut();
-        Fail(sut, LoginAttemptThrottle.MaxFailures);
+        Attempt(sut, LoginAttemptThrottle.MaxAttempts);
 
         clock.Advance(TimeSpan.FromMinutes(5));
 
-        sut.LockedFor(Email).Should().Be(LoginAttemptThrottle.Window - TimeSpan.FromMinutes(5));
-        sut.LockedFor("someone-else@labtracker.local").Should().BeNull();
+        sut.TryBeginAttempt(UserId).Should().Be(LoginAttemptThrottle.Window - TimeSpan.FromMinutes(5));
+        sut.TryBeginAttempt(UserId + 1).Should().BeNull();
     }
 
     [Fact]
-    public void LockedFor_AfterTheWindow_IsNullAndCountingStartsOver()
+    public void TryBeginAttempt_AfterTheWindow_StartsCountingAgain()
     {
         var (sut, clock) = BuildSut();
-        Fail(sut, LoginAttemptThrottle.MaxFailures);
+        Attempt(sut, LoginAttemptThrottle.MaxAttempts + 3);
 
         clock.Advance(LoginAttemptThrottle.Window);
-        sut.LockedFor(Email).Should().BeNull();
 
-        Fail(sut, 1);
-        sut.LockedFor(Email).Should().BeNull();
+        sut.TryBeginAttempt(UserId).Should().BeNull();
     }
 
     [Fact]
-    public void Reset_ClearsFailures()
+    public void Reset_ClearsTheCount()
     {
         var (sut, _) = BuildSut();
-        Fail(sut, LoginAttemptThrottle.MaxFailures - 1);
+        Attempt(sut, LoginAttemptThrottle.MaxAttempts);
 
-        sut.Reset(Email);
-        Fail(sut, 1);
+        sut.Reset(UserId);
 
-        sut.LockedFor(Email).Should().BeNull();
+        sut.TryBeginAttempt(UserId).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TryBeginAttempt_UnderParallelLoad_AllowsExactlyTheLimit()
+    {
+        var (sut, _) = BuildSut();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 200).Select(_ => Task.Run(() => sut.TryBeginAttempt(UserId))));
+
+        results.Count(r => r is null).Should().Be(LoginAttemptThrottle.MaxAttempts);
     }
 
     private sealed class ManualTimeProvider : TimeProvider

@@ -16,22 +16,23 @@ public class AuthService(
 {
     public async Task<LoginResult?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
-        var email = EmailAddress.Normalize(request.Email);
-        if (loginAttemptThrottle.LockedFor(email) is { } lockedFor)
+        var user = await FindActiveUserAsync(request.Email, cancellationToken);
+        if (user is null)
+        {
+            return null;
+        }
+
+        if (loginAttemptThrottle.TryBeginAttempt(user.Id) is { } lockedFor)
         {
             throw new TooManyRequestsException("Too many failed sign-in attempts for this account. Try again later.", lockedFor);
         }
 
-        var user = await FindActiveUserAsync(email, cancellationToken);
-        if (user is null
-            || passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
+        if (passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password) == PasswordVerificationResult.Failed)
         {
-            // Counted for unknown emails too, so lockouts don't reveal which accounts exist.
-            loginAttemptThrottle.RecordFailure(email);
             return null;
         }
 
-        loginAttemptThrottle.Reset(email);
+        loginAttemptThrottle.Reset(user.Id);
         return IssueToken(user);
     }
 

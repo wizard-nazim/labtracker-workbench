@@ -140,9 +140,11 @@ limit sees Vercel's addresses and many users can share one bucket. If people
 hit `429`s during normal use, raise `RateLimiting__Login__PermitLimit` (e.g. 60)
 rather than `ForwardedHeaders__ForwardLimit`: the Railway domain is public, and
 trusting more forwarded hops would let anyone fake their IP. Password guessing
-is capped separately per account (10 failures in 15 minutes locks that account's
-password sign-in for the rest of the window; Google sign-in still works), which
-no IP trick gets around.
+is also capped per account, which no IP trick gets around: after 10 attempts in
+15 minutes, that account's password sign-in returns `429` for the rest of the
+window. The trade-off is that someone who knows a user's email can lock them out
+of password sign-in for up to 15 minutes; users with a Gmail or Google Workspace
+address can still use Google sign-in meanwhile.
 
 **Supabase**: the app talks to Postgres directly and does not use Supabase's
 Data API. Disable it (Project Settings → Data API), or the public publishable

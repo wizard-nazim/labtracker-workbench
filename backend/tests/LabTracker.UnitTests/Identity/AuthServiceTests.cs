@@ -84,7 +84,7 @@ public class AuthServiceTests
     public async Task LoginAsync_AfterTooManyFailures_RejectsEvenTheRightPassword()
     {
         var (_, sut, user) = BuildSutWithUser();
-        for (var i = 0; i < LoginAttemptThrottle.MaxFailures; i++)
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts; i++)
         {
             (await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" })).Should().BeNull();
         }
@@ -98,7 +98,7 @@ public class AuthServiceTests
     public async Task LoginAsync_Success_ClearsEarlierFailures()
     {
         var (_, sut, user) = BuildSutWithUser();
-        for (var i = 0; i < LoginAttemptThrottle.MaxFailures - 1; i++)
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts - 1; i++)
         {
             await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" });
         }
@@ -110,10 +110,21 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task LoginAsync_ForUnknownEmails_NeverLocksOrTracksThem()
+    {
+        var (_, sut, _) = BuildSutWithUser();
+
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts * 3; i++)
+        {
+            (await sut.LoginAsync(new LoginRequest { Email = "made-up@labtracker.local", Password = "x" })).Should().BeNull();
+        }
+    }
+
+    [Fact]
     public async Task GoogleLoginAsync_StillWorksWhilePasswordSignInIsLocked()
     {
         var (_, sut, user) = BuildSutWithUser();
-        for (var i = 0; i < LoginAttemptThrottle.MaxFailures; i++)
+        for (var i = 0; i < LoginAttemptThrottle.MaxAttempts; i++)
         {
             await sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "WrongPassword1!" });
         }

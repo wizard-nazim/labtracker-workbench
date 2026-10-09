@@ -102,12 +102,15 @@ public class SignInProtectionTests(PostgresApiFactory factory) : IntegrationTest
     [Fact]
     public async Task Login_ManyFailuresFromChangingSpoofedIps_StillLocksTheAccount()
     {
-        // A distinct account: the throttle is per app instance and outlives ResetDatabaseAsync.
-        var user = await SeedUserAsync("spoofed-ip-target@labtracker.local", Role.Researcher);
-        var client = Factory.CreateClient();
+        // Its own app instance: the throttle is an in-memory singleton keyed by user
+        // id, and ids restart with every ResetDatabaseAsync, so a lockout here would
+        // otherwise leak into later tests on the shared instance.
+        var user = await SeedUserAsync("nadia@labtracker.local", Role.Researcher);
+        await using var app = Factory.WithWebHostBuilder(_ => { });
+        var client = app.CreateClient();
         var wrong = new LoginRequest { Email = user.Email, Password = "WrongPassword1!" };
 
-        for (var attempt = 0; attempt < LoginAttemptThrottle.MaxFailures; attempt++)
+        for (var attempt = 0; attempt < LoginAttemptThrottle.MaxAttempts; attempt++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login") { Content = JsonContent.Create(wrong) };
             request.Headers.Add("X-Forwarded-For", $"203.0.113.{attempt + 1}");
