@@ -68,9 +68,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddLoginRateLimiting();
 
 // Deployed behind a proxy (nginx in frontend/nginx.conf, or Vercel in front of
-// Railway's edge) that terminates TLS and sets X-Forwarded-*. The API port is
-// only reachable through it, so trust it whatever its address is. ForwardLimit
-// is the number of proxy hops in front of the API.
+// Render's edge) that terminates TLS and appends to X-Forwarded-*. Its address
+// isn't fixed, so any proxy is trusted, but ForwardLimit (default 1) only
+// reads the entry the nearest proxy appended. Entries a client sends itself sit
+// further left and are ignored, unless ForwardLimit is raised.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;

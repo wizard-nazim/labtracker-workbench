@@ -108,37 +108,42 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 - **TLS**: terminate HTTPS in front of the web container (load balancer or
   reverse proxy) and set `ALLOWED_HOSTS` to your hostname.
 
-### Vercel (frontend) + Railway (API)
+### Vercel (frontend) + Render (API)
 
-The SPA can be hosted on Vercel and the API on Railway instead of the compose
-stack. `frontend/vercel.json` rewrites `/api/*` and `/health` to the API, so the
-browser stays same-origin and no CORS setup is needed.
+The SPA can be hosted on Vercel and the API on Render's free plan instead of
+the compose stack. `frontend/vercel.json` rewrites `/api/*` and `/health` to the
+API, so the browser stays same-origin and no CORS setup is needed.
 
-**Railway** (API): new service from this repo, root directory `backend`
-(it builds `backend/Dockerfile`). Variables:
+**Render** (API): Dashboard → New → Blueprint → this repo. `render.yaml`
+creates a free Docker web service from `backend/Dockerfile` with the health
+check, port and migration settings. It generates `Jwt__SigningKey` and asks
+for the rest:
 
 | Variable | Value |
 |---|---|
 | `ConnectionStrings__DefaultConnection` | Supabase **session pooler** string (Connect → Session pooler; port 5432), as `Host=...;Port=5432;Database=postgres;Username=postgres.<ref>;Password=...;SSL Mode=Require`. The direct `db.<ref>.supabase.co` host is IPv6-only |
-| `Jwt__SigningKey` | `openssl rand -base64 48` |
 | `Google__ClientId` | the OAuth client ID |
-| `Database__MigrateOnStartup` | `true` |
 | `Bootstrap__AdminEmail`, `Bootstrap__AdminPassword` | first start only, then remove |
-| `Minio__ServiceUrl`, `Minio__AccessKey`, `Minio__SecretKey`, `Minio__Bucket`, `Minio__PublicBaseUrl` | S3 storage, e.g. Supabase Storage's S3 endpoint |
-| `PORT` | `8080` |
+| `Minio__ServiceUrl`, `Minio__AccessKey`, `Minio__SecretKey`, `Minio__PublicBaseUrl` | S3 storage, e.g. Supabase Storage's S3 endpoint |
 
-Set the health check path to `/health` and generate a public domain.
+Free-plan limits: 512 MB RAM, a small CPU share, and the service **sleeps after
+15 minutes without traffic** (the next request waits about a minute while it
+starts). To keep it awake, point a free uptime pinger (e.g. cron-job.org or
+UptimeRobot) at `https://<service>.onrender.com/health` every 10 minutes. One
+service running all month fits in the 750 free hours. Because `/health` queries
+the database, the ping also stops a free Supabase project from pausing for
+inactivity.
 
 **Vercel** (frontend): import the repo with root directory `frontend`
 (framework Vite, build `npm run build`, output `dist`). Replace
-`YOUR-RAILWAY-API.up.railway.app` in `frontend/vercel.json` with the Railway
-domain. Variable: `VITE_GOOGLE_CLIENT_ID`. Then add the Vercel URL to the
-Google client's authorized JavaScript origins.
+`YOUR-API.onrender.com` in `frontend/vercel.json` with the Render domain.
+Variable: `VITE_GOOGLE_CLIENT_ID`. Then add the Vercel URL to the Google
+client's authorized JavaScript origins.
 
-Requests reach the API through Vercel and then Railway's proxy, so the per-IP
+Requests reach the API through Vercel and then Render's proxy, so the per-IP
 limit sees Vercel's addresses and many users can share one bucket. If people
 hit `429`s during normal use, raise `RateLimiting__Login__PermitLimit` (e.g. 60)
-rather than `ForwardedHeaders__ForwardLimit`: the Railway domain is public, and
+rather than `ForwardedHeaders__ForwardLimit`: the Render domain is public, and
 trusting more forwarded hops would let anyone fake their IP. Password guessing
 is also capped per account, which no IP trick gets around: after 10 attempts in
 15 minutes, that account's password sign-in returns `429` for the rest of the
