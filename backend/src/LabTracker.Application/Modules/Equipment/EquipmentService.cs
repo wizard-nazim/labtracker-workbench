@@ -90,9 +90,9 @@ public class EquipmentService(
             EquipmentTypeId = request.EquipmentTypeId,
             RoomId = request.RoomId,
             OwningDepartmentId = request.OwningDepartmentId,
-            OwnershipType = request.OwnershipType,
+            OwnershipType = request.OwnershipType ?? OwnershipType.Department,
             OwnerUserId = OwnerFor(request),
-            ResearchGroupId = request.ResearchGroupId,
+            ResearchGroupId = request.OwnershipType is null ? null : request.ResearchGroupId,
             Status = EquipmentStatus.Available,
             CreatedAt = now,
             UpdatedAt = now,
@@ -125,9 +125,12 @@ public class EquipmentService(
         equipment.EquipmentTypeId = request.EquipmentTypeId;
         equipment.RoomId = request.RoomId;
         equipment.OwningDepartmentId = request.OwningDepartmentId;
-        equipment.OwnershipType = request.OwnershipType;
-        equipment.OwnerUserId = OwnerFor(request);
-        equipment.ResearchGroupId = request.ResearchGroupId;
+        if (request.OwnershipType is { } ownershipType)
+        {
+            equipment.OwnershipType = ownershipType;
+            equipment.OwnerUserId = OwnerFor(request);
+            equipment.ResearchGroupId = request.ResearchGroupId;
+        }
         equipment.UpdatedAt = DateTime.UtcNow;
 
         if (noteChanged)
@@ -166,6 +169,12 @@ public class EquipmentService(
             }
         }
 
+        // Retiring is archiving by another route, so it gets the same guard.
+        if (newStatus == EquipmentStatus.Retired && equipment.Status != EquipmentStatus.Retired)
+        {
+            await EnsureNoLiveBookingsAsync(id, cancellationToken);
+        }
+
         await ApplyStatusChangeAsync(equipment, newStatus, actingUserId, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
 
@@ -182,17 +191,7 @@ public class EquipmentService(
 
         if (equipment.Status != EquipmentStatus.Retired)
         {
-            var now = DateTime.UtcNow;
-            var liveBookings = await db.Bookings.CountAsync(b =>
-                b.EquipmentId == id
-                && (b.Status == BookingStatus.Requested || b.Status == BookingStatus.Approved)
-                && b.ScheduledEnd > now, cancellationToken);
-
-            if (liveBookings > 0)
-            {
-                throw new ConflictException(
-                    $"Has {liveBookings} upcoming or in-progress booking{(liveBookings == 1 ? "" : "s")} — cancel or reject {(liveBookings == 1 ? "it" : "them")} before archiving.");
-            }
+            await EnsureNoLiveBookingsAsync(id, cancellationToken);
 
             await ApplyStatusChangeAsync(equipment, EquipmentStatus.Retired, actingUserId, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
@@ -327,18 +326,41 @@ public class EquipmentService(
         }
     }
 
+    private async Task EnsureNoLiveBookingsAsync(int equipmentId, CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var liveBookings = await db.Bookings.CountAsync(b =>
+            b.EquipmentId == equipmentId
+            && (b.Status == BookingStatus.Requested || b.Status == BookingStatus.Approved)
+            && b.ScheduledEnd > now, cancellationToken);
+
+        if (liveBookings > 0)
+        {
+            throw new ConflictException(
+                $"Has {liveBookings} upcoming or in-progress booking{(liveBookings == 1 ? "" : "s")} — cancel or reject {(liveBookings == 1 ? "it" : "them")} before archiving.");
+        }
+    }
+
     private static int? OwnerFor(UpsertEquipmentRequest request)
         => request.OwnershipType == OwnershipType.Individual ? request.OwnerUserId : null;
 
-    // A deactivated person can't be newly made an owner, but equipment they
-    // already own stays editable (the owner is only re-checked when it changes).
+    // A deactivated person, or someone without an owner-eligible role, can't be
+    // newly made an owner, but equipment they already own stays editable (the
+    // owner is only re-checked when it changes).
     private async Task EnsureOwnerIsActiveIfChangedAsync(int? previousOwnerUserId, UpsertEquipmentRequest request, CancellationToken cancellationToken)
     {
         var ownerUserId = OwnerFor(request);
         if (ownerUserId is null || ownerUserId == previousOwnerUserId) return;
 
-        var isActive = await db.Users.AnyAsync(u => u.Id == ownerUserId && u.IsActive, cancellationToken);
-        if (!isActive)
+        var owner = await db.Users.AsNoTracking()
+            .Where(u => u.Id == ownerUserId)
+            .Select(u => new { u.Role, u.IsActive })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (owner is null || owner.Role is not (Role.ScienceOfficer or Role.Researcher or Role.PrincipalInvestigator))
+        {
+            throw InvalidField(nameof(UpsertEquipmentRequest.OwnerUserId), "OwnerUserId must reference a Science Officer, Researcher or Principal Investigator.");
+        }
+        if (!owner.IsActive)
         {
             throw InvalidField(nameof(UpsertEquipmentRequest.OwnerUserId), "OwnerUserId references a deactivated user; activate them first or choose someone else.");
         }
@@ -352,6 +374,7 @@ public class EquipmentService(
         int? previousResearchGroupId, UpsertEquipmentRequest request, int actingUserId, Role actingUserRole, CancellationToken cancellationToken)
     {
         if (actingUserRole != Role.PrincipalInvestigator) return;
+        if (request.OwnershipType is null) return;
         if (request.ResearchGroupId is not { } groupId || groupId == previousResearchGroupId) return;
 
         var leadsGroup = await db.ResearchGroups.AnyAsync(

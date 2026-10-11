@@ -64,21 +64,18 @@ public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipment
 
         RuleFor(x => x.OwnershipType).IsInEnum();
 
-        // Whether the owner is *active* is checked in EquipmentService instead,
-        // and only when the owner changes, so equipment whose owner has since
-        // been deactivated can still be edited without reassigning it.
+        // The owner's role and whether they're active are checked in
+        // EquipmentService instead, and only when the owner changes, so
+        // equipment whose owner has since been deactivated or changed role can
+        // still be edited without reassigning it.
         When(x => x.OwnershipType == OwnershipType.Individual, () =>
         {
             RuleFor(x => x.OwnerUserId)
-                .Cascade(CascadeMode.Stop)
                 .NotNull()
-                .WithMessage("OwnerUserId is required when ownership is Individual.")
-                .MustAsync((id, ct) => db.Users.AnyAsync(u => u.Id == id
-                    && (u.Role == Role.ScienceOfficer || u.Role == Role.Researcher || u.Role == Role.PrincipalInvestigator), ct))
-                .WithMessage("OwnerUserId must reference a Science Officer, Researcher or Principal Investigator.");
+                .WithMessage("OwnerUserId is required when ownership is Individual.");
         });
 
-        When(x => x.OwnershipType == OwnershipType.Department, () =>
+        When(x => x.OwnershipType is null or OwnershipType.Department, () =>
         {
             RuleFor(x => x.OwnerUserId)
                 .Null()

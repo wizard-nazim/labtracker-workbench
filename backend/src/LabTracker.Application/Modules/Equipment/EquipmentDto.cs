@@ -67,9 +67,10 @@ public class UpsertEquipmentRequest
     public int RoomId { get; set; }
     public int OwningDepartmentId { get; set; }
 
-    // Omitted by older clients: defaults to Department-owned, no individual
-    // owner and no lab.
-    public OwnershipType OwnershipType { get; set; } = OwnershipType.Department;
+    // Omitted by older clients. On create that means Department-owned with no
+    // lab; on update it leaves ownership, owner and lab exactly as they are, so
+    // a client that doesn't know these fields can't wipe them.
+    public OwnershipType? OwnershipType { get; set; }
     public int? OwnerUserId { get; set; }
     public int? ResearchGroupId { get; set; }
 }

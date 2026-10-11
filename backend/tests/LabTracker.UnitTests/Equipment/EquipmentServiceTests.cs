@@ -78,18 +78,6 @@ public class UpsertEquipmentRequestOwnershipValidatorTests
     }
 
     [Fact]
-    public async Task IndividualOwnership_WithSuperAdmin_IsRejected()
-    {
-        var (db, request) = Arrange();
-        request.OwnershipType = OwnershipType.Individual;
-        request.OwnerUserId = db.AddUser("admin@labtracker.local", Role.SuperAdmin).Id;
-
-        var result = await new UpsertEquipmentRequestValidator(db).TestValidateAsync(request);
-
-        result.ShouldHaveValidationErrorFor(x => x.OwnerUserId);
-    }
-
-    [Fact]
     public async Task UnknownResearchGroup_IsRejected()
     {
         var (db, request) = Arrange();
@@ -240,6 +228,7 @@ public class EquipmentServiceTests
         var g = Arrange();
         var (piUserId, ownLab, _) = ArrangePi(g);
         var request = Request(g);
+        request.OwnershipType = OwnershipType.Department;
         request.ResearchGroupId = ownLab.Id;
 
         var result = await g.Sut.CreateAsync(request, piUserId, Role.PrincipalInvestigator);
@@ -253,6 +242,7 @@ public class EquipmentServiceTests
         var g = Arrange();
         var (piUserId, _, otherLab) = ArrangePi(g);
         var request = Request(g);
+        request.OwnershipType = OwnershipType.Department;
         request.ResearchGroupId = otherLab.Id;
 
         var act = () => g.Sut.CreateAsync(request, piUserId, Role.PrincipalInvestigator);
@@ -281,6 +271,7 @@ public class EquipmentServiceTests
         var g = Arrange();
         var (_, _, otherLab) = ArrangePi(g);
         var request = Request(g);
+        request.OwnershipType = OwnershipType.Department;
         request.ResearchGroupId = otherLab.Id;
 
         var result = await g.Sut.CreateAsync(request, g.AdminId, Role.SuperAdmin);
@@ -311,6 +302,76 @@ public class EquipmentServiceTests
         g.Db.Bookings.Add(booking);
         g.Db.SaveChanges();
         return booking;
+    }
+
+    [Fact]
+    public async Task Create_WithSuperAdminOwner_IsRejected()
+    {
+        var g = Arrange();
+        var request = Request(g);
+        request.OwnershipType = OwnershipType.Individual;
+        request.OwnerUserId = g.AdminId;
+
+        var act = () => g.Sut.CreateAsync(request, g.AdminId, Role.SuperAdmin);
+
+        (await act.Should().ThrowAsync<FluentValidation.ValidationException>())
+            .Which.Errors.Should().Contain(e => e.PropertyName == nameof(UpsertEquipmentRequest.OwnerUserId));
+    }
+
+    [Fact]
+    public async Task Update_KeepingAnOwnerWhoseRoleChanged_StillSucceeds()
+    {
+        var g = Arrange();
+        var owner = g.Db.AddUser("so@labtracker.local", Role.ScienceOfficer);
+        var request = Request(g);
+        request.OwnershipType = OwnershipType.Individual;
+        request.OwnerUserId = owner.Id;
+        var created = await g.Sut.CreateAsync(request, g.AdminId, Role.SuperAdmin);
+
+        owner.Role = Role.SuperAdmin;
+        g.Db.SaveChanges();
+
+        request.Name = "Centrifuge X300";
+        var updated = await g.Sut.UpdateAsync(created.Id, request, g.AdminId, Role.SuperAdmin);
+
+        updated.Owner!.Id.Should().Be(owner.Id);
+    }
+
+    [Fact]
+    public async Task Update_WithoutOwnershipFields_LeavesOwnerAndLabUnchanged()
+    {
+        var g = Arrange();
+        var owner = g.Db.AddUser("so@labtracker.local", Role.ScienceOfficer);
+        var pi = g.Db.AddPrincipalInvestigator(g.Department);
+        var lab = g.Db.AddResearchGroup(g.Department, pi, "Plant Stress");
+        var request = Request(g);
+        request.OwnershipType = OwnershipType.Individual;
+        request.OwnerUserId = owner.Id;
+        request.ResearchGroupId = lab.Id;
+        var created = await g.Sut.CreateAsync(request, g.AdminId, Role.SuperAdmin);
+
+        // What a client that predates these fields sends.
+        var legacy = Request(g, "Centrifuge X300");
+        var updated = await g.Sut.UpdateAsync(created.Id, legacy, g.AdminId, Role.SuperAdmin);
+
+        updated.Name.Should().Be("Centrifuge X300");
+        updated.OwnershipType.Should().Be(OwnershipType.Individual);
+        updated.Owner!.Id.Should().Be(owner.Id);
+        updated.ResearchGroup!.Id.Should().Be(lab.Id);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_ToRetiredWithLiveBookings_IsRefused()
+    {
+        var g = Arrange();
+        var equipment = g.Db.AddEquipment(g.Room, g.Type, g.Department);
+        var now = DateTime.UtcNow;
+        AddBooking(g, equipment, now.AddHours(1), now.AddHours(2), BookingStatus.Approved);
+
+        var act = () => g.Sut.UpdateStatusAsync(equipment.Id, EquipmentStatus.Retired, g.AdminId, Role.SuperAdmin);
+
+        (await act.Should().ThrowAsync<ConflictException>()).WithMessage("Has 1 upcoming or in-progress booking*");
+        g.Db.Equipment.Single().Status.Should().Be(EquipmentStatus.Available);
     }
 
     [Fact]
