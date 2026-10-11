@@ -46,6 +46,7 @@ public class EquipmentService(
         await EnsureCanManageEquipmentAsync(actingUserId, actingUserRole, cancellationToken);
         await upsertValidator.ValidateAndThrowAsync(request, cancellationToken);
 
+        var now = DateTime.UtcNow;
         var equipment = new EquipmentEntity
         {
             Name = request.Name,
@@ -58,6 +59,8 @@ public class EquipmentService(
             RoomId = request.RoomId,
             OwningDepartmentId = request.OwningDepartmentId,
             Status = EquipmentStatus.Available,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         db.Equipment.Add(equipment);
         await db.SaveChangesAsync(cancellationToken);
@@ -84,6 +87,7 @@ public class EquipmentService(
         equipment.EquipmentTypeId = request.EquipmentTypeId;
         equipment.RoomId = request.RoomId;
         equipment.OwningDepartmentId = request.OwningDepartmentId;
+        equipment.UpdatedAt = DateTime.UtcNow;
 
         if (noteChanged)
         {

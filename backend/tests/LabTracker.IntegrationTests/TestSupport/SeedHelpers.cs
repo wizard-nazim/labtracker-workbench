@@ -77,6 +77,8 @@ public static class SeedHelpers
             EquipmentTypeId = type.Id,
             RoomId = room.Id,
             OwningDepartmentId = owningDepartment.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
         };
         db.Equipment.Add(equipment);
         await db.SaveChangesAsync();

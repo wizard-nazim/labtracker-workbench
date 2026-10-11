@@ -127,13 +127,30 @@ public static class DbSeeder
         var centrifugeType = await GetOrCreateEquipmentTypeAsync("Centrifuge");
         var microscopeType = await GetOrCreateEquipmentTypeAsync("Microscope");
 
-        var chemLabRoom = new RoomEntity { Building = "Science Building", Floor = "1", RoomNumber = "101", DepartmentId = chemistry.Id };
-        var bioLabRoom = new RoomEntity { Building = "Science Building", Floor = "2", RoomNumber = "205", DepartmentId = biology.Id };
-        db.Rooms.AddRange(chemLabRoom, bioLabRoom);
-        await db.SaveChangesAsync();
+        // Rooms are unique on (building, floor, number) ignoring case — same
+        // get-or-create reasoning as above.
+        async Task<RoomEntity> GetOrCreateRoomAsync(string building, string floor, string roomNumber, int departmentId)
+        {
+            var existing = await db.Rooms.FirstOrDefaultAsync(r =>
+                r.Building.ToLower() == building.ToLower()
+                && r.Floor.ToLower() == floor.ToLower()
+                && r.RoomNumber.ToLower() == roomNumber.ToLower());
+            if (existing is not null) return existing;
 
+            var room = new RoomEntity { Building = building, Floor = floor, RoomNumber = roomNumber, DepartmentId = departmentId };
+            db.Rooms.Add(room);
+            await db.SaveChangesAsync();
+            return room;
+        }
+
+        var chemLabRoom = await GetOrCreateRoomAsync("Science Building", "1", "101", chemistry.Id);
+        var bioLabRoom = await GetOrCreateRoomAsync("Science Building", "2", "205", biology.Id);
+
+        var seededAt = DateTime.UtcNow;
         var centrifuge = new EquipmentEntity
         {
+            CreatedAt = seededAt,
+            UpdatedAt = seededAt,
             Name = "Centrifuge X200",
             IsShared = true,
             Status = EquipmentStatus.Available,
@@ -144,6 +161,8 @@ public static class DbSeeder
         };
         var microscope = new EquipmentEntity
         {
+            CreatedAt = seededAt,
+            UpdatedAt = seededAt,
             Name = "Microscope M50",
             IsShared = true,
             Status = EquipmentStatus.Available,
