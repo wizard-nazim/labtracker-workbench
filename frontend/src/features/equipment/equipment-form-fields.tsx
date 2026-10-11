@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
 import { cn } from 'cn'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { FormField } from '@/components/form-field'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { useAuth } from '@/context/auth-context'
 import type { FieldErrors } from '@/lib/api-error-message'
 import { ROLE_LABEL, type UserRole } from '@/types/roles'
@@ -56,12 +57,24 @@ const ERROR_KEY: Partial<Record<keyof EquipmentFormState, string>> = {
 
 type QuickCreateKind = 'type' | 'room' | 'lab' | null
 
+// Errors on these fields open "More options" so the field is visible.
+const MORE_OPTIONS_FIELDS = [
+  'SerialNumber',
+  'Description',
+  'OwnershipType',
+  'OwnerUserId',
+  'ResearchGroupId',
+  'ImageUrl',
+  'IconKey',
+]
+
 export function EquipmentFormFields({
   state,
   setState,
   errors = {},
   setErrors,
   currentOwner = null,
+  moreOptionsExtra,
 }: {
   state: EquipmentFormState
   setState: Dispatch<SetStateAction<EquipmentFormState>>
@@ -70,6 +83,9 @@ export function EquipmentFormFields({
   // The saved owner, shown when the user list isn't available (non-admins)
   // or the owner has since been deactivated.
   currentOwner?: EntityReference | null
+  // Shown at the end of "More options" (e.g. status and science officers
+  // when editing).
+  moreOptionsExtra?: ReactNode
 }) {
   const id = useId()
   const { user } = useAuth()
@@ -79,6 +95,17 @@ export function EquipmentFormFields({
   const { data: departments } = useDepartments()
   const { data: researchGroups } = useResearchGroups()
   const [quickCreate, setQuickCreate] = useState<QuickCreateKind>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
+
+  // With one department (the usual case) it's filled in for you and tucked
+  // under "More options"; with several, it has to be chosen up front.
+  const singleDepartment = departments?.length === 1 ? departments[0] : undefined
+  const departmentIsEssential = (departments?.length ?? 0) > 1
+  const departmentValue = state.owningDepartmentId || (singleDepartment ? String(singleDepartment.id) : '')
+
+  const moreHasError =
+    MORE_OPTIONS_FIELDS.some((key) => errors[key]?.length) || (!departmentIsEssential && Boolean(errors.OwningDepartmentId?.length))
+  const isMoreOpen = moreOpen || moreHasError
 
   const fieldId = {
     name: `${id}-name`,
@@ -122,151 +149,169 @@ export function EquipmentFormFields({
   const labIsFromRoom =
     Boolean(selectedRoom?.researchGroupId) && state.researchGroupId === String(selectedRoom?.researchGroupId)
 
+  const departmentField = (
+    <FormField id={fieldId.department} label="Owning department" errors={errors.OwningDepartmentId}>
+      {(control) => (
+        <Select value={departmentValue} onValueChange={(v) => patch({ owningDepartmentId: v })}>
+          <SelectTrigger {...control} className="w-full">
+            <SelectValue placeholder="Choose a department" />
+          </SelectTrigger>
+          <SelectContent>
+            {departments?.map((dept) => (
+              <SelectItem key={dept.id} value={String(dept.id)}>
+                {dept.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </FormField>
+  )
+
   return (
     <>
-      <Section legend="Details">
-        <FormField id={fieldId.name} label="Name" errors={errors.Name}>
+      <div className="flex min-w-0 flex-col gap-4">
+        <FormField id={fieldId.name} label="Name" hint="As people in the lab call it, e.g. Nikon confocal microscope." errors={errors.Name}>
           {(control) => (
             <Input {...control} required autoComplete="off" value={state.name} onChange={(e) => patch({ name: e.target.value })} />
           )}
         </FormField>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField id={fieldId.serial} label="Serial number (optional)" errors={errors.SerialNumber}>
-            {(control) => (
-              <Input {...control} autoComplete="off" value={state.serialNumber} onChange={(e) => patch({ serialNumber: e.target.value })} />
-            )}
-          </FormField>
-
-          <FormField id={fieldId.type} label="Equipment type" errors={errors.EquipmentTypeId}>
-            {(control) => (
-              <div className="flex gap-2">
-                <Select value={state.equipmentTypeId} onValueChange={(v) => patch({ equipmentTypeId: v })}>
-                  <SelectTrigger {...control} className="w-full min-w-0 flex-1">
-                    <SelectValue placeholder="Select a type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equipmentTypes?.map((type) => (
-                      <SelectItem key={type.id} value={String(type.id)}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {isSuperAdmin && <QuickCreateButton label="Add new equipment type" onClick={() => setQuickCreate('type')} />}
-              </div>
-            )}
-          </FormField>
-        </div>
-
-        <FormField id={fieldId.description} label="Description (optional)" errors={errors.Description}>
+        <FormField id={fieldId.type} label="Type" errors={errors.EquipmentTypeId}>
           {(control) => (
-            <Textarea {...control} value={state.description} onChange={(e) => patch({ description: e.target.value })} />
+            <div className="flex gap-2">
+              <Select value={state.equipmentTypeId} onValueChange={(v) => patch({ equipmentTypeId: v })}>
+                <SelectTrigger {...control} className="w-full min-w-0 flex-1">
+                  <SelectValue placeholder="Choose a type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {equipmentTypes?.map((type) => (
+                    <SelectItem key={type.id} value={String(type.id)}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isSuperAdmin && <QuickCreateButton label="Add a new type" onClick={() => setQuickCreate('type')} />}
+            </div>
           )}
         </FormField>
 
-        <ImageAndIconFields state={state} patch={patch} />
-      </Section>
-
-      <Section legend="Location">
         <FormField
           id={fieldId.room}
           label="Room"
-          hint={
-            selectedRoom
-              ? selectedRoom.facilityName
-                ? `Part of the ${selectedRoom.facilityName} facility.`
-                : 'Not part of a facility.'
-              : undefined
-          }
+          hint={selectedRoom?.facilityName ? `Part of the ${selectedRoom.facilityName} facility.` : undefined}
           errors={errors.RoomId}
         >
           {(control) => (
             <div className="flex gap-2">
               <RoomSelect control={control} rooms={rooms} value={state.roomId} onChange={(v) => selectRoom(v)} />
-              {isSuperAdmin && <QuickCreateButton label="Add new room" onClick={() => setQuickCreate('room')} />}
+              {isSuperAdmin && <QuickCreateButton label="Add a new room" onClick={() => setQuickCreate('room')} />}
             </div>
           )}
         </FormField>
 
-        {isSuperAdmin && <ManageFacilitiesDialog room={selectedRoom} />}
-      </Section>
+        {departmentIsEssential && departmentField}
+      </div>
 
-      <Section legend="Ownership and lab">
-        <FormField id={fieldId.department} label="Owning department" errors={errors.OwningDepartmentId}>
-          {(control) => (
-            <Select value={state.owningDepartmentId} onValueChange={(v) => patch({ owningDepartmentId: v })}>
-              <SelectTrigger {...control} className="w-full">
-                <SelectValue placeholder="Select a department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments?.map((dept) => (
-                  <SelectItem key={dept.id} value={String(dept.id)}>
-                    {dept.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </FormField>
+      <Collapsible open={isMoreOpen} onOpenChange={setMoreOpen} className="min-w-0 rounded-lg border border-border">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="group/more flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">More options</span>
+              <span className="block text-xs text-muted-foreground">
+                Serial number, owner, lab, sharing, photo{moreOptionsExtra ? ', status, science officers' : ''}
+              </span>
+            </span>
+            <ChevronDown
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/more:rotate-180"
+              aria-hidden="true"
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="flex min-w-0 flex-col gap-4 border-t border-border px-3 pt-4 pb-4">
+          <div className={departmentIsEssential ? 'grid gap-4' : 'grid gap-4 sm:grid-cols-2'}>
+            <FormField id={fieldId.serial} label="Serial number (optional)" errors={errors.SerialNumber}>
+              {(control) => (
+                <Input {...control} autoComplete="off" value={state.serialNumber} onChange={(e) => patch({ serialNumber: e.target.value })} />
+              )}
+            </FormField>
+            {!departmentIsEssential && departmentField}
+          </div>
 
-        <OwnershipToggle
-          name={`${id}-ownership`}
-          value={state.ownershipType}
-          // Only admins can list users to pick an owner; others keep what's saved.
-          individualDisabled={!isSuperAdmin && state.ownershipType !== 'Individual'}
-          onChange={(ownershipType) =>
-            patch(ownershipType === 'Department' ? { ownershipType, ownerUserId: '' } : { ownershipType })
-          }
-        />
+          <FormField id={fieldId.description} label="Description (optional)" errors={errors.Description}>
+            {(control) => (
+              <Textarea {...control} rows={2} value={state.description} onChange={(e) => patch({ description: e.target.value })} />
+            )}
+          </FormField>
 
-        {state.ownershipType === 'Individual' && (
-          <OwnerField
-            id={fieldId.owner}
-            canPick={isSuperAdmin}
-            value={state.ownerUserId}
-            currentOwner={currentOwner}
-            errors={errors.OwnerUserId}
-            onChange={(ownerUserId) => patch({ ownerUserId })}
+          <OwnershipToggle
+            name={`${id}-ownership`}
+            value={state.ownershipType}
+            // Only admins can list users to pick an owner; others keep what's saved.
+            individualDisabled={!isSuperAdmin && state.ownershipType !== 'Individual'}
+            onChange={(ownershipType) =>
+              patch(ownershipType === 'Department' ? { ownershipType, ownerUserId: '' } : { ownershipType })
+            }
           />
-        )}
 
-        <FormField
-          id={fieldId.lab}
-          label="Lab (optional)"
-          hint={labIsFromRoom ? "Prefilled from the room's lab. You can change it." : undefined}
-          errors={errors.ResearchGroupId}
-        >
-          {(control) => (
-            <div className="flex gap-2">
-              <Select value={state.researchGroupId || NONE} onValueChange={(v) => patch({ researchGroupId: v === NONE ? '' : v })}>
-                <SelectTrigger {...control} className="w-full min-w-0 flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>No lab</SelectItem>
-                  {researchGroups?.map((group) => (
-                    <SelectItem key={group.id} value={String(group.id)}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {isSuperAdmin && <QuickCreateButton label="Add new lab" onClick={() => setQuickCreate('lab')} />}
-            </div>
+          {state.ownershipType === 'Individual' && (
+            <OwnerField
+              id={fieldId.owner}
+              canPick={isSuperAdmin}
+              value={state.ownerUserId}
+              currentOwner={currentOwner}
+              errors={errors.OwnerUserId}
+              onChange={(ownerUserId) => patch({ ownerUserId })}
+            />
           )}
-        </FormField>
 
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            className="size-4 rounded border-border accent-primary"
-            checked={state.isShared}
-            onChange={(e) => patch({ isShared: e.target.checked })}
-          />
-          Shared across departments
-        </label>
-      </Section>
+          <FormField
+            id={fieldId.lab}
+            label="Lab (optional)"
+            hint={labIsFromRoom ? "Filled in from the room's lab. You can change it." : undefined}
+            errors={errors.ResearchGroupId}
+          >
+            {(control) => (
+              <div className="flex gap-2">
+                <Select value={state.researchGroupId || NONE} onValueChange={(v) => patch({ researchGroupId: v === NONE ? '' : v })}>
+                  <SelectTrigger {...control} className="w-full min-w-0 flex-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>No lab</SelectItem>
+                    {researchGroups?.map((group) => (
+                      <SelectItem key={group.id} value={String(group.id)}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isSuperAdmin && <QuickCreateButton label="Add a new lab" onClick={() => setQuickCreate('lab')} />}
+              </div>
+            )}
+          </FormField>
+
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              className="size-4 rounded border-border accent-primary"
+              checked={state.isShared}
+              onChange={(e) => patch({ isShared: e.target.checked })}
+            />
+            Shared with other departments
+          </label>
+
+          <ImageAndIconFields state={state} patch={patch} />
+
+          {isSuperAdmin && <ManageFacilitiesDialog room={selectedRoom} />}
+
+          {moreOptionsExtra && <div className="flex flex-col gap-4 border-t border-border pt-4">{moreOptionsExtra}</div>}
+        </CollapsibleContent>
+      </Collapsible>
 
       {isSuperAdmin && (
         <>
@@ -283,27 +328,18 @@ export function EquipmentFormFields({
             // for the lab prefill.
             onCreated={(newId, created) => selectRoom(String(newId), [...(rooms ?? []), created as Room])}
             returnFocusId={fieldId.room}
-            defaultDepartmentId={state.owningDepartmentId}
+            defaultDepartmentId={departmentValue}
           />
           <QuickCreateLabDialog
             open={quickCreate === 'lab'}
             onOpenChange={(open) => setQuickCreate(open ? 'lab' : null)}
             onCreated={(newId) => patch({ researchGroupId: String(newId) })}
             returnFocusId={fieldId.lab}
-            defaultDepartmentId={state.owningDepartmentId}
+            defaultDepartmentId={departmentValue}
           />
         </>
       )}
     </>
-  )
-}
-
-function Section({ legend, children }: { legend: string; children: ReactNode }) {
-  return (
-    <fieldset className="flex min-w-0 flex-col gap-4 border-t border-border pt-4 first:border-t-0 first:pt-0">
-      <legend className="mb-3 text-sm font-semibold text-foreground">{legend}</legend>
-      {children}
-    </fieldset>
   )
 }
 
@@ -338,7 +374,7 @@ function RoomSelect({
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger {...control} className="w-full min-w-0 flex-1">
-        <SelectValue placeholder="Select a room" />
+        <SelectValue placeholder="Choose a room" />
       </SelectTrigger>
       <SelectContent>
         {groups.map(([key, group]) => (
@@ -444,7 +480,7 @@ function OwnerField({
       {(control) => (
         <Select value={value} onValueChange={onChange}>
           <SelectTrigger {...control} className="w-full">
-            <SelectValue placeholder="Select a person" />
+            <SelectValue placeholder="Choose a person" />
           </SelectTrigger>
           <SelectContent>
             {options.map((u) => (
@@ -468,61 +504,72 @@ function ImageAndIconFields({
   patch: (fields: Partial<EquipmentFormState>) => void
 }) {
   const iconLabelId = useId()
+  const [iconsOpen, setIconsOpen] = useState(false)
+  const selectedIcon = EQUIPMENT_ICONS.find((icon) => icon.key === state.iconKey)
+  const SelectedIcon = selectedIcon?.icon
+
   return (
-    <>
-      <div className="flex flex-col gap-1.5">
-        <Label>Image (optional)</Label>
-        <div className="flex items-center gap-3">
-          {state.imageUrl && (
-            <img src={state.imageUrl} alt="Selected image" className="size-16 rounded-md border border-border object-cover" />
-          )}
-          <div className="flex flex-col gap-1.5">
-            <ImageGalleryDialog
-              trigger={
-                <Button type="button" size="sm" variant="outline">
-                  Browse gallery
-                </Button>
-              }
-              onSelect={(url) => patch({ imageUrl: url })}
-            />
-            {state.imageUrl && (
-              <Button type="button" size="sm" variant="ghost" onClick={() => patch({ imageUrl: null })}>
-                <X className="size-3.5" aria-hidden="true" />
-                Remove image
-              </Button>
-            )}
-          </div>
-        </div>
+    <fieldset className="flex min-w-0 flex-col gap-2">
+      <legend className="mb-1.5 text-sm font-medium text-foreground">Photo or icon (optional)</legend>
+      <div className="flex flex-wrap items-center gap-3">
+        {state.imageUrl && (
+          <img src={state.imageUrl} alt="Chosen photo" className="size-16 rounded-md border border-border object-cover" />
+        )}
+        <ImageGalleryDialog
+          trigger={
+            <Button type="button" size="sm" variant="outline">
+              {state.imageUrl ? 'Change photo' : 'Choose a photo'}
+            </Button>
+          }
+          onSelect={(url) => patch({ imageUrl: url })}
+        />
+        {state.imageUrl && (
+          <Button type="button" size="sm" variant="ghost" onClick={() => patch({ imageUrl: null })}>
+            <X className="size-3.5" aria-hidden="true" />
+            Remove photo
+          </Button>
+        )}
       </div>
 
       {!state.imageUrl && (
-        <div className="flex flex-col gap-1.5">
-          <Label id={iconLabelId}>Fallback icon (used when no image is set)</Label>
-          <div
-            role="group"
-            aria-labelledby={iconLabelId}
-            className="grid grid-cols-6 gap-1.5 rounded-md border border-border p-2 min-[400px]:grid-cols-8 sm:grid-cols-10"
-          >
-            {EQUIPMENT_ICONS.map(({ key, icon: Icon, label }) => (
-              <button
-                key={key}
-                type="button"
-                title={label}
-                aria-label={label}
-                aria-pressed={state.iconKey === key}
-                onClick={() => patch({ iconKey: state.iconKey === key ? null : key })}
-                className={`flex items-center justify-center rounded-md border p-1.5 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
-                  state.iconKey === key
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-transparent text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        </div>
+        <Collapsible open={iconsOpen} onOpenChange={setIconsOpen} className="flex min-w-0 flex-col gap-2">
+          <CollapsibleTrigger asChild>
+            <Button type="button" size="sm" variant="ghost" className="group/icons self-start">
+              {SelectedIcon ? <SelectedIcon aria-hidden="true" /> : null}
+              {selectedIcon ? `Icon: ${selectedIcon.label}` : 'Or choose an icon'}
+              <ChevronDown className="transition-transform group-data-[state=open]/icons:rotate-180" aria-hidden="true" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p id={iconLabelId} className="sr-only">
+              Icon, used when there's no photo
+            </p>
+            <div
+              role="group"
+              aria-labelledby={iconLabelId}
+              className="grid grid-cols-6 gap-1.5 rounded-md border border-border p-2 min-[400px]:grid-cols-8 sm:grid-cols-10"
+            >
+              {EQUIPMENT_ICONS.map(({ key, icon: Icon, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={label}
+                  aria-label={label}
+                  aria-pressed={state.iconKey === key}
+                  onClick={() => patch({ iconKey: state.iconKey === key ? null : key })}
+                  className={`flex items-center justify-center rounded-md border p-2 transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${
+                    state.iconKey === key
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-transparent text-muted-foreground hover:bg-muted/60'
+                  }`}
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
-    </>
+    </fieldset>
   )
 }

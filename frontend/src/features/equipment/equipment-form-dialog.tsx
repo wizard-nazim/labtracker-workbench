@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FieldValidationError, type FieldErrors } from '@/lib/api-error-message'
 import { EquipmentFormFields } from './equipment-form-fields'
 import {
+  applyFormDefaults,
   buildEquipmentFormState,
   hasVisibleFieldError,
   toEquipmentRequest,
@@ -13,9 +14,12 @@ import {
   type EquipmentFormState,
 } from './equipment-form-state'
 import { useCreateEquipment, useUpdateEquipment } from './use-equipment'
+import { ScienceOfficersField, StatusField } from './equipment-status-fields'
+import { useDepartments } from '@/features/admin/departments'
+import { useAuth } from '@/context/auth-context'
 import type { Equipment } from './types'
 
-const DIALOG_CLASS = 'sm:max-w-2xl'
+const DIALOG_CLASS = 'sm:max-w-xl'
 
 function checkForm(state: EquipmentFormState) {
   const errors = validateEquipmentForm(state)
@@ -27,6 +31,7 @@ export function CreateEquipmentDialog({ trigger }: { trigger?: ReactNode }) {
   const [state, setState] = useEquipmentFormState()
   const [errors, setErrors] = useState<FieldErrors>({})
   const create = useCreateEquipment()
+  const { data: departments } = useDepartments()
 
   // Closing (saved or cancelled) starts the next "Add equipment" fresh.
   function handleOpenChange(next: boolean) {
@@ -38,8 +43,10 @@ export function CreateEquipmentDialog({ trigger }: { trigger?: ReactNode }) {
   }
 
   async function handleSubmit() {
-    checkForm(state)
-    const created = await create.mutateAsync(toEquipmentRequest(state))
+    const filled = applyFormDefaults(state, departments)
+    if (filled !== state) setState(filled)
+    checkForm(filled)
+    const created = await create.mutateAsync(toEquipmentRequest(filled))
     toast.success(`Added equipment "${created.name}".`)
     setState(buildEquipmentFormState())
     setErrors({})
@@ -65,17 +72,30 @@ export function CreateEquipmentDialog({ trigger }: { trigger?: ReactNode }) {
   )
 }
 
+// Either self-contained (renders its own Edit button, or `trigger`), or
+// controlled with open/onOpenChange and mounted only while open, e.g. from a
+// row's ⋯ menu.
 export function EditEquipmentDialog({
   equipment,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   equipment: Equipment
   trigger?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen
   const [state, setState] = useEquipmentFormState(equipment)
   const [errors, setErrors] = useState<FieldErrors>({})
   const update = useUpdateEquipment(equipment.id)
+  const { data: departments } = useDepartments()
+  const { user } = useAuth()
+  const isSuperAdmin = user?.role === 'SuperAdmin'
 
   // This dialog stays mounted (just hidden) between opens, so re-sync from the
   // latest equipment data every time it's opened rather than only on first
@@ -87,19 +107,23 @@ export function EditEquipmentDialog({
   }
 
   async function handleSubmit() {
-    checkForm(state)
-    await update.mutateAsync(toEquipmentRequest(state))
+    const filled = applyFormDefaults(state, departments)
+    if (filled !== state) setState(filled)
+    checkForm(filled)
+    await update.mutateAsync(toEquipmentRequest(filled))
     toast.success(`Updated equipment "${state.name.trim()}".`)
   }
 
   return (
     <EntityDialog
       trigger={
-        trigger ?? (
-          <Button size="sm" variant="ghost" aria-label={`Edit ${equipment.name}`}>
-            Edit
-          </Button>
-        )
+        isControlled
+          ? undefined
+          : (trigger ?? (
+              <Button size="sm" variant="ghost" aria-label={`Edit ${equipment.name}`}>
+                Edit
+              </Button>
+            ))
       }
       title="Edit equipment"
       submitLabel="Save changes"
@@ -119,6 +143,14 @@ export function EditEquipmentDialog({
         errors={errors}
         setErrors={setErrors}
         currentOwner={equipment.owner}
+        moreOptionsExtra={
+          isSuperAdmin ? (
+            <>
+              <StatusField equipment={equipment} />
+              <ScienceOfficersField equipment={equipment} />
+            </>
+          ) : undefined
+        }
       />
     </EntityDialog>
   )
