@@ -125,6 +125,68 @@ function CreateUserDialog() {
   )
 }
 
+function useUpdateUserLogin(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: { email: string; password: string | null }) => apiClient.put<User>(`/users/${id}/login`, request),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
+// Mainly for imported science officers, who arrive with a placeholder email
+// and no usable password; also fixes a typo'd email on any account.
+function EditLoginDialog({ user }: { user: User }) {
+  const [email, setEmail] = useState(user.email)
+  const [password, setPassword] = useState('')
+  const updateLogin = useUpdateUserLogin(user.id)
+
+  async function handleSubmit() {
+    await updateLogin.mutateAsync({ email, password: password || null })
+    toast.success(`Saved the login for "${email}".`)
+    setPassword('')
+  }
+
+  return (
+    <EntityDialog
+      trigger={
+        <Button size="sm" variant="ghost" aria-label={`Edit login for ${user.email}`}>
+          Edit login
+        </Button>
+      }
+      title="Edit login"
+      description="Change the email this person signs in with, and optionally set a new password."
+      submitLabel="Save login"
+      onSubmit={handleSubmit}
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`login-email-${user.id}`}>Email</Label>
+        <Input
+          id={`login-email-${user.id}`}
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`login-password-${user.id}`}>New password (optional)</Label>
+        <Input
+          id={`login-password-${user.id}`}
+          type="password"
+          minLength={8}
+          autoComplete="new-password"
+          aria-describedby={`login-password-hint-${user.id}`}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <p id={`login-password-hint-${user.id}`} className="text-xs text-muted-foreground">
+          At least 8 characters. Leave empty to keep the current password.
+        </p>
+      </div>
+    </EntityDialog>
+  )
+}
+
 function StatusToggleButton({ user }: { user: User }) {
   const updateStatus = useUpdateUserStatus(user.id)
 
@@ -185,7 +247,10 @@ export function UsersTab() {
                 <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
               </TableCell>
               <TableCell className="text-right">
-                <StatusToggleButton user={user} />
+                <div className="flex justify-end gap-1">
+                  <EditLoginDialog user={user} />
+                  <StatusToggleButton user={user} />
+                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -1,0 +1,729 @@
+{
+  "department": {
+    "code": "MCB",
+    "name": "Molecular and Cell Biology"
+  },
+  "building": "MCB Building",
+  "scienceOfficers": [
+    {
+      "key": "bronwynarendze.bailey",
+      "fullName": "BronwynArendze-Bailey"
+    },
+    {
+      "key": "marilyn.krige",
+      "fullName": "Marilyn Krige"
+    },
+    {
+      "key": "shakiera.sattar",
+      "fullName": "Shakiera Sattar"
+    },
+    {
+      "key": "annestacia.marthinus",
+      "fullName": "Annestacia Marthinus"
+    },
+    {
+      "key": "pei.yin.liebrich",
+      "fullName": "Pei-Yin Liebrich"
+    },
+    {
+      "key": "keren.cooper",
+      "fullName": "Keren Cooper"
+    }
+  ],
+  "facilities": [
+    {
+      "name": "BSL2 Mammalian Tissue Culture",
+      "overseerKey": "shakiera.sattar",
+      "rooms": [
+        "316",
+        "432.2"
+      ]
+    },
+    {
+      "name": "BSL2 Bacterial Culture",
+      "overseerKey": "marilyn.krige",
+      "rooms": [
+        "305.A"
+      ]
+    },
+    {
+      "name": "BSL2+ Mammalian Tissue Culture",
+      "overseerKey": "bronwynarendze.bailey",
+      "rooms": [
+        "432.3"
+      ]
+    }
+  ],
+  "equipment": [
+    {
+      "name": "System A (PVR pump)",
+      "serialNumber": null,
+      "type": "Freeze Dryer",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": null
+    },
+    {
+      "name": "System B (Pfeiffer pump)",
+      "serialNumber": null,
+      "type": "Freeze Dryer",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": null
+    },
+    {
+      "name": "System A (PVR pump)",
+      "serialNumber": null,
+      "type": "Freeze Dryer",
+      "floor": "3rd Floor",
+      "room": "315",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": null
+    },
+    {
+      "name": "SAVANT RVT400(-50 degC vapour trap)",
+      "serialNumber": null,
+      "type": "Speedivac Concentrator",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": null
+    },
+    {
+      "name": "SAVANT RVT5105(-105 degC vapour trap)",
+      "serialNumber": null,
+      "type": "Speedivac Concentrator",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": null
+    },
+    {
+      "name": "Avanti -A",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Faulty",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Avanti -B",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "J2-21 -A",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "3rd Floor",
+      "room": "315",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "J2-21 -B",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "3rd Floor",
+      "room": "315",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "J2-21 M/E -A",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "2nd Floor",
+      "room": "213",
+      "status": "Faulty",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "J2-21 M/E-B",
+      "serialNumber": null,
+      "type": "Low-Speed Centrifuge",
+      "floor": "2nd Floor",
+      "room": "213",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "L80- XP",
+      "serialNumber": null,
+      "type": "Ultracentrifuge",
+      "floor": "4th Floor",
+      "room": "416",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "L7-65",
+      "serialNumber": null,
+      "type": "Ultracentrifuge",
+      "floor": "2nd Floor",
+      "room": "213",
+      "status": "Faulty",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-20 fixed angle",
+      "serialNumber": "09E2017",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-20 fixed angle",
+      "serialNumber": "09E2014",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-20 fixed angle",
+      "serialNumber": "21U13127",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-20 fixed angle DE-RATED to 15000rpm",
+      "serialNumber": "09E590",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-20.1 fixed angle DE-RATED to 15000rpm",
+      "serialNumber": "8E1408",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-14 fixed angle",
+      "serialNumber": "21U11112",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-14 fixed angle DE-RATED to 10000rpm",
+      "serialNumber": "8E2360",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-14 fixed angle",
+      "serialNumber": "3E1361",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-14 fixed angle",
+      "serialNumber": "08E1566",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-10 fixed angle",
+      "serialNumber": "3E1823",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "JA-17 fixed angle",
+      "serialNumber": "2E3908",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "SW 32Ti Swing out bucket",
+      "serialNumber": "09U2246",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "SW40Ti Swing out bucket",
+      "serialNumber": "09U11625",
+      "type": "Centrifuge Rotor",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "BSC-A",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "4th Floor",
+      "room": "432.2",
+      "status": "Available",
+      "scienceOfficerKey": "shakiera.sattar",
+      "facility": "BSL2 Mammalian Tissue Culture"
+    },
+    {
+      "name": "BSC-B",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "4th Floor",
+      "room": "432.2",
+      "status": "Available",
+      "scienceOfficerKey": "shakiera.sattar",
+      "facility": "BSL2 Mammalian Tissue Culture"
+    },
+    {
+      "name": "BSC-C",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "4th Floor",
+      "room": "432.2",
+      "status": "Available",
+      "scienceOfficerKey": "shakiera.sattar",
+      "facility": "BSL2 Mammalian Tissue Culture"
+    },
+    {
+      "name": "BSC-316",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "3rd Floor",
+      "room": "316",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": "BSL2 Mammalian Tissue Culture"
+    },
+    {
+      "name": "BSC-305",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "3rd Floor",
+      "room": "305.A",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": "BSL2 Bacterial Culture"
+    },
+    {
+      "name": "BSC-6ft",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "4th Floor",
+      "room": "432.3",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": "BSL2+ Mammalian Tissue Culture"
+    },
+    {
+      "name": "BSC-4ft",
+      "serialNumber": null,
+      "type": "Biosafety Cabinet",
+      "floor": "4th Floor",
+      "room": "432.3",
+      "status": "Available",
+      "scienceOfficerKey": "bronwynarendze.bailey",
+      "facility": "BSL2+ Mammalian Tissue Culture"
+    },
+    {
+      "name": "Conviron-1",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Conviron-2",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Conviron-3",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Percival-1",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Percival-2",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Percival-3",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Percival-4",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "PTC 1",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "PTC 2",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "PTC 3",
+      "serialNumber": null,
+      "type": "Plant Growth Chamber",
+      "floor": "4th Floor",
+      "room": "415",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Nanodrop",
+      "serialNumber": null,
+      "type": "Nanodrop",
+      "floor": "1st Floor",
+      "room": "116",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Nanodrop",
+      "serialNumber": null,
+      "type": "Nanodrop",
+      "floor": "4th Floor",
+      "room": "447",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Jenway Nanodrop",
+      "serialNumber": null,
+      "type": "Nanodrop",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "RotorGene",
+      "serialNumber": null,
+      "type": "Realtime PCR Machine",
+      "floor": "4th Floor",
+      "room": "417",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Ferrari",
+      "serialNumber": null,
+      "type": "Realtime PCR Machine",
+      "floor": "2nd Floor",
+      "room": "216A",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Qiagility Liquid Handler",
+      "serialNumber": null,
+      "type": "Qiagility Liquid Handler",
+      "floor": "2nd Floor",
+      "room": "216A",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Vertipro 96 well",
+      "serialNumber": null,
+      "type": "PCR",
+      "floor": "1st Floor",
+      "room": "118",
+      "status": "Available",
+      "scienceOfficerKey": "shakiera.sattar",
+      "facility": null
+    },
+    {
+      "name": "Plate Reader (VIS only)",
+      "serialNumber": null,
+      "type": "Plate Reader",
+      "floor": "1st Floor",
+      "room": "118",
+      "status": "Available",
+      "scienceOfficerKey": "pei.yin.liebrich",
+      "facility": null
+    },
+    {
+      "name": "Plate Reader (VIS & UV)",
+      "serialNumber": null,
+      "type": "Plate Reader",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "pei.yin.liebrich",
+      "facility": null
+    },
+    {
+      "name": "Plate Reader (VIS & UV)",
+      "serialNumber": null,
+      "type": "Plate Reader",
+      "floor": "4th Floor",
+      "room": "417A",
+      "status": "Available",
+      "scienceOfficerKey": "pei.yin.liebrich",
+      "facility": null
+    },
+    {
+      "name": "Luminometer/Spectrophotometer/Fluorometer",
+      "serialNumber": null,
+      "type": "Luminometer/Spectrophotometer/Fluorometer",
+      "floor": "2nd Floor",
+      "room": "216A",
+      "status": "Available",
+      "scienceOfficerKey": "pei.yin.liebrich",
+      "facility": null
+    },
+    {
+      "name": "Mixer Mill",
+      "serialNumber": null,
+      "type": "Mixer Mill",
+      "floor": "4th Floor",
+      "room": "417",
+      "status": "Available",
+      "scienceOfficerKey": "pei.yin.liebrich",
+      "facility": null
+    },
+    {
+      "name": "Electroporator",
+      "serialNumber": null,
+      "type": "BioRad Gene Pulser",
+      "floor": "2nd Floor",
+      "room": "216",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Genova Spec",
+      "serialNumber": null,
+      "type": "Genova Spec",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Glomax Luminometer/Flurometer",
+      "serialNumber": null,
+      "type": "Glomax Luminometer/Fluorometer",
+      "floor": "3rd Floor",
+      "room": "319",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "Amersham",
+      "serialNumber": null,
+      "type": "UVC 500 Crosslinker",
+      "floor": "2nd Floor",
+      "room": "216",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "No.1",
+      "serialNumber": null,
+      "type": "Hybridisation Oven",
+      "floor": "2nd Floor",
+      "room": "216",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "No.2",
+      "serialNumber": null,
+      "type": "Hybridisation Oven",
+      "floor": "2nd Floor",
+      "room": "216",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "No.3",
+      "serialNumber": null,
+      "type": "Hybridisation Oven",
+      "floor": "4th Floor",
+      "room": "417",
+      "status": "Available",
+      "scienceOfficerKey": "marilyn.krige",
+      "facility": null
+    },
+    {
+      "name": "LAF A",
+      "serialNumber": null,
+      "type": "Laminar Air Flow Cabinet",
+      "floor": "3rd Floor",
+      "room": "317",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "LAF B",
+      "serialNumber": null,
+      "type": "Laminar Air Flow Cabinet",
+      "floor": "3rd Floor",
+      "room": "317",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "LAF C",
+      "serialNumber": null,
+      "type": "Laminar Air Flow Cabinet",
+      "floor": "3rd Floor",
+      "room": "317",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "LAF D",
+      "serialNumber": null,
+      "type": "Laminar Air Flow Cabinet",
+      "floor": "3rd Floor",
+      "room": "317",
+      "status": "Available",
+      "scienceOfficerKey": "annestacia.marthinus",
+      "facility": null
+    },
+    {
+      "name": "Nikon Ti Eclipse inverted fluorescent microscope",
+      "serialNumber": null,
+      "type": "Fluorescent Microscope",
+      "floor": "4th Floor",
+      "room": "432.1",
+      "status": "Available",
+      "scienceOfficerKey": "keren.cooper",
+      "facility": null
+    }
+  ]
+}

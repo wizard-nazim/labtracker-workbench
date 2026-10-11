@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddScoped<AccountService>();
         services.AddScoped<UserService>();
         services.AddScoped<AdminService>();
+        services.AddScoped<McbImportService>();
 
         services.AddScoped<DepartmentService>();
         services.AddScoped<PrincipalInvestigatorService>();

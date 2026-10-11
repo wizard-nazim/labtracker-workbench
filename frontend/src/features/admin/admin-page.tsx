@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Joyride } from 'react-joyride'
-import { Settings, TriangleAlert, HelpCircle } from 'lucide-react'
+import { Settings, TriangleAlert, HelpCircle, FileUp } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAdminTour } from '@/features/onboarding/use-admin-tour'
 import {
@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { PageHeader } from '@/components/page-header'
 import { PageBanner } from '@/components/page-banner'
 import { useAuth } from '@/context/auth-context'
@@ -110,6 +111,7 @@ const TAB_TOUR_ID: Record<string, string> = {
 export function AdminPage() {
   const { user } = useAuth()
   const demoDataReset = useDemoDataReset(user?.role === 'SuperAdmin')
+  const mcbImport = useMcbImport(user?.role === 'SuperAdmin')
   const tour = useAdminTour(demoDataReset)
   if (user?.role !== 'SuperAdmin') return <Navigate to="/" replace />
 
@@ -194,6 +196,8 @@ export function AdminPage() {
         </TabsContent>
       </Tabs>
 
+      {mcbImport && <McbImportCard />}
+
       {demoDataReset && <DangerZone />}
     </div>
   )
@@ -209,6 +213,71 @@ function useDemoDataReset(isSuperAdmin: boolean) {
     enabled: isSuperAdmin,
   })
   return data?.enabled ?? false
+}
+
+// Off unless Features:McbImport is set on the API.
+function useMcbImport(isSuperAdmin: boolean) {
+  const { data } = useQuery({
+    queryKey: ['admin', 'mcb-import'],
+    queryFn: () => apiClient.get<{ enabled: boolean }>('/admin/mcb-import'),
+    staleTime: Infinity,
+    enabled: isSuperAdmin,
+  })
+  return data?.enabled ?? false
+}
+
+interface McbImportResult {
+  equipmentCreated: number
+  typesCreated: number
+  roomsCreated: number
+  facilitiesCreated: number
+  scienceOfficersCreated: number
+}
+
+function McbImportCard() {
+  const queryClient = useQueryClient()
+  const [isImporting, setIsImporting] = useState(false)
+
+  async function handleImport() {
+    setIsImporting(true)
+    try {
+      const r = await apiClient.post<McbImportResult>('/admin/import-mcb-equipment')
+      toast.success(
+        `Imported ${r.equipmentCreated} equipment, ${r.typesCreated} types, ${r.roomsCreated} rooms, ` +
+          `${r.facilitiesCreated} facilities and ${r.scienceOfficersCreated} science officers.`,
+      )
+      await queryClient.invalidateQueries()
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  return (
+    <div className="rounded-md border p-5">
+      <div className="flex items-center gap-2">
+        <FileUp className="size-4" aria-hidden="true" />
+        <h2 className="text-sm font-semibold">Import MCB equipment</h2>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Adds the Molecular and Cell Biology equipment list: 67 items with their types, rooms, BSL2 facilities and
+        science officers. It can only be imported once. Science officers are added as inactive accounts with
+        placeholder emails. Set each one's real email under Users, then activate them.
+      </p>
+      <ConfirmDialog
+        trigger={
+          <Button variant="outline" className="mt-4" disabled={isImporting}>
+            {isImporting ? 'Importing…' : 'Import MCB equipment'}
+          </Button>
+        }
+        title="Import the MCB equipment list?"
+        description="This adds 67 equipment items and the types, rooms, facilities and science officer accounts they need."
+        confirmLabel="Import"
+        onConfirm={handleImport}
+      />
+    </div>
+  )
 }
 
 function DangerZone() {

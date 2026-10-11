@@ -7,7 +7,7 @@ namespace LabTracker.Api.Controllers;
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "SuperAdmin")]
-public class AdminController(AdminService service, IConfiguration configuration) : ControllerBase
+public class AdminController(AdminService service, McbImportService mcbImport, IConfiguration configuration) : ControllerBase
 {
     // Wiping everything and recreating the default logins (with a known
     // password) only makes sense where demo data was seeded. Off unless
@@ -26,6 +26,25 @@ public class AdminController(AdminService service, IConfiguration configuration)
         await service.ResetDemoDataAsync(cancellationToken);
         return NoContent();
     }
+
+    // The client's MCB equipment list, shipped as embedded JSON. Safe to run more
+    // than once (get-or-create). Off unless Features:McbImport is set, so a
+    // deployment only exposes it while the data is being brought in.
+    private bool McbImportEnabled => configuration.GetValue<bool>("Features:McbImport");
+
+    [HttpGet("mcb-import")]
+    public ActionResult<McbImportStatus> GetMcbImportStatus()
+        => new McbImportStatus(McbImportEnabled);
+
+    [HttpPost("import-mcb-equipment")]
+    public async Task<ActionResult<McbImportResult>> ImportMcbEquipment(CancellationToken cancellationToken)
+    {
+        if (!McbImportEnabled) return NotFound();
+
+        return await mcbImport.ImportAsync(cancellationToken);
+    }
 }
 
 public record DemoDataResetStatus(bool Enabled);
+
+public record McbImportStatus(bool Enabled);
