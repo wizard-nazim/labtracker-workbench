@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { SplashScreen } from '@/components/splash-screen'
@@ -25,38 +25,41 @@ import { AccountPage } from '@/features/account/account-page'
 export function App() {
   const [showSplash, setShowSplash] = useState(true)
 
-  if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />
-  }
+  const hideSplash = useCallback(() => setShowSplash(false), [])
 
+  // The router mounts behind the splash so pages start loading their data
+  // straight away; `inert` keeps keyboard focus on the splash until it ends.
   return (
     <>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <AppShell />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/equipment" element={<EquipmentListPage />} />
-          <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
-          <Route path="/bookings" element={<BookingsPage />} />
-          <Route path="/usage" element={<UsageRecordsPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminPage />} />
-            <Route path="equipment" element={<AdminEquipmentPage />} />
-            <Route path="rooms" element={<AdminRoomsPage />} />
-            <Route path="people" element={<AdminPeoplePage />} />
-            <Route path="settings" element={<AdminSettingsPage />} />
+      <div className="contents" inert={showSplash}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/equipment" element={<EquipmentListPage />} />
+            <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
+            <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/usage" element={<UsageRecordsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminPage />} />
+              <Route path="equipment" element={<AdminEquipmentPage />} />
+              <Route path="rooms" element={<AdminRoomsPage />} />
+              <Route path="people" element={<AdminPeoplePage />} />
+              <Route path="settings" element={<AdminSettingsPage />} />
+            </Route>
+            <Route path="/account" element={<AccountPage />} />
           </Route>
-          <Route path="/account" element={<AccountPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+      {showSplash && <SplashScreen onComplete={hideSplash} />}
       <AuthTransitionOverlay />
       <Toaster />
     </>

@@ -20,7 +20,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ROLE_LABEL } from '@/types/roles'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { BrandFooter, BrandLockup, UctShield } from '@/components/brand-mark'
+import { BrandLockup, UctShield } from '@/components/brand-mark'
+import { BrandFooter } from '@/components/brand-footer'
 
 
 // Shared between the desktop <aside> and the mobile Sheet so both stay in sync.
@@ -204,7 +205,7 @@ export function AppShell() {
           <div className="flex-1">
             <Outlet />
           </div>
-          <BrandFooter />
+          <BrandFooter className="-mx-4 -mb-4 sm:-mx-6 sm:px-6" />
         </main>
       </div>
     </div>
