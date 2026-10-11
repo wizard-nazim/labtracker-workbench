@@ -22,13 +22,13 @@ public class McbImportTests(PostgresApiFactory factory) : IntegrationTestBase(fa
     }
 
     [Fact]
-    public async Task Import_CreatesTheSpreadsheetData_AndASecondRunCreatesNothing()
+    public async Task Import_CreatesTheSpreadsheetData_AndASecondRunIsRefused()
     {
         var first = await ImportAsync();
-        var second = await ImportAsync();
+        var second = () => ImportAsync();
 
         first.Should().Be(new McbImportResult(67, 0, 21, 18, 3, 6));
-        second.Should().Be(new McbImportResult(0, 67, 0, 0, 0, 0));
+        await second.Should().ThrowAsync<LabTracker.Shared.Exceptions.ConflictException>();
 
         using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
@@ -51,6 +51,27 @@ public class McbImportTests(PostgresApiFactory factory) : IntegrationTestBase(fa
         var result = await ImportAsync();
 
         result.RoomsCreated.Should().Be(17);
+    }
+
+    [Fact]
+    public async Task Import_AfterAPartialRun_ReusesOfficersEvenIfTheirEmailWasChanged()
+    {
+        await ImportAsync();
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LabTrackerDbContext>();
+            var officer = await db.Users.FirstAsync(u => u.Email.EndsWith("@mcb.placeholder.invalid"));
+            officer.Email = "real.officer@example.com";
+            // Simulate a run that stopped before any equipment was saved.
+            db.EquipmentScienceOfficers.RemoveRange(db.EquipmentScienceOfficers);
+            db.Equipment.RemoveRange(db.Equipment);
+            await db.SaveChangesAsync();
+        }
+
+        var rerun = await ImportAsync();
+
+        rerun.ScienceOfficersCreated.Should().Be(0);
+        rerun.EquipmentCreated.Should().Be(67);
     }
 
     [Fact]

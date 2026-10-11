@@ -5,6 +5,7 @@ using LabTracker.Domain.Modules.Equipment;
 using LabTracker.Domain.Modules.Identity;
 using LabTracker.Domain.Modules.Organization;
 using LabTracker.Shared.Enums;
+using LabTracker.Shared.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using EquipmentEntity = LabTracker.Domain.Modules.Equipment.Equipment;
@@ -20,10 +21,12 @@ public record McbImportResult(
     int ScienceOfficersCreated);
 
 // One-off import of the MCB department's equipment list (SeedData/mcb-equipment.json,
-// generated from the client's spreadsheet). Get-or-create throughout, so running it
-// again only fills in what is missing. Imported science officers have no real email
-// in the source, so they get a placeholder address, IsActive = false and a random
-// password nobody knows — an admin fixes the email and activates them in Users.
+// generated from the client's spreadsheet). It refuses to run once the MCB department
+// has any equipment, so later renames or moves by an admin are never duplicated; types,
+// rooms, facilities and officers are get-or-create, so a run that failed part-way can
+// simply be repeated. Imported science officers have no real email in the source, so
+// they get a placeholder address, IsActive = false and a random password nobody knows
+// — an admin sets their real login (PUT /api/users/{id}/login) and activates them.
 public class McbImportService(IApplicationDbContext db, IPasswordHasher<User> passwordHasher)
 {
     private const string ResourceName = "LabTracker.Application.Modules.Admin.SeedData.mcb-equipment.json";
@@ -40,6 +43,10 @@ public class McbImportService(IApplicationDbContext db, IPasswordHasher<User> pa
             department = new Department { Code = data.Department.Code, Name = data.Department.Name };
             db.Departments.Add(department);
             await db.SaveChangesAsync(cancellationToken);
+        }
+        else if (await db.Equipment.AnyAsync(e => e.OwningDepartmentId == department.Id, cancellationToken))
+        {
+            throw new ConflictException("The MCB equipment list has already been imported.");
         }
 
         var (officers, officersCreated) = await ImportScienceOfficersAsync(data.ScienceOfficers, now, cancellationToken);
@@ -90,18 +97,23 @@ public class McbImportService(IApplicationDbContext db, IPasswordHasher<User> pa
         var created = 0;
         foreach (var so in source)
         {
-            var email = $"{so.Key}@{PlaceholderEmailDomain}";
-            var user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+            // Matched on the profile's StudentNumber, not the email, which an
+            // admin is expected to change.
+            var studentNumber = $"MCB-SO-{so.Key}";
+            var user = await db.Researchers
+                .Where(r => r.StudentNumber == studentNumber && r.UserId != null)
+                .Select(r => r.User)
+                .FirstOrDefaultAsync(cancellationToken);
             if (user is null)
             {
-                user = new User { Email = email, Role = Role.ScienceOfficer, IsActive = false, CreatedAt = now };
+                user = new User { Email = $"{so.Key}@{PlaceholderEmailDomain}", Role = Role.ScienceOfficer, IsActive = false, CreatedAt = now };
                 user.PasswordHash = passwordHasher.HashPassword(user, Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
                 db.Users.Add(user);
                 await db.SaveChangesAsync(cancellationToken);
 
                 // The name lives on a linked Researcher profile — User has no name field
                 // (same approach as the default SO login in AdminService).
-                db.Researchers.Add(new Researcher { FullName = so.FullName, StudentNumber = $"MCB-SO-{so.Key}", UserId = user.Id });
+                db.Researchers.Add(new Researcher { FullName = so.FullName, StudentNumber = studentNumber, UserId = user.Id });
                 created++;
             }
             result[so.Key] = user;
