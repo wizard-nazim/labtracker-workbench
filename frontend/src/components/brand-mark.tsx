@@ -31,7 +31,7 @@ export function BrandLockup({ compact = false, className }: BrandLockupProps) {
       <span className="flex min-w-0 flex-col leading-tight">
         <span className="truncate text-sm font-semibold tracking-tight text-foreground">LabTracker</span>
         {!compact && (
-          <span className="truncate text-xs text-muted-foreground">Molecular and Cell Biology</span>
+          <span className="text-xs text-muted-foreground">Molecular and Cell Biology</span>
         )}
       </span>
     </span>

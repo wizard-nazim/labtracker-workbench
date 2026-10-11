@@ -144,7 +144,7 @@ export function AppShell() {
 
       <aside
         className={`hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex ${
-          collapsed ? 'w-16' : 'w-60'
+          collapsed ? 'w-16' : 'w-64'
         }`}
       >
         <div className={`flex h-16 shrink-0 items-center border-b border-sidebar-border ${collapsed ? 'flex-col justify-center gap-1 px-2' : 'justify-between gap-2 pr-3 pl-4'}`}>

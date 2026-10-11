@@ -33,7 +33,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-svh bg-background lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div className="flex min-h-svh flex-col bg-background lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       {/* The one bold moment in the app: the department's own building under a
           navy wash. The wash never drops below 85% where text sits, so white
           text stays above 4.5:1 whatever part of the photo is behind it. */}
@@ -83,7 +83,7 @@ export function LoginPage() {
         </div>
       </section>
 
-      <div className="relative flex flex-col items-center justify-center px-4 py-10 sm:px-8 lg:py-12">
+      <div className="relative flex flex-1 flex-col items-center px-4 pt-14 pb-10 sm:px-8 lg:justify-center lg:py-12">
         <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
           <ThemeToggle />
         </div>

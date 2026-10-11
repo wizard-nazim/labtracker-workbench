@@ -13,20 +13,20 @@ type Tone = 'primary' | 'available' | 'maintenance'
 const TILE_TONES: Record<Tone, { accent: string; tint: string; border: string; hoverBorder: string }> = {
   primary: {
     accent: 'bg-primary',
-    tint: 'bg-primary/25',
-    border: 'border-primary/30',
+    tint: 'bg-card',
+    border: 'border-border',
     hoverBorder: 'hover:border-primary/60',
   },
   available: {
     accent: 'bg-status-available',
-    tint: 'bg-status-available/25',
-    border: 'border-status-available/30',
+    tint: 'bg-card',
+    border: 'border-border',
     hoverBorder: 'hover:border-status-available/60',
   },
   maintenance: {
     accent: 'bg-status-maintenance',
-    tint: 'bg-status-maintenance/25',
-    border: 'border-status-maintenance/30',
+    tint: 'bg-card',
+    border: 'border-border',
     hoverBorder: 'hover:border-status-maintenance/60',
   },
 }
