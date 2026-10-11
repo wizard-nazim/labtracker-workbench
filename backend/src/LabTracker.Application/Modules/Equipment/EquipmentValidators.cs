@@ -61,6 +61,34 @@ public class UpsertEquipmentRequestValidator : AbstractValidator<UpsertEquipment
         RuleFor(x => x.OwningDepartmentId)
             .MustAsync((id, ct) => db.Departments.AnyAsync(d => d.Id == id, ct))
             .WithMessage("OwningDepartmentId does not reference an existing department.");
+
+        RuleFor(x => x.OwnershipType).IsInEnum();
+
+        // Whether the owner is *active* is checked in EquipmentService instead,
+        // and only when the owner changes, so equipment whose owner has since
+        // been deactivated can still be edited without reassigning it.
+        When(x => x.OwnershipType == OwnershipType.Individual, () =>
+        {
+            RuleFor(x => x.OwnerUserId)
+                .Cascade(CascadeMode.Stop)
+                .NotNull()
+                .WithMessage("OwnerUserId is required when ownership is Individual.")
+                .MustAsync((id, ct) => db.Users.AnyAsync(u => u.Id == id
+                    && (u.Role == Role.ScienceOfficer || u.Role == Role.Researcher || u.Role == Role.PrincipalInvestigator), ct))
+                .WithMessage("OwnerUserId must reference a Science Officer, Researcher or Principal Investigator.");
+        });
+
+        When(x => x.OwnershipType == OwnershipType.Department, () =>
+        {
+            RuleFor(x => x.OwnerUserId)
+                .Null()
+                .WithMessage("OwnerUserId must be empty when ownership is Department.");
+        });
+
+        RuleFor(x => x.ResearchGroupId)
+            .MustAsync((id, ct) => db.ResearchGroups.AnyAsync(g => g.Id == id, ct))
+            .When(x => x.ResearchGroupId.HasValue)
+            .WithMessage("ResearchGroupId does not reference an existing research group.");
     }
 }
 
