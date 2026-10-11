@@ -12,7 +12,10 @@ import {
 } from '@/components/ui/alert-dialog'
 
 interface ConfirmDialogProps {
-  trigger: ReactNode
+  // Omit when opening it from elsewhere (e.g. a row's ⋯ menu) with open/onOpenChange.
+  trigger?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: ReactNode
   confirmLabel: string
@@ -26,12 +29,24 @@ interface ConfirmDialogProps {
 // The AlertDialog confirm pattern from the admin danger zone, wrapped so every
 // "Are you sure?" reads and behaves the same: Cancel is focused first, and
 // focus returns to the button that opened it.
-export function ConfirmDialog({ trigger, title, description, confirmLabel, destructive = false, onConfirm }: ConfirmDialogProps) {
-  const [open, setOpen] = useState(false)
+export function ConfirmDialog({
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel,
+  destructive = false,
+  onConfirm,
+}: ConfirmDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+  const setOpen = isControlled ? (onOpenChange ?? (() => {})) : setInternalOpen
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      {trigger && <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

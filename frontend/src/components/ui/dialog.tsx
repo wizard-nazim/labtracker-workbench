@@ -59,7 +59,10 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-x-hidden overflow-y-auto rounded-xl bg-popover/80 p-4 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 backdrop-blur-xl duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // Phones: full screen, a column whose footer sticks to the bottom edge.
+          // sm and up: the usual centred panel.
+          "fixed inset-0 z-50 flex h-dvh w-full flex-col gap-4 overflow-x-hidden overflow-y-auto bg-popover p-4 text-sm text-popover-foreground duration-100 outline-none has-data-[slot=dialog-footer]:pb-0 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:grid sm:h-auto sm:max-h-[85vh] sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-popover/80 sm:shadow-lg sm:ring-1 sm:ring-foreground/10 sm:backdrop-blur-xl sm:has-data-[slot=dialog-footer]:pb-4 sm:data-open:zoom-in-95 sm:data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -105,7 +108,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "sticky bottom-0 z-10 -mx-4 mt-auto flex flex-col-reverse gap-2 border-t bg-popover p-4 sm:static sm:-mb-4 sm:mt-0 sm:flex-row sm:justify-end sm:rounded-b-xl sm:bg-muted/50",
         className
       )}
       {...props}
