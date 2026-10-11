@@ -1,74 +1,126 @@
-import { useEffect, useState } from 'react'
-import { BrandLockup } from '@/components/brand-mark'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { UctShield } from '@/components/brand-mark'
+import { ChemistryMark } from '@/components/chemistry-mark'
+import { Button } from '@/components/ui/button'
 
-const COLUMNS = 12
-const ROWS = 8
-const STAGGER_MS = 12
-const FADE_OUT_START_MS = 1050
-const FADE_OUT_DURATION_MS = 450
+const DURATION_MS = 10_000
+const REDUCED_DURATION_MS = 1_000
+const FADE_MS = 500
+const TICK_MS = 100
 
+const STATUS_LINES = [
+  'Preparing your lab…',
+  'Checking the equipment list…',
+  'Loading bookings…',
+  'Calibrating the instruments…',
+  'Almost ready…',
+]
+
+/**
+ * Branded splash shown on every load. It sits on top of the app, which is
+ * already mounted underneath and fetching its data. It fills a progress bar
+ * over ten seconds, then fades out. "Skip" or Esc ends it early; with
+ * "reduce motion" on it ends after about a second.
+ */
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
+  const reduceMotion = useReducedMotion()
+  const duration = reduceMotion ? REDUCED_DURATION_MS : DURATION_MS
+  const [elapsed, setElapsed] = useState(0)
   const [isFadingOut, setIsFadingOut] = useState(false)
+  const finishedRef = useRef(false)
+
+  const finish = useCallback(() => {
+    if (finishedRef.current) return
+    finishedRef.current = true
+    setIsFadingOut(true)
+    window.setTimeout(onComplete, reduceMotion ? 0 : FADE_MS)
+  }, [onComplete, reduceMotion])
 
   useEffect(() => {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReducedMotion) {
-      onComplete()
-      return
-    }
+    const startedAt = performance.now()
+    const interval = window.setInterval(() => {
+      const next = Math.min(performance.now() - startedAt, duration)
+      setElapsed(next)
+      if (next >= duration) {
+        window.clearInterval(interval)
+        finish()
+      }
+    }, TICK_MS)
+    return () => window.clearInterval(interval)
+  }, [duration, finish])
 
-    const fadeTimer = setTimeout(() => setIsFadingOut(true), FADE_OUT_START_MS)
-    const doneTimer = setTimeout(onComplete, FADE_OUT_START_MS + FADE_OUT_DURATION_MS)
-    return () => {
-      clearTimeout(fadeTimer)
-      clearTimeout(doneTimer)
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') finish()
     }
-  }, [onComplete])
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [finish])
 
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return null
+  const progress = Math.round((elapsed / duration) * 100)
+  const lineIndex = Math.min(
+    STATUS_LINES.length - 1,
+    Math.floor((elapsed / duration) * STATUS_LINES.length),
+  )
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-7 bg-background"
+      className="fixed inset-0 z-[200] flex flex-col bg-background"
       style={{
         opacity: isFadingOut ? 0 : 1,
-        transition: `opacity ${FADE_OUT_DURATION_MS}ms ease-out`,
+        transition: `opacity ${FADE_MS}ms ease-out`,
         pointerEvents: isFadingOut ? 'none' : 'auto',
       }}
     >
-      <span className="sr-only" role="status">
-        Loading LabTracker
-      </span>
-      <div
-        className="grid gap-[5px]"
-        style={{ gridTemplateColumns: `repeat(${COLUMNS}, minmax(0, 1fr))` }}
-        aria-hidden="true"
-      >
-        {Array.from({ length: ROWS * COLUMNS }).map((_, i) => {
-          const row = Math.floor(i / COLUMNS)
-          const col = i % COLUMNS
-          const delay = (row + col) * STAGGER_MS
-          return (
-            <span
-              key={i}
-              className="size-2.5 rounded-full border border-primary/40 sm:size-3"
-              style={{
-                animation: 'labtracker-well-fill 260ms ease-out forwards',
-                animationDelay: `${delay}ms`,
-              }}
-            />
-          )
-        })}
+      {/* z-[200] sits above the onboarding tour (z 100), which may start underneath. */}
+      {/* Brand edge, the same magenta-to-blue seam as the login photo. */}
+      <div aria-hidden="true" className="h-1 w-full bg-gradient-to-r from-brand-magenta via-brand-navy to-brand-blue" />
+
+      <div className="flex justify-end p-3 sm:p-4">
+        <Button type="button" variant="ghost" size="sm" onClick={finish} className="text-muted-foreground">
+          Skip
+          <kbd className="ml-1 hidden rounded border border-border px-1 font-sans text-[11px] text-muted-foreground sm:inline">
+            Esc
+          </kbd>
+        </Button>
       </div>
-      <div
-        className="opacity-0"
-        style={{
-          animation: 'labtracker-fade-in 400ms ease-out forwards',
-          animationDelay: `${(ROWS - 1 + COLUMNS - 1) * STAGGER_MS + 280}ms`,
-        }}
-        aria-hidden="true"
-      >
-        <BrandLockup />
+
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-16">
+        <div className="flex items-center gap-4" aria-hidden="true">
+          <UctShield className="h-12 sm:h-14" />
+          <span className="h-10 w-px bg-border" />
+          <img
+            src="/brand/mcb-mark.png"
+            alt=""
+            draggable={false}
+            className="h-12 w-auto select-none rounded-md bg-brand-navy p-1 sm:h-14"
+          />
+        </div>
+
+        <ChemistryMark className="mt-10 size-24 sm:size-28" />
+
+        <p className="mt-6 text-2xl font-semibold tracking-tight text-foreground">LabTracker</p>
+        <p className="mt-1 text-center text-sm text-muted-foreground">Molecular and Cell Biology, University of Cape Town</p>
+
+        <div className="mt-10 w-full max-w-xs">
+          <div
+            role="progressbar"
+            aria-label="Loading LabTracker"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-brand-navy to-brand-blue dark:from-brand-blue dark:to-primary"
+              style={{ width: `${progress}%`, transition: `width ${TICK_MS}ms linear` }}
+            />
+          </div>
+          <p role="status" aria-live="polite" className="mt-3 text-center text-sm text-muted-foreground">
+            {STATUS_LINES[lineIndex]}
+          </p>
+        </div>
       </div>
     </div>
   )
