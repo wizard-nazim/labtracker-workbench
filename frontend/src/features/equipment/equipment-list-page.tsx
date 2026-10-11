@@ -1,24 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { FlaskConical } from 'lucide-react'
+import { CalendarCheck, FlaskConical, MapPin } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
+import { ResponsiveList } from '@/components/responsive-list'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/context/auth-context'
 import { canBookEquipment } from '@/types/roles'
 import { BookEquipmentDialog } from '@/features/bookings/book-equipment-dialog'
@@ -26,126 +12,232 @@ import { useEquipment } from './use-equipment'
 import { StatusIndicator } from './status-indicator'
 import { EquipmentAvatar } from './equipment-avatar'
 import { CreateEquipmentDialog, EditEquipmentDialog } from './equipment-form-dialog'
-import type { EquipmentStatus } from './types'
+import type { Equipment, EquipmentStatus } from './types'
 
 const STATUS_FILTERS: Array<EquipmentStatus | 'All'> = ['All', 'Available', 'Faulty', 'UnderMaintenance', 'Retired']
+const STATUS_FILTER_LABEL: Record<EquipmentStatus | 'All', string> = {
+  All: 'Any status',
+  Available: 'Available',
+  Faulty: 'Faulty',
+  UnderMaintenance: 'Under maintenance',
+  Retired: 'Retired',
+}
+const ALL_TYPES = 'all'
 
 function initialStatusFrom(searchParams: URLSearchParams): EquipmentStatus | 'All' {
   const value = searchParams.get('status')
   return STATUS_FILTERS.includes(value as EquipmentStatus | 'All') ? (value as EquipmentStatus | 'All') : 'All'
 }
 
+function locationLine(item: Equipment) {
+  return item.facilityName ? `${item.roomLabel}, ${item.facilityName}` : item.roomLabel
+}
+
+function ownerLine(item: Equipment) {
+  if (item.researchGroup) return item.researchGroup.name
+  if (item.ownershipType === 'Individual' && item.owner) return item.owner.name
+  return item.owningDepartmentName
+}
+
 export function EquipmentListPage() {
   const [searchParams] = useSearchParams()
   const [status, setStatus] = useState<EquipmentStatus | 'All'>(() => initialStatusFrom(searchParams))
+  const [typeId, setTypeId] = useState(ALL_TYPES)
   const { data: equipment, isLoading, isError } = useEquipment(status)
   const { user } = useAuth()
   const canBook = canBookEquipment(user?.role)
-  const isSuperAdmin = user?.role === 'SuperAdmin'
-  const canManageEquipment = isSuperAdmin || user?.role === 'PrincipalInvestigator'
-  const columnCount = 7 + (canBook ? 1 : 0) + (canManageEquipment ? 1 : 0)
+  const canManageEquipment = user?.role === 'SuperAdmin' || user?.role === 'PrincipalInvestigator'
+
+  // Types come from what's actually listed, so the filter never offers a
+  // type with nothing in it.
+  const types = useMemo(() => {
+    const byId = new Map<number, string>()
+    for (const item of equipment ?? []) byId.set(item.equipmentTypeId, item.equipmentTypeName)
+    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [equipment])
+
+  const visible = equipment?.filter((item) => typeId === ALL_TYPES || String(item.equipmentTypeId) === typeId)
+  const isFiltered = status !== 'All' || typeId !== ALL_TYPES
+
+  function clearFilters() {
+    setStatus('All')
+    setTypeId(ALL_TYPES)
+  }
+
+  function bookButton(item: Equipment, fullWidth = false) {
+    if (!canBook || item.status !== 'Available') return null
+    return (
+      <BookEquipmentDialog
+        equipment={item}
+        trigger={
+          <Button size={fullWidth ? 'lg' : 'sm'} className={fullWidth ? 'w-full' : undefined}>
+            <CalendarCheck data-icon="inline-start" aria-hidden="true" />
+            Book
+            <span className="sr-only"> {item.name}</span>
+          </Button>
+        }
+      />
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         icon={FlaskConical}
         title="Equipment"
-        description="Browse instruments, their location, and current availability."
-        action={
-          <div className="flex w-full items-center gap-2 sm:w-auto">
+        description="Find an instrument, see where it is and whether it's free, and book it."
+        action={canManageEquipment ? <CreateEquipmentDialog /> : undefined}
+      />
+
+      <ResponsiveList
+        items={visible}
+        isLoading={isLoading}
+        isError={isError}
+        getKey={(item) => item.id}
+        noun="equipment"
+        search={{
+          label: 'Search equipment',
+          placeholder: 'Search by name, room or lab',
+          text: (item) =>
+            [item.name, item.equipmentTypeName, item.roomLabel, item.facilityName, item.researchGroup?.name, item.serialNumber]
+              .filter(Boolean)
+              .join(' '),
+        }}
+        toolbar={
+          <>
+            <Select value={typeId} onValueChange={setTypeId}>
+              <SelectTrigger className="h-9 w-full sm:w-48" aria-label="Filter by type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TYPES}>All types</SelectItem>
+                {types.map(([id, name]) => (
+                  <SelectItem key={id} value={String(id)}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={status} onValueChange={(value) => setStatus(value as EquipmentStatus | 'All')}>
-              <SelectTrigger className="flex-1 sm:w-48 sm:flex-none" aria-label="Filter by status">
+              <SelectTrigger className="h-9 w-full sm:w-44" aria-label="Filter by status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {STATUS_FILTERS.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {option === 'All' ? 'All statuses' : option === 'UnderMaintenance' ? 'Under maintenance' : option}
+                    {STATUS_FILTER_LABEL[option]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {canManageEquipment && <CreateEquipmentDialog />}
-          </div>
+          </>
         }
-      />
-
-      <div className="overflow-hidden rounded-md border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-14" />
-              <TableHead className="w-44">Status</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead className="hidden lg:table-cell">Department</TableHead>
-              <TableHead className="text-right">Shared</TableHead>
-              {canBook && <TableHead className="w-24" />}
-              {canManageEquipment && <TableHead className="w-16" />}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={columnCount}>
-                    <Skeleton className="h-5 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))}
-
-            {isError && (
-              <TableEmptyState
-                colSpan={columnCount}
-                tone="error"
-                title="Couldn't load equipment."
-                description="Check that the API is running and try again."
-              />
-            )}
-
-            {!isLoading && !isError && equipment?.length === 0 && (
-              <TableEmptyState colSpan={columnCount} title="No equipment matches this filter." />
-            )}
-
-            {equipment?.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell>
-                  <Link to={`/equipment/${item.id}`}>
-                    <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name={item.name} />
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <StatusIndicator status={item.status} />
-                </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  <Link to={`/equipment/${item.id}`} className="hover:text-primary hover:underline">
-                    {item.name}
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{item.equipmentTypeName}</TableCell>
-                <TableCell className="text-muted-foreground">{item.roomLabel}</TableCell>
-                <TableCell className="hidden text-muted-foreground lg:table-cell">
-                  {item.owningDepartmentName}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground">{item.isShared ? 'Yes' : 'No'}</TableCell>
-                {canBook && (
-                  <TableCell>
-                    {item.status === 'Available' && (
-                      <BookEquipmentDialog equipment={item} />
-                    )}
-                  </TableCell>
-                )}
+        empty={
+          isFiltered
+            ? {
+                title: 'No equipment matches these filters.',
+                description: 'Try another type or status.',
+                action: (
+                  <Button size="sm" variant="outline" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                ),
+              }
+            : {
+                title: 'No equipment has been added yet.',
+                description: canManageEquipment
+                  ? 'Add the first instrument so people can find and book it.'
+                  : 'Once your department adds instruments, they will show up here.',
+                action: canManageEquipment ? <CreateEquipmentDialog /> : undefined,
+              }
+        }
+        columns={[
+          {
+            key: 'name',
+            header: 'Equipment',
+            cell: (item) => (
+              <Link to={`/equipment/${item.id}`} className="group flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name="" className="size-10 shrink-0" tone="brand" />
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-medium text-foreground group-hover:text-primary group-hover:underline">{item.name}</span>
+                  <span className="text-xs text-muted-foreground">{item.equipmentTypeName}</span>
+                </span>
+              </Link>
+            ),
+          },
+          {
+            key: 'where',
+            header: 'Where',
+            cell: (item) => (
+              <span className="flex flex-col">
+                <span className="text-foreground">{item.roomLabel}</span>
+                {item.facilityName && <span className="text-xs text-muted-foreground">{item.facilityName}</span>}
+              </span>
+            ),
+          },
+          {
+            key: 'lab',
+            header: 'Lab or owner',
+            className: 'hidden lg:table-cell',
+            cell: (item) => <span className="text-muted-foreground">{ownerLine(item)}</span>,
+          },
+          {
+            key: 'status',
+            header: 'Status',
+            className: 'w-40',
+            cell: (item) => <StatusIndicator status={item.status} variant="chip" />,
+          },
+          ...(canBook || canManageEquipment
+            ? [
+                {
+                  key: 'actions',
+                  header: <span className="sr-only">Actions</span>,
+                  className: 'w-36 text-right',
+                  cell: (item: Equipment) => (
+                    <div className="flex items-center justify-end gap-1.5">
+                      {bookButton(item)}
+                      {canManageEquipment && <EditEquipmentDialog equipment={item} />}
+                    </div>
+                  ),
+                },
+              ]
+            : []),
+        ]}
+        renderCard={(item) => {
+          const book = bookButton(item, true)
+          return (
+          <div className="flex min-w-0 flex-col gap-3">
+            <Link to={`/equipment/${item.id}`} className="flex min-w-0 items-start gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name="" className="size-16 shrink-0" tone="brand" />
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-medium leading-snug text-foreground wrap-anywhere">{item.name}</span>
+                <span className="text-xs text-muted-foreground">{item.equipmentTypeName}</span>
+                <span className="flex min-w-0 items-start gap-1 text-xs text-muted-foreground">
+                  <MapPin className="mt-px size-3 shrink-0" aria-hidden="true" />
+                  <span className="wrap-anywhere">{locationLine(item)}</span>
+                </span>
+                <StatusIndicator status={item.status} variant="chip" className="mt-0.5 w-fit" />
+              </span>
+            </Link>
+            {(book || canManageEquipment) && (
+              <div className="flex items-center gap-2 [&>*]:flex-1 [&>*:first-child]:flex-[2]">
+                {book}
                 {canManageEquipment && (
-                  <TableCell>
-                    <EditEquipmentDialog equipment={item} />
-                  </TableCell>
+                  <EditEquipmentDialog
+                    equipment={item}
+                    trigger={
+                      <Button size="lg" variant="outline" aria-label={`Edit ${item.name}`}>
+                        Edit
+                      </Button>
+                    }
+                  />
                 )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+              </div>
+            )}
+          </div>
+          )
+        }}
+      />
     </div>
   )
 }
