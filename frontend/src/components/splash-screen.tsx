@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 const DURATION_MS = 10_000
 const REDUCED_DURATION_MS = 1_000
 const FADE_MS = 500
-const TICK_MS = 100
+const TICK_MS = 250
 
 const STATUS_LINES = [
   'Preparing your lab…',
@@ -28,7 +28,15 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const duration = reduceMotion ? REDUCED_DURATION_MS : DURATION_MS
   const [elapsed, setElapsed] = useState(0)
   const [isFadingOut, setIsFadingOut] = useState(false)
+  const [barStarted, setBarStarted] = useState(false)
   const finishedRef = useRef(false)
+
+  // The bar fills with one long compositor transition (smooth even while the
+  // app renders underneath); the timer below drives the text and aria value.
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => setBarStarted(true)))
+    return () => cancelAnimationFrame(frame)
+  }, [])
 
   const finish = useCallback(() => {
     if (finishedRef.current) return
@@ -113,8 +121,11 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
             className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-navy to-brand-blue dark:from-brand-blue dark:to-primary"
-              style={{ width: `${progress}%`, transition: `width ${TICK_MS}ms linear` }}
+              className="h-full origin-left rounded-full bg-gradient-to-r from-brand-navy to-brand-blue dark:from-brand-blue dark:to-primary"
+              style={{
+                transform: `scaleX(${barStarted ? 1 : 0})`,
+                transition: `transform ${duration}ms linear`,
+              }}
             />
           </div>
           <p role="status" aria-live="polite" className="mt-3 text-center text-sm text-muted-foreground">
