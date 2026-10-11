@@ -205,7 +205,7 @@ export function AppShell() {
           <div className="flex-1">
             <Outlet />
           </div>
-          <BrandFooter />
+          <BrandFooter className="-mx-4 -mb-4 sm:-mx-6 sm:px-6" />
         </main>
       </div>
     </div>
