@@ -1,49 +1,32 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { CalendarCheck, Info, MapPin, TriangleAlert } from 'lucide-react'
 import { showBookingCreatedToast } from './booking-toast'
-import { Info, TriangleAlert } from 'lucide-react'
 import { EntityDialog } from '@/components/entity-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { getRoleAvatarSrc } from '@/lib/role-avatar'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/context/auth-context'
 import { EquipmentAvatar } from '@/features/equipment/equipment-avatar'
 import type { Equipment } from '@/features/equipment/types'
 import { useExternalOrganizations } from '@/features/external/use-external'
+import type { FieldErrors } from '@/lib/api-error-message'
 import { useBookings, useCreateBooking } from './use-bookings'
-import { BookingStatusIndicator } from './booking-status-indicator'
+import { formatWhen } from './format-when'
+import { TimeRangeFields } from './time-range-fields'
+import { emptyTimeRange, isTimeRangeComplete, resolveTimeRange, type TimeRange } from './time-range'
 
 // Who's allowed to book on behalf of a visiting/external person — keep in sync
 // with BookingService.ExternalBookingRoles on the backend.
 const EXTERNAL_BOOKING_ROLES = ['SuperAdmin', 'ScienceOfficer', 'PrincipalInvestigator']
 
-function InfoField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm text-foreground">{value}</p>
-    </div>
-  )
-}
+const UPCOMING_SHOWN = 4
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
+export function BookEquipmentDialog({ equipment, trigger }: { equipment: Equipment; trigger?: ReactNode }) {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
-  const [start, setStart] = useState('')
-  const [end, setEnd] = useState('')
+  const [range, setRange] = useState<TimeRange>(emptyTimeRange)
+  const [errors, setErrors] = useState<{ start?: string; end?: string }>({})
   const [bookingFor, setBookingFor] = useState<'self' | 'external'>('self')
   const [externalOrgId, setExternalOrgId] = useState('')
   const [externalContactId, setExternalContactId] = useState('')
@@ -62,85 +45,76 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
     .filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected' && new Date(b.scheduledEnd) >= new Date())
     .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime())
 
-  async function handleSubmit() {
-    const booking = await createBooking.mutateAsync({
-      equipmentId: equipment.id,
-      scheduledStart: new Date(start).toISOString(),
-      scheduledEnd: new Date(end).toISOString(),
-      externalContactId: isBookingForExternal && externalContactId ? Number(externalContactId) : undefined,
-      notes: notes.trim() ? notes.trim() : undefined,
-    })
-    showBookingCreatedToast(booking)
-    setStart('')
-    setEnd('')
+  function reset() {
+    setRange(emptyTimeRange())
+    setErrors({})
     setBookingFor('self')
     setExternalOrgId('')
     setExternalContactId('')
     setNotes('')
   }
 
+  function handleFieldErrors(fieldErrors: FieldErrors) {
+    const start = fieldErrors.ScheduledStart?.[0]
+    const end = fieldErrors.ScheduledEnd?.[0]
+    setErrors({ start, end })
+    return Boolean(start || end)
+  }
+
+  async function handleSubmit() {
+    setErrors({})
+    const { start, end } = resolveTimeRange(range, { start: 'ScheduledStart', end: 'ScheduledEnd' })
+    const booking = await createBooking.mutateAsync({
+      equipmentId: equipment.id,
+      scheduledStart: start,
+      scheduledEnd: end,
+      externalContactId: isBookingForExternal && externalContactId ? Number(externalContactId) : undefined,
+      notes: notes.trim() ? notes.trim() : undefined,
+    })
+    showBookingCreatedToast(booking)
+    reset()
+  }
+
   return (
     <EntityDialog
       trigger={
-        <Button size="sm" variant="outline">
-          Book
-        </Button>
+        trigger ?? (
+          <Button size="sm" variant="outline">
+            <CalendarCheck data-icon="inline-start" aria-hidden="true" />
+            Book
+          </Button>
+        )
       }
       title={`Book ${equipment.name}`}
-      description="Choose a start and end time. The equipment must be free for the whole window."
+      description="Pick a day and time. The equipment has to be free for the whole slot."
       submitLabel="Request booking"
-      submitDisabled={isBookingForExternal && !externalContactId}
+      submitDisabled={!isTimeRangeComplete(range) || (isBookingForExternal && !externalContactId)}
       onSubmit={handleSubmit}
+      onFieldErrors={handleFieldErrors}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        if (!next) setErrors({})
+        setOpen(next)
+      }}
     >
-      <div className="rounded-md border border-border bg-muted/40 p-2.5">
-        <div className="flex items-center gap-2.5">
-          <EquipmentAvatar imageUrl={equipment.imageUrl} iconKey={equipment.iconKey} name={equipment.name} className="size-9" />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{equipment.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{equipment.equipmentTypeName}</p>
-          </div>
-        </div>
-        <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-border pt-2.5">
-          <InfoField label="Room" value={equipment.roomLabel} />
-          <InfoField label="Department" value={equipment.owningDepartmentName} />
-          <InfoField label="Shared" value={equipment.isShared ? 'Yes' : 'No'} />
-          <InfoField label="Serial number" value={equipment.serialNumber ?? '—'} />
-        </div>
-
-        <div className="mt-2.5 border-t border-border pt-2.5">
-          <p className="text-xs font-medium text-foreground">Upcoming bookings</p>
-          {upcomingBookings.length === 0 ? (
-            <p className="mt-1 text-sm text-muted-foreground">No upcoming bookings.</p>
-          ) : (
-            <ul className="mt-1.5 flex max-h-24 flex-col gap-1.5 overflow-y-auto">
-              {upcomingBookings.map((booking) => (
-                <li key={booking.id} className="flex items-center justify-between gap-3 text-sm">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Avatar className="size-6 shrink-0">
-                      <AvatarImage src={getRoleAvatarSrc(booking.actorRole, booking.actorType === 'External')} alt="" />
-                      <AvatarFallback className="text-[10px]">{booking.actorDisplayName.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="truncate text-foreground">{booking.actorDisplayName}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {formatDateTime(booking.scheduledStart)} – {formatDateTime(booking.scheduledEnd)}
-                      </p>
-                    </div>
-                  </div>
-                  <BookingStatusIndicator status={booking.status} />
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 p-2.5">
+        <EquipmentAvatar imageUrl={equipment.imageUrl} iconKey={equipment.iconKey} name="" className="size-10 shrink-0" tone="brand" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">{equipment.name}</p>
+          <p className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-3 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              {equipment.roomLabel}
+              {equipment.facilityName ? `, ${equipment.facilityName}` : ''}
+            </span>
+          </p>
         </div>
       </div>
 
       {equipment.description && (
         <div
           className={`flex gap-2.5 rounded-md border p-2.5 ${
-            needsAttention ? 'border-status-maintenance/30 bg-status-maintenance/10' : 'border-border bg-muted/40'
+            needsAttention ? 'border-status-maintenance/30 bg-status-maintenance/10' : 'border-border'
           }`}
         >
           {needsAttention ? (
@@ -152,25 +126,55 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
         </div>
       )}
 
+      <TimeRangeFields
+        idPrefix="booking"
+        value={range}
+        onChange={(next) => {
+          setRange(next)
+          if (errors.start || errors.end) setErrors({})
+        }}
+        startError={errors.start}
+        endError={errors.end}
+      />
+
+      <div className="rounded-md bg-muted/40 px-3 py-2.5">
+        <p className="text-xs font-medium text-foreground">Already booked</p>
+        {upcomingBookings.length === 0 ? (
+          <p className="mt-0.5 text-sm text-muted-foreground">Nothing booked yet, so any time is free.</p>
+        ) : (
+          <ul className="mt-1 flex flex-col gap-0.5 text-sm text-muted-foreground tabular-nums">
+            {upcomingBookings.slice(0, UPCOMING_SHOWN).map((booking) => (
+              <li key={booking.id} className="wrap-anywhere">
+                {formatWhen(booking.scheduledStart, booking.scheduledEnd)}
+                {booking.status === 'Requested' && <span className="text-xs"> (waiting for approval)</span>}
+              </li>
+            ))}
+            {upcomingBookings.length > UPCOMING_SHOWN && (
+              <li className="text-xs">and {upcomingBookings.length - UPCOMING_SHOWN} more later</li>
+            )}
+          </ul>
+        )}
+      </div>
+
       {canBookForExternal && (
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="booking-for">Booking for</Label>
+          <Label htmlFor="booking-for">Who is it for?</Label>
           <Select value={bookingFor} onValueChange={(v) => setBookingFor(v as 'self' | 'external')}>
-            <SelectTrigger id="booking-for">
+            <SelectTrigger id="booking-for" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="self">Myself</SelectItem>
-              <SelectItem value="external">External visitor</SelectItem>
+              <SelectItem value="self">Me</SelectItem>
+              <SelectItem value="external">A visitor from outside UCT</SelectItem>
             </SelectContent>
           </Select>
         </div>
       )}
 
       {isBookingForExternal && (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="booking-external-org">Organization</Label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor="booking-external-org">Organisation</Label>
             <Select
               value={externalOrgId}
               onValueChange={(v) => {
@@ -178,8 +182,8 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
                 setExternalContactId('')
               }}
             >
-              <SelectTrigger id="booking-external-org">
-                <SelectValue placeholder="Select an organization" />
+              <SelectTrigger id="booking-external-org" className="w-full">
+                <SelectValue placeholder="Choose organisation" />
               </SelectTrigger>
               <SelectContent>
                 {organizations?.map((org) => (
@@ -190,11 +194,11 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="booking-external-contact">Contact</Label>
-            <Select value={externalContactId} onValueChange={setExternalContactId}>
-              <SelectTrigger id="booking-external-contact">
-                <SelectValue placeholder={externalOrgId ? 'Select a contact' : 'Select an organization first'} />
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <Label htmlFor="booking-external-contact">Visitor</Label>
+            <Select value={externalContactId} onValueChange={setExternalContactId} disabled={!externalOrgId}>
+              <SelectTrigger id="booking-external-contact" className="w-full">
+                <SelectValue placeholder={externalOrgId ? 'Choose visitor' : 'Choose organisation first'} />
               </SelectTrigger>
               <SelectContent>
                 {availableContacts.map((contact) => (
@@ -205,37 +209,18 @@ export function BookEquipmentDialog({ equipment }: { equipment: Equipment }) {
               </SelectContent>
             </Select>
           </div>
-        </>
+        </div>
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="booking-start">Start</Label>
-        <Input
-          id="booking-start"
-          type="datetime-local"
-          required
-          value={start}
-          onChange={(e) => setStart(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="booking-end">End</Label>
-        <Input
-          id="booking-end"
-          type="datetime-local"
-          required
-          value={end}
-          onChange={(e) => setEnd(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="booking-notes">Notes (optional)</Label>
+        <Label htmlFor="booking-notes">Notes for the Science Officer (optional)</Label>
         <Textarea
           id="booking-notes"
-          placeholder="e.g. undergrad course name for practicals"
+          placeholder="e.g. course name for a practical, or samples you'll bring"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           maxLength={500}
+          rows={2}
         />
       </div>
     </EntityDialog>
