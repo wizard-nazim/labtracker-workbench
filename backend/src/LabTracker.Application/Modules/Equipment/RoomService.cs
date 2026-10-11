@@ -29,12 +29,13 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
     public async Task<RoomDto> CreateAsync(UpsertRoomRequest request, CancellationToken cancellationToken = default)
     {
         await validator.ValidateAndThrowAsync(request, cancellationToken);
+        await EnsureNotDuplicateAsync(request, excludingRoomId: null, cancellationToken);
 
         var room = new RoomEntity
         {
-            Building = request.Building,
-            Floor = request.Floor,
-            RoomNumber = request.RoomNumber,
+            Building = request.Building.Trim(),
+            Floor = request.Floor.Trim(),
+            RoomNumber = request.RoomNumber.Trim(),
             DepartmentId = request.DepartmentId,
             ResearchGroupId = request.ResearchGroupId,
             FacilityId = request.FacilityId,
@@ -52,15 +53,53 @@ public class RoomService(IApplicationDbContext db, IValidator<UpsertRoomRequest>
         var room = await db.Rooms.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(RoomEntity), id);
 
-        room.Building = request.Building;
-        room.Floor = request.Floor;
-        room.RoomNumber = request.RoomNumber;
+        await EnsureNotDuplicateAsync(request, excludingRoomId: id, cancellationToken);
+
+        room.Building = request.Building.Trim();
+        room.Floor = request.Floor.Trim();
+        room.RoomNumber = request.RoomNumber.Trim();
         room.DepartmentId = request.DepartmentId;
         room.ResearchGroupId = request.ResearchGroupId;
         room.FacilityId = request.FacilityId;
         await db.SaveChangesAsync(cancellationToken);
 
         return await GetByIdAsync(id, cancellationToken);
+    }
+
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var room = await db.Rooms.FindAsync([id], cancellationToken)
+            ?? throw new NotFoundException(nameof(RoomEntity), id);
+
+        var usedBy = await db.Equipment.CountAsync(e => e.RoomId == id, cancellationToken);
+        if (usedBy > 0)
+        {
+            throw new ConflictException($"In use by {usedBy} equipment.");
+        }
+
+        db.Rooms.Remove(room);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    // Mirrors the case-insensitive unique index on Rooms (see the
+    // EquipmentOwnershipLabTimestamps migration) with a friendlier message, and
+    // so it's enforced under the InMemory provider in unit tests too.
+    private async Task EnsureNotDuplicateAsync(UpsertRoomRequest request, int? excludingRoomId, CancellationToken cancellationToken)
+    {
+        var building = request.Building.Trim().ToLower();
+        var floor = request.Floor.Trim().ToLower();
+        var roomNumber = request.RoomNumber.Trim().ToLower();
+
+        var exists = await db.Rooms.AnyAsync(r =>
+            r.Id != excludingRoomId
+            && r.Building.ToLower() == building
+            && r.Floor.ToLower() == floor
+            && r.RoomNumber.ToLower() == roomNumber, cancellationToken);
+
+        if (exists)
+        {
+            throw new ConflictException($"Room {request.RoomNumber.Trim()} on {request.Floor.Trim()} in {request.Building.Trim()} already exists.");
+        }
     }
 
     private static RoomDto ToDto(RoomEntity r) => new()

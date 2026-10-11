@@ -67,6 +67,22 @@ public class FacilityService(IApplicationDbContext db, IValidator<UpsertFacility
         return await GetByIdAsync(id, cancellationToken);
     }
 
+    // Rooms just stop being part of the facility (they and their equipment are
+    // kept); overseer links are dropped. One SaveChanges, so it's all-or-nothing.
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var facility = await db.Facilities
+            .Include(f => f.Overseers)
+            .Include(f => f.Rooms)
+            .SingleOrDefaultAsync(f => f.Id == id, cancellationToken)
+            ?? throw new NotFoundException(nameof(FacilityEntity), id);
+
+        facility.Overseers.Clear();
+        foreach (var room in facility.Rooms) room.FacilityId = null;
+        db.Facilities.Remove(facility);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static FacilityDto ToDto(FacilityEntity f) => new()
     {
         Id = f.Id,

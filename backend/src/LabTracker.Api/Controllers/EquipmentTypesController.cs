@@ -29,4 +29,12 @@ public class EquipmentTypesController(EquipmentTypeService service) : Controller
     [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<EquipmentTypeDto>> Update(int id, UpsertEquipmentTypeRequest request, CancellationToken cancellationToken)
         => Ok(await service.UpdateAsync(id, request, cancellationToken));
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await service.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }
