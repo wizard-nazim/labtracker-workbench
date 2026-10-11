@@ -77,9 +77,10 @@ export function ImageGalleryDialog({ trigger, onSelect }: { trigger: React.React
               <button
                 type="button"
                 title="Delete from gallery"
+                aria-label="Delete from gallery"
                 disabled={remove.isPending}
                 onClick={() => handleDelete(image.id)}
-                className="absolute top-1 right-1 rounded-md bg-background/80 p-1 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                className="absolute top-1 right-1 rounded-md bg-background/80 p-1 text-muted-foreground opacity-0 transition-opacity outline-none group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
               </button>

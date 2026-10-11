@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -20,7 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { apiErrorMessage } from '@/lib/api-error-message'
+import {
+  apiErrorMessage,
+  fieldErrors,
+  focusFirstInvalidField,
+  isConflict,
+  type FieldErrors,
+} from '@/lib/api-error-message'
 import { EquipmentAvatar } from '@/features/equipment/equipment-avatar'
 import { StatusIndicator } from '@/features/equipment/status-indicator'
 import {
@@ -32,7 +38,12 @@ import {
   useUpdateEquipmentStatus,
 } from '@/features/equipment/use-equipment'
 import { EquipmentFormFields } from '@/features/equipment/equipment-form-fields'
-import { toEquipmentRequest, useEquipmentFormState } from '@/features/equipment/equipment-form-state'
+import {
+  hasVisibleFieldError,
+  toEquipmentRequest,
+  useEquipmentFormState,
+  validateEquipmentForm,
+} from '@/features/equipment/equipment-form-state'
 import type { Equipment, EquipmentStatus } from '@/features/equipment/types'
 import { useUsers } from './users'
 import type { EquipmentType } from './equipment-types'
@@ -45,7 +56,8 @@ const STATUS_OPTIONS: { value: EquipmentStatus; label: string }[] = [
 ]
 
 export function EquipmentUnitsPanel({ equipmentType, onClose }: { equipmentType: EquipmentType; onClose: () => void }) {
-  const { data: allEquipment, isLoading, isError } = useEquipment('All')
+  // Archived units are listed too (with a Retired status), so they can still be edited here.
+  const { data: allEquipment, isLoading, isError } = useEquipment('All', { includeArchived: true })
   const units = (allEquipment ?? []).filter((e) => e.equipmentTypeId === equipmentType.id)
   const [editingUnitId, setEditingUnitId] = useState<number | 'new' | null>(null)
   const editingUnit = editingUnitId === 'new' ? undefined : units.find((u) => u.id === editingUnitId)
@@ -144,7 +156,10 @@ function EquipmentUnitForm({
 }) {
   const [state, setState] = useEquipmentFormState(equipment)
   const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<FieldErrors>({})
+  const [focusRequest, setFocusRequest] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const create = useCreateEquipment()
   const update = useUpdateEquipment(equipment?.id ?? 0)
 
@@ -155,10 +170,20 @@ function EquipmentUnitForm({
     if (!equipment) setState((prev) => (prev.equipmentTypeId ? prev : { ...prev, equipmentTypeId: String(equipmentType.id) }))
   }, [equipment, equipmentType.id, setState])
 
-  const canSubmit = Boolean(state.name && state.equipmentTypeId && state.roomId && state.owningDepartmentId)
+  // Runs after the render that marked fields invalid.
+  useEffect(() => {
+    if (focusRequest > 0) focusFirstInvalidField(containerRef.current)
+  }, [focusRequest])
 
   async function handleSubmit() {
     setError(null)
+    const clientErrors = validateEquipmentForm(state)
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors)
+      setError('Check the highlighted fields.')
+      setFocusRequest((n) => n + 1)
+      return
+    }
     setIsSubmitting(true)
     try {
       const request = { ...toEquipmentRequest(state), equipmentTypeId: Number(state.equipmentTypeId) || equipmentType.id }
@@ -171,28 +196,47 @@ function EquipmentUnitForm({
       }
       onDone()
     } catch (err) {
-      setError(apiErrorMessage(err))
+      const fields = fieldErrors(err)
+      if (fields && hasVisibleFieldError(fields)) {
+        setErrors(fields)
+        setError('Check the highlighted fields.')
+        setFocusRequest((n) => n + 1)
+      } else if (isConflict(err)) {
+        toast.error(err.message)
+      } else {
+        setError(apiErrorMessage(err))
+      }
     } finally {
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-md border border-border bg-card p-4">
+    <div ref={containerRef} className="flex flex-col gap-4 rounded-md border border-border bg-card p-4">
       <h4 className="text-sm font-semibold text-foreground">{equipment ? `Edit ${equipment.name}` : 'Add unit'}</h4>
 
-      <EquipmentFormFields state={state} setState={setState} />
+      <EquipmentFormFields
+        state={state}
+        setState={setState}
+        errors={errors}
+        setErrors={setErrors}
+        currentOwner={equipment?.owner ?? null}
+      />
 
       {equipment && <StatusField equipment={equipment} />}
       {equipment && <ScienceOfficersField equipment={equipment} />}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onDone}>
           Cancel
         </Button>
-        <Button size="sm" disabled={isSubmitting || !canSubmit} onClick={handleSubmit}>
+        <Button size="sm" disabled={isSubmitting} onClick={handleSubmit}>
           {isSubmitting ? 'Saving…' : 'Save changes'}
         </Button>
       </div>

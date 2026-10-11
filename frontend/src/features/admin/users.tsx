@@ -48,8 +48,9 @@ interface CreateUserRequest {
 // Investigators tab instead, so they're not offered as a role here.
 const CREATABLE_ROLES: UserRole[] = ['SuperAdmin', 'ScienceOfficer', 'Researcher']
 
-export function useUsers() {
-  return useQuery({ queryKey: ['users'], queryFn: () => apiClient.get<User[]>('/users') })
+// /users is SuperAdmin-only; pass enabled=false for other roles to skip the 403.
+export function useUsers(enabled = true) {
+  return useQuery({ queryKey: ['users'], queryFn: () => apiClient.get<User[]>('/users'), enabled })
 }
 
 function useCreateUser() {
