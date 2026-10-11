@@ -24,6 +24,11 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await WriteProblemAsync(context, StatusCodes.Status409Conflict, "Conflict", ex.Message);
         }
+        catch (TooManyRequestsException ex)
+        {
+            context.Response.Headers.RetryAfter = ((int)Math.Ceiling(ex.RetryAfter.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            await WriteProblemAsync(context, StatusCodes.Status429TooManyRequests, "Too Many Requests", ex.Message);
+        }
         catch (FluentValidation.ValidationException ex)
         {
             var errors = ex.Errors

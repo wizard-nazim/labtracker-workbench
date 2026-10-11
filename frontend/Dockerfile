@@ -8,6 +8,9 @@ COPY . .
 # Empty by default: the app calls same-origin /api, which nginx proxies.
 ARG VITE_API_BASE_URL=
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# Public OAuth client ID; leave empty to hide the "Sign in with Google" button.
+ARG VITE_GOOGLE_CLIENT_ID=
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 FROM nginx:1.27-alpine

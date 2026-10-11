@@ -22,6 +22,19 @@ export class ApiError extends Error {
   }
 }
 
+// Fired when the API rejects the stored token (expired or revoked). AuthProvider
+// listens for it and signs the user out.
+export const AUTH_EXPIRED_EVENT = 'labtracker:auth-expired'
+
+// A 401 on a request that carried a token means the session is over. A 401
+// without one (e.g. a wrong password at sign-in) is just a failed attempt.
+function handleUnauthorized(response: Response, sentToken: boolean) {
+  if (response.status === 401 && sentToken) {
+    authStorage.clearToken()
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = authStorage.getToken()
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -34,6 +47,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
+    handleUnauthorized(response, Boolean(token))
     const body = (await response.json().catch(() => null)) as ApiErrorBody | null
     const message = body?.detail ?? body?.title ?? response.statusText
     throw new ApiError(response.status, message, body)
@@ -56,6 +70,7 @@ async function uploadFile<T>(path: string, file: File): Promise<T> {
   })
 
   if (!response.ok) {
+    handleUnauthorized(response, Boolean(token))
     const body = (await response.json().catch(() => null)) as ApiErrorBody | null
     const message = body?.detail ?? body?.title ?? response.statusText
     throw new ApiError(response.status, message, body)

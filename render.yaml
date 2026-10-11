@@ -1,0 +1,43 @@
+# Render Blueprint for the LabTracker API (free web service, Docker).
+# Render dashboard → New → Blueprint → pick this repo. Values marked
+# `sync: false` are asked for once in the dashboard and never stored here.
+# The frontend is deployed separately on Vercel (frontend/vercel.json).
+services:
+  - type: web
+    name: labtracker-api
+    runtime: docker
+    plan: free
+    # Next to the Supabase project's region (Europe) to keep queries fast.
+    region: frankfurt
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: "8080"
+      # Workstation GC: smaller memory footprint for the free plan's 512 MB.
+      - key: DOTNET_gcServer
+        value: "0"
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      - key: Jwt__SigningKey
+        generateValue: true
+      - key: Google__ClientId
+        sync: false
+      - key: Bootstrap__AdminEmail
+        sync: false
+      - key: Bootstrap__AdminPassword
+        sync: false
+      - key: Minio__ServiceUrl
+        sync: false
+      - key: Minio__AccessKey
+        sync: false
+      - key: Minio__SecretKey
+        sync: false
+      - key: Minio__Bucket
+        value: labtracker-equipment
+      - key: Minio__PublicBaseUrl
+        sync: false

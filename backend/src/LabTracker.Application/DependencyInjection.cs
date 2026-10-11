@@ -20,6 +20,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssemblyContaining<UpsertEquipmentRequestValidator>();
 
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<LoginAttemptThrottle>();
         services.AddScoped<AuthService>();
         services.AddScoped<AccountService>();
         services.AddScoped<UserService>();

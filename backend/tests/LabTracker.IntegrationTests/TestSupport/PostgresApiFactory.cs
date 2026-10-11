@@ -1,8 +1,11 @@
+using LabTracker.Application.Modules.Identity;
 using LabTracker.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace LabTracker.IntegrationTests.TestSupport;
@@ -49,6 +52,16 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+
+        // Every test signs in from the same address; keep the login limiter out
+        // of the way except in the tests that lower it on purpose.
+        builder.UseSetting("RateLimiting:Login:PermitLimit", "100000");
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.RemoveAll<IGoogleTokenValidator>();
+            services.AddSingleton<IGoogleTokenValidator>(new StubGoogleTokenValidator());
+        });
     }
 
     public async Task ResetDatabaseAsync()

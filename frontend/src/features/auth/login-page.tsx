@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/auth-context'
+import { ApiError } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,9 +9,20 @@ import { MagicCard } from '@/components/ui/magic-card'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { OrbitMark } from './orbit-mark'
 import { LoginBackground } from './constellation-background'
+import { GoogleSignInButton } from './google-sign-in-button'
+
+function signInErrorMessage(err: unknown, method: 'password' | 'google'): string {
+  if (err instanceof ApiError && err.status === 429) return 'Too many sign-in attempts. Please wait a few minutes and try again.'
+  if (err instanceof ApiError && err.status === 401) {
+    return method === 'google'
+      ? "This Google account isn't registered in LabTracker. Ask an admin to add your email."
+      : 'Incorrect email or password.'
+  }
+  return 'Could not sign in right now. Please try again.'
+}
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { user, login, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -19,20 +31,28 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  const from = (location.state as { from?: Location })?.from?.pathname ?? '/'
+
+  async function signIn(method: 'password' | 'google', attempt: () => Promise<void>) {
     setError(null)
     setIsSubmitting(true)
     try {
-      await login(email, password)
-      const from = (location.state as { from?: Location })?.from?.pathname ?? '/'
+      await attempt()
       navigate(from, { replace: true })
-    } catch {
-      setError('Incorrect email or password.')
+    } catch (err) {
+      setError(signInErrorMessage(err, method))
     } finally {
       setIsSubmitting(false)
     }
   }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    void signIn('password', () => login(email, password))
+  }
+
+  // Already signed in (e.g. a bookmarked /login): go straight to the app.
+  if (user && !isSubmitting) return <Navigate to={from} replace />
 
   return (
     <div className="relative flex min-h-svh flex-col items-center justify-center gap-10 bg-background px-4 py-12 lg:flex-row lg:gap-16">
@@ -103,6 +123,8 @@ export function LoginPage() {
             <Button type="submit" disabled={isSubmitting} className="mt-2">
               {isSubmitting ? 'Signing in…' : 'Sign in'}
             </Button>
+
+            <GoogleSignInButton onCredential={(credential) => void signIn('google', () => loginWithGoogle(credential))} />
           </form>
         </MagicCard>
       </div>
