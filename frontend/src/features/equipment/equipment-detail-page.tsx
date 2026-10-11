@@ -224,13 +224,18 @@ export function EquipmentDetailPage() {
                     <ul className="flex flex-col gap-1">
                       {officers.map((officer) => (
                         <li key={officer.userId} className="flex flex-wrap items-center gap-x-1.5">
-                          <a
-                            href={`mailto:${officer.email}`}
-                            className="inline-flex min-w-0 items-start gap-1 text-primary underline-offset-2 hover:underline"
-                          >
-                            <Mail className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                            <span className="break-all">{officer.email}</span>
-                          </a>
+                          {/* Imported officers keep a placeholder address until an admin sets their real one. */}
+                          {officer.email.endsWith('.invalid') ? (
+                            <span>{officer.name ?? 'Science officer'}</span>
+                          ) : (
+                            <a
+                              href={`mailto:${officer.email}`}
+                              className="inline-flex min-w-0 items-start gap-1 text-primary underline-offset-2 hover:underline"
+                            >
+                              <Mail className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                              <span className="break-all">{officer.name ?? officer.email}</span>
+                            </a>
+                          )}
                           {officer.isPrimary && officers.length > 1 && (
                             <span className="text-xs text-muted-foreground">(main contact)</span>
                           )}

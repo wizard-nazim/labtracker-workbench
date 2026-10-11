@@ -52,6 +52,8 @@ public class ScienceOfficerAssignmentDto
 {
     public int UserId { get; set; }
     public string Email { get; set; } = string.Empty;
+    // From the linked PI or researcher profile; null when there isn't one.
+    public string? Name { get; set; }
     public bool IsPrimary { get; set; }
 }
 

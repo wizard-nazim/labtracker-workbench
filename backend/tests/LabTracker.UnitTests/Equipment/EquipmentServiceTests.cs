@@ -147,6 +147,21 @@ public class EquipmentServiceTests
     }
 
     [Fact]
+    public async Task GetById_ReturnsScienceOfficerNamesFromTheirProfile()
+    {
+        var g = Arrange();
+        var so = g.Db.AddUser("so@labtracker.local", Role.ScienceOfficer);
+        g.Db.Researchers.Add(new Researcher { FullName = "Thandi Mokoena", StudentNumber = "SO-1", UserId = so.Id });
+        var equipment = g.Db.AddEquipment(g.Room, g.Type, g.Department);
+        g.Db.EquipmentScienceOfficers.Add(new LabTracker.Domain.Modules.Equipment.EquipmentScienceOfficer { EquipmentId = equipment.Id, UserId = so.Id, IsPrimary = true });
+        g.Db.SaveChanges();
+
+        var result = await g.Sut.GetByIdAsync(equipment.Id);
+
+        result.ScienceOfficers.Should().ContainSingle().Which.Name.Should().Be("Thandi Mokoena");
+    }
+
+    [Fact]
     public async Task Create_WithDeactivatedOwner_IsRejected()
     {
         var g = Arrange();

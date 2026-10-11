@@ -10,6 +10,7 @@ export interface EntityReference {
 export interface ScienceOfficerAssignment {
   userId: number
   email: string
+  name: string | null
   isPrimary: boolean
 }
 
