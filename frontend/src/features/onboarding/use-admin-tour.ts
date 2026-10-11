@@ -61,7 +61,9 @@ export function useAdminTour() {
   const tour = useTour(steps, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
   return {
     ...tour,
-    run: tour.run && (startedOnHub || manual),
+    // Waits for the general app tour to finish first, so two tours never
+    // overlap on someone's first visit.
+    run: tour.run && (manual || (startedOnHub && me?.hasCompletedOnboarding === true)),
     restart: () => {
       setManual(true)
       tour.restart()
