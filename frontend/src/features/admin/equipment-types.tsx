@@ -17,6 +17,8 @@ import { TableEmptyState } from '@/components/table-empty-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { apiErrorMessage } from '@/lib/api-error-message'
 import { EquipmentUnitsPanel } from './equipment-units-panel'
 
 export interface EquipmentType {
@@ -32,7 +34,7 @@ export function useEquipmentTypes() {
   return useQuery({ queryKey: ['equipment-types'], queryFn: () => apiClient.get<EquipmentType[]>('/equipment-types') })
 }
 
-function useCreateEquipmentType() {
+export function useCreateEquipmentType() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertEquipmentTypeRequest) => apiClient.post<EquipmentType>('/equipment-types', request),
@@ -46,6 +48,43 @@ function useUpdateEquipmentType(id: number) {
     mutationFn: (request: UpsertEquipmentTypeRequest) => apiClient.put<EquipmentType>(`/equipment-types/${id}`, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment-types'] }),
   })
+}
+
+function useDeleteEquipmentType() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete<void>(`/equipment-types/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment-types'] }),
+  })
+}
+
+function DeleteEquipmentTypeButton({ equipmentType, onDeleted }: { equipmentType: EquipmentType; onDeleted: () => void }) {
+  const remove = useDeleteEquipmentType()
+
+  async function handleDelete() {
+    try {
+      await remove.mutateAsync(equipmentType.id)
+      toast.success('Deleted')
+      onDeleted()
+    } catch (err) {
+      toast.error(`Couldn't delete "${equipmentType.name}". ${apiErrorMessage(err)}`)
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} aria-label={`Delete ${equipmentType.name}`}>
+          Delete
+        </Button>
+      }
+      title={`Delete "${equipmentType.name}"?`}
+      description="Only types no equipment uses can be deleted. This can't be undone."
+      confirmLabel="Delete type"
+      destructive
+      onConfirm={handleDelete}
+    />
+  )
 }
 
 function CreateEquipmentTypeDialog() {
@@ -156,6 +195,10 @@ export function EquipmentTypesTab() {
                     Manage units
                   </Button>
                   <EditEquipmentTypeDialog equipmentType={type} />
+                  <DeleteEquipmentTypeButton
+                    equipmentType={type}
+                    onDeleted={() => managingTypeId === type.id && setManagingTypeId(null)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
