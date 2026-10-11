@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { FlaskConical } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
-import { PageBanner } from '@/components/page-banner'
 import {
   Select,
   SelectContent,
@@ -48,8 +47,6 @@ export function EquipmentListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageBanner src="/banners/equipment-banner.jpg" alt="Equipment" />
-
       <PageHeader
         icon={FlaskConical}
         title="Equipment"

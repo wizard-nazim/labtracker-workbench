@@ -7,7 +7,6 @@ import { useAuth } from '@/context/auth-context'
 import { ROLE_LABEL } from '@/types/roles'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/page-header'
-import { PageBanner } from '@/components/page-banner'
 
 type Tone = 'primary' | 'available' | 'maintenance'
 
@@ -120,8 +119,6 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageBanner src="/banners/overview-banner.jpg" alt="Lab equipment overview" />
-
       <PageHeader
         icon={Gauge}
         title="Overview"

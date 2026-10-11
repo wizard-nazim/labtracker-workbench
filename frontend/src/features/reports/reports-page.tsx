@@ -11,7 +11,6 @@ import {
   YAxis,
 } from 'recharts'
 import { PageHeader } from '@/components/page-header'
-import { PageBanner } from '@/components/page-banner'
 import {
   Select,
   SelectContent,
@@ -77,8 +76,6 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageBanner src="/banners/reports-banner.jpg" alt="Reports" />
-
       <PageHeader
         icon={BarChart3}
         title="Reports"
