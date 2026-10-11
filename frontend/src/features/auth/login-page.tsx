@@ -6,6 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { DEPARTMENT_NAME, UctShield } from '@/components/brand-mark'
+import { BrandFooter } from '@/components/brand-footer'
+import { ChemistryMark } from '@/components/chemistry-mark'
+import { FloatingPathsBackground } from '@/components/ui/floating-paths'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -83,56 +86,67 @@ export function LoginPage() {
         </div>
       </section>
 
-      <div className="relative flex flex-1 flex-col items-center px-4 pt-14 pb-10 sm:px-8 lg:justify-center lg:py-12">
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
+      {/* Faint brand-tinted paths drift behind the form; the form itself sits
+          on a near-opaque surface so its text keeps full contrast. */}
+      <FloatingPathsBackground
+        position={1}
+        mirrored
+        className="flex flex-1 flex-col px-4 pt-14 pb-4 sm:px-8 lg:min-h-svh lg:pt-12"
+      >
+        <div className="absolute top-3 right-3 z-10 sm:top-4 sm:right-4">
           <ThemeToggle />
         </div>
 
-        <div
-          className="w-full max-w-sm opacity-0"
-          style={{ animation: 'labtracker-fade-in 500ms ease-out 200ms forwards' }}
-        >
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Use your LabTracker email and password.</p>
+        <div className="flex flex-1 flex-col items-center lg:justify-center">
+          <div
+            className="w-full max-w-sm rounded-xl bg-background/85 p-5 opacity-0 ring-1 ring-border/70 backdrop-blur-sm sm:p-6"
+            style={{ animation: 'labtracker-fade-in 500ms ease-out 200ms forwards' }}
+          >
+            <ChemistryMark className="mb-4 size-14" />
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Use your LabTracker email and password.</p>
 
-          <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="username"
-                required
-                className="h-10"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="h-10"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+            <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="username"
+                  required
+                  className="h-10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  className="h-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
 
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
 
-            <Button type="submit" disabled={isSubmitting} className="mt-2 h-10">
-              {isSubmitting ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
+              <Button type="submit" disabled={isSubmitting} className="mt-2 h-10">
+                {isSubmitting ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+          </div>
         </div>
-      </div>
+
+        <BrandFooter className="mx-auto w-full max-w-xl" />
+      </FloatingPathsBackground>
     </div>
   )
 }
