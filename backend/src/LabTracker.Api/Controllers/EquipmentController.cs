@@ -31,6 +31,24 @@ public class EquipmentController(EquipmentService service) : ControllerBase
     public async Task<ActionResult<EquipmentDto>> Update(int id, UpsertEquipmentRequest request, CancellationToken cancellationToken)
         => Ok(await service.UpdateAsync(id, request, User.GetUserId(), User.GetRole(), cancellationToken));
 
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await service.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/archive")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<ActionResult<EquipmentDto>> Archive(int id, CancellationToken cancellationToken)
+        => Ok(await service.ArchiveAsync(id, User.GetUserId(), cancellationToken));
+
+    [HttpPost("{id:int}/unarchive")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<ActionResult<EquipmentDto>> Unarchive(int id, CancellationToken cancellationToken)
+        => Ok(await service.UnarchiveAsync(id, User.GetUserId(), cancellationToken));
+
     [HttpPatch("{id:int}/status")]
     public async Task<ActionResult<EquipmentDto>> UpdateStatus(int id, UpdateEquipmentStatusRequest request, CancellationToken cancellationToken)
     {

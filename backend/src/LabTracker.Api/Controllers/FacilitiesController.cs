@@ -29,4 +29,12 @@ public class FacilitiesController(FacilityService service) : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     public async Task<ActionResult<FacilityDto>> Update(int id, UpsertFacilityRequest request, CancellationToken cancellationToken)
         => Ok(await service.UpdateAsync(id, request, cancellationToken));
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        await service.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

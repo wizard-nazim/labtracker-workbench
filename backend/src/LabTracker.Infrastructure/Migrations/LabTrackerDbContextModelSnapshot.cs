@@ -197,6 +197,9 @@ namespace LabTracker.Infrastructure.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
@@ -219,7 +222,16 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("OwnerUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OwnershipType")
+                        .HasColumnType("integer");
+
                     b.Property<int>("OwningDepartmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ResearchGroupId")
                         .HasColumnType("integer");
 
                     b.Property<int>("RoomId")
@@ -232,11 +244,18 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EquipmentTypeId");
 
+                    b.HasIndex("OwnerUserId");
+
                     b.HasIndex("OwningDepartmentId");
+
+                    b.HasIndex("ResearchGroupId");
 
                     b.HasIndex("RoomId");
 
@@ -792,11 +811,21 @@ namespace LabTracker.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", "OwnerUser")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LabTracker.Domain.Modules.Organization.Department", "OwningDepartment")
                         .WithMany()
                         .HasForeignKey("OwningDepartmentId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("LabTracker.Domain.Modules.Organization.ResearchGroup", "ResearchGroup")
+                        .WithMany()
+                        .HasForeignKey("ResearchGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("LabTracker.Domain.Modules.Equipment.Room", "Room")
                         .WithMany()
@@ -806,7 +835,11 @@ namespace LabTracker.Infrastructure.Migrations
 
                     b.Navigation("EquipmentType");
 
+                    b.Navigation("OwnerUser");
+
                     b.Navigation("OwningDepartment");
+
+                    b.Navigation("ResearchGroup");
 
                     b.Navigation("Room");
                 });

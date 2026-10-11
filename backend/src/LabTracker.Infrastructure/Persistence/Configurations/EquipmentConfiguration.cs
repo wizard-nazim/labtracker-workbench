@@ -24,5 +24,13 @@ public class EquipmentConfiguration : IEntityTypeConfiguration<EquipmentEntity>
         builder.HasOne(e => e.OwningDepartment)
             .WithMany()
             .HasForeignKey(e => e.OwningDepartmentId);
+
+        builder.HasOne(e => e.OwnerUser)
+            .WithMany()
+            .HasForeignKey(e => e.OwnerUserId);
+
+        builder.HasOne(e => e.ResearchGroup)
+            .WithMany()
+            .HasForeignKey(e => e.ResearchGroupId);
     }
 }

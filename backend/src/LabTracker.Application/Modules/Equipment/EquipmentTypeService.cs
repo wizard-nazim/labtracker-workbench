@@ -47,4 +47,19 @@ public class EquipmentTypeService(IApplicationDbContext db, IValidator<UpsertEqu
 
         return new EquipmentTypeDto { Id = type.Id, Name = type.Name };
     }
+
+    public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var type = await db.EquipmentTypes.FindAsync([id], cancellationToken)
+            ?? throw new NotFoundException(nameof(EquipmentTypeEntity), id);
+
+        var usedBy = await db.Equipment.CountAsync(e => e.EquipmentTypeId == id, cancellationToken);
+        if (usedBy > 0)
+        {
+            throw new ConflictException($"In use by {usedBy} equipment.");
+        }
+
+        db.EquipmentTypes.Remove(type);
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }

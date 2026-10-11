@@ -1,3 +1,4 @@
+using LabTracker.Domain.Modules.Identity;
 using LabTracker.Domain.Modules.Organization;
 using LabTracker.Shared.Enums;
 
@@ -28,6 +29,22 @@ public class Equipment
     // responsible / funds it) is separate from IsShared (who else may use it).
     public int OwningDepartmentId { get; set; }
     public Department OwningDepartment { get; set; } = null!;
+
+    // Department-owned by default; Individual names one person in OwnerUserId
+    // (only set when OwnershipType is Individual).
+    public OwnershipType OwnershipType { get; set; } = OwnershipType.Department;
+    public int? OwnerUserId { get; set; }
+    public User? OwnerUser { get; set; }
+
+    // The lab this equipment belongs to, if any. Prefilled from the room's lab
+    // in the UI but stored separately, since equipment can sit in a shared room
+    // while belonging to one lab (and usage reports attribute by this first).
+    public int? ResearchGroupId { get; set; }
+    public ResearchGroup? ResearchGroup { get; set; }
+
+    // UTC, set by EquipmentService (same pattern as Booking.CreatedAt).
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
     public ICollection<EquipmentScienceOfficer> ScienceOfficers { get; set; } = new List<EquipmentScienceOfficer>();
 }
