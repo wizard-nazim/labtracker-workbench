@@ -75,16 +75,16 @@ public class UniqueActorsAndLowercaseEmailsTests(PostgresApiFactory factory) : I
             var creator = await SeedUserAsync("admin@labtracker.local", Role.SuperAdmin);
             await db.Database.ExecuteSqlRawAsync("""UPDATE "Users" SET "Email" = 'Admin@LabTracker.local' WHERE "Id" = {0}""", creator.Id);
 
-            var researcher = await SeedResearcherAsync(db);
+            var researcher = await SeedResearcherAsync(db, schemaIsOlderThanTheModel: true);
             var keep = NewActor(researcher.Id);
             var duplicate = NewActor(researcher.Id);
             db.UsageActors.AddRange(keep, duplicate);
             await db.SaveChangesAsync();
 
-            var equipment = await db.Equipment.SingleAsync();
+            var equipmentId = await db.Database.SqlQueryRaw<int>("""SELECT "Id" AS "Value" FROM "Equipment" """).SingleAsync();
             db.Bookings.Add(new BookingEntity
             {
-                EquipmentId = equipment.Id,
+                EquipmentId = equipmentId,
                 ActorId = duplicate.Id,
                 ScheduledStart = DateTime.UtcNow.AddHours(2),
                 ScheduledEnd = DateTime.UtcNow.AddHours(3),
@@ -115,14 +115,30 @@ public class UniqueActorsAndLowercaseEmailsTests(PostgresApiFactory factory) : I
         DisplayNameSnapshot = "Nadia Petrov",
     };
 
-    private static async Task<LabTracker.Domain.Modules.Organization.Researcher> SeedResearcherAsync(LabTrackerDbContext db)
+    // schemaIsOlderThanTheModel: the database has been migrated back to an
+    // earlier migration, so Equipment is inserted with raw SQL using only the
+    // columns that existed then (the EF model has since gained more).
+    private static async Task<LabTracker.Domain.Modules.Organization.Researcher> SeedResearcherAsync(LabTrackerDbContext db, bool schemaIsOlderThanTheModel = false)
     {
         var department = await db.AddDepartmentAsync();
         var pi = await db.AddPrincipalInvestigatorAsync(department);
         var group = await db.AddResearchGroupAsync(department, pi);
         var room = await db.AddRoomAsync(department);
         var type = await db.AddEquipmentTypeAsync();
-        await db.AddEquipmentAsync(room, type, department);
+        if (schemaIsOlderThanTheModel)
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                INSERT INTO "Equipment" ("Name", "IsShared", "Status", "EquipmentTypeId", "RoomId", "OwningDepartmentId")
+                VALUES ('Centrifuge X200', true, 0, {0}, {1}, {2})
+                """,
+                type.Id, room.Id, department.Id);
+        }
+        else
+        {
+            await db.AddEquipmentAsync(room, type, department);
+        }
+
         return await db.AddResearcherAsync(group);
     }
 }
