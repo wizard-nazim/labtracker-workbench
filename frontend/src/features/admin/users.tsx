@@ -3,19 +3,12 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
+import { KeyRound, UserCheck, UserX } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
+import { apiErrorMessage } from '@/lib/api-error-message'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -85,7 +78,7 @@ function CreateUserDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add user</Button>}
+      trigger={<AddButton>Add user</AddButton>}
       title="Add user"
       description="They can sign in immediately with this email and password."
       submitLabel="Add user"
@@ -135,7 +128,15 @@ function useUpdateUserLogin(id: number) {
 
 // Mainly for imported science officers, who arrive with a placeholder email
 // and no usable password; also fixes a typo'd email on any account.
-function EditLoginDialog({ user }: { user: User }) {
+function EditLoginDialog({
+  user,
+  open,
+  onOpenChange,
+}: {
+  user: User
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [email, setEmail] = useState(user.email)
   const [password, setPassword] = useState('')
   const updateLogin = useUpdateUserLogin(user.id)
@@ -148,11 +149,8 @@ function EditLoginDialog({ user }: { user: User }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost" aria-label={`Edit login for ${user.email}`}>
-          Edit login
-        </Button>
-      }
+      open={open}
+      onOpenChange={onOpenChange}
       title="Edit login"
       description="Change the email this person signs in with, and optionally set a new password."
       submitLabel="Save login"
@@ -187,18 +185,36 @@ function EditLoginDialog({ user }: { user: User }) {
   )
 }
 
-function StatusToggleButton({ user }: { user: User }) {
+function StatusBadge({ user }: { user: User }) {
+  return <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
+}
+
+function UserActions({ user }: { user: User }) {
+  const dialog = useRowDialog<'login'>()
   const updateStatus = useUpdateUserStatus(user.id)
 
-  async function handleClick() {
-    await updateStatus.mutateAsync(!user.isActive)
-    toast.success(user.isActive ? `Deactivated "${user.email}".` : `Activated "${user.email}".`)
+  async function toggleStatus() {
+    try {
+      await updateStatus.mutateAsync(!user.isActive)
+      toast.success(user.isActive ? `Deactivated "${user.email}".` : `Activated "${user.email}".`)
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    }
   }
 
   return (
-    <Button size="sm" variant="ghost" disabled={updateStatus.isPending} onClick={handleClick}>
-      {user.isActive ? 'Deactivate' : 'Activate'}
-    </Button>
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={user.email}
+        actions={[
+          { label: 'Edit login', icon: KeyRound, onSelect: () => dialog.show('login') },
+          user.isActive
+            ? { label: 'Deactivate', icon: UserX, onSelect: toggleStatus, disabled: updateStatus.isPending, destructive: true }
+            : { label: 'Activate', icon: UserCheck, onSelect: toggleStatus, disabled: updateStatus.isPending },
+        ]}
+      />
+      {dialog.mounted === 'login' && <EditLoginDialog key={dialog.session} user={user} {...dialog.bind('login')} />}
+    </>
   )
 }
 
@@ -206,56 +222,41 @@ export function UsersTab() {
   const { data: users, isLoading, isError } = useUsers()
 
   return (
-    <AdminSection title="Users" description="Accounts that can sign in to LabTracker." action={<CreateUserDialog />}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead className="hidden md:table-cell">Phone</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={5}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={5}
-              tone="error"
-              title="Couldn't load users."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && users?.length === 0 && <TableEmptyState colSpan={5} title="No users yet." />}
-
-          {users?.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell className="font-medium text-foreground">{user.email}</TableCell>
-              <TableCell className="text-muted-foreground">{ROLE_LABEL[user.role]}</TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">{user.phone ?? '—'}</TableCell>
-              <TableCell>
-                <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
-                  <EditLoginDialog user={user} />
-                  <StatusToggleButton user={user} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <AdminSection title="Users" description="Everyone who can sign in, and what they're allowed to do." action={<CreateUserDialog />}>
+      <ResponsiveList
+        items={users}
+        isLoading={isLoading}
+        isError={isError}
+        noun="users"
+        getKey={(u) => u.id}
+        search={{
+          label: 'Search users',
+          placeholder: 'Search by email or role',
+          text: (u) => `${u.email} ${ROLE_LABEL[u.role]} ${u.phone ?? ''}`,
+        }}
+        empty={{ title: 'No users yet.', description: 'Add the first user so they can sign in.' }}
+        columns={[
+          { key: 'email', header: 'Email', cell: (u) => <span className="font-medium text-foreground wrap-anywhere">{u.email}</span> },
+          { key: 'role', header: 'Role', cell: (u) => <span className="text-muted-foreground">{ROLE_LABEL[u.role]}</span> },
+          {
+            key: 'phone',
+            header: 'Phone',
+            className: 'hidden lg:table-cell',
+            cell: (u) => <span className="text-muted-foreground">{u.phone ?? '—'}</span>,
+          },
+          { key: 'status', header: 'Status', cell: (u) => <StatusBadge user={u} /> },
+        ]}
+        renderCard={(u) => (
+          <>
+            <p className="font-medium text-foreground wrap-anywhere">{u.email}</p>
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              {ROLE_LABEL[u.role]}
+              <StatusBadge user={u} />
+            </div>
+          </>
+        )}
+        renderActions={(u) => <UserActions user={u} />}
+      />
     </AdminSection>
   )
 }

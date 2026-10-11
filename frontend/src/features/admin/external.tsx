@@ -4,26 +4,19 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { apiErrorMessage } from '@/lib/api-error-message'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
+import { Pencil, Users } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import type { ExternalOrganization } from '@/features/external/types'
 import { useExternalOrganizations } from '@/features/external/use-external'
@@ -73,7 +66,7 @@ function CreateExternalOrganizationDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add external org</Button>}
+      trigger={<AddButton>Add organization</AddButton>}
       title="Add external organization"
       submitLabel="Add"
       onSubmit={handleSubmit}
@@ -86,8 +79,16 @@ function CreateExternalOrganizationDialog() {
   )
 }
 
-function EditExternalOrganizationDialog({ externalOrganization }: { externalOrganization: ExternalOrganization }) {
-  const [open, setOpen] = useState(false)
+interface ControlledDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}
+
+function EditExternalOrganizationDialog({
+  externalOrganization,
+  open,
+  onOpenChange,
+}: { externalOrganization: ExternalOrganization } & ControlledDialogProps) {
   const [name, setName] = useState(externalOrganization.name)
   const update = useUpdateExternalOrganization(externalOrganization.id)
 
@@ -98,16 +99,11 @@ function EditExternalOrganizationDialog({ externalOrganization }: { externalOrga
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Rename
-        </Button>
-      }
-      title="Rename external organization"
+      title="Rename organization"
       submitLabel="Save changes"
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="edit-external-org-name">Name</Label>
@@ -117,7 +113,11 @@ function EditExternalOrganizationDialog({ externalOrganization }: { externalOrga
   )
 }
 
-function ManageContactsDialog({ externalOrganization }: { externalOrganization: ExternalOrganization }) {
+function ManageContactsDialog({
+  externalOrganization,
+  open,
+  onOpenChange,
+}: { externalOrganization: ExternalOrganization } & ControlledDialogProps) {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -149,32 +149,36 @@ function ManageContactsDialog({ externalOrganization }: { externalOrganization: 
   }
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="ghost">
-          Contacts ({externalOrganization.contacts.length})
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{externalOrganization.name} — contacts</DialogTitle>
+          <DialogTitle>Contacts at {externalOrganization.name}</DialogTitle>
+          <DialogDescription>People here who can be booked in for shared equipment.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          {externalOrganization.contacts.length === 0 && <p className="text-sm text-muted-foreground">No contacts yet.</p>}
+          {externalOrganization.contacts.length === 0 && (
+            <p className="text-sm text-muted-foreground">No contacts yet. Add the first one below.</p>
+          )}
           {externalOrganization.contacts.map((contact) => (
             <div
               key={contact.id}
-              className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+              className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
             >
-              <div>
+              <div className="min-w-0 wrap-anywhere">
                 <p className="text-sm font-medium text-foreground">{contact.fullName}</p>
                 <p className="text-xs text-muted-foreground">
                   {contact.email}
                   {contact.phone ? `, ${contact.phone}` : ''}
                 </p>
               </div>
-              <Button size="sm" variant="ghost" onClick={() => handleRemove(contact.id)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="shrink-0"
+                aria-label={`Remove ${contact.fullName}`}
+                onClick={() => handleRemove(contact.id)}
+              >
                 Remove
               </Button>
             </div>
@@ -218,58 +222,63 @@ function ManageContactsDialog({ externalOrganization }: { externalOrganization: 
   )
 }
 
+function contactCount(org: ExternalOrganization) {
+  const n = org.contacts.length
+  return n === 0 ? 'No contacts' : n === 1 ? '1 contact' : `${n} contacts`
+}
+
+function ExternalActions({ externalOrganization }: { externalOrganization: ExternalOrganization }) {
+  const dialog = useRowDialog<'contacts' | 'rename'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={externalOrganization.name}
+        actions={[
+          { label: 'Contacts', icon: Users, onSelect: () => dialog.show('contacts') },
+          { label: 'Rename', icon: Pencil, onSelect: () => dialog.show('rename') },
+        ]}
+      />
+      <ManageContactsDialog externalOrganization={externalOrganization} {...dialog.bind('contacts')} />
+      {dialog.mounted === 'rename' && (
+        <EditExternalOrganizationDialog key={dialog.session} externalOrganization={externalOrganization} {...dialog.bind('rename')} />
+      )}
+    </>
+  )
+}
+
 export function ExternalTab() {
   const { data: organizations, isLoading, isError } = useExternalOrganizations()
 
   return (
     <AdminSection
-      title="External"
-      description="External individuals or departments (e.g. from another university) that use shared equipment."
+      title="External contacts"
+      description="Other universities or companies whose people use shared equipment."
       action={<CreateExternalOrganizationDialog />}
     >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={2}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={2}
-              tone="error"
-              title="Couldn't load external organizations."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && organizations?.length === 0 && (
-            <TableEmptyState colSpan={2} title="No external organizations yet." />
-          )}
-
-          {organizations?.map((externalOrganization) => (
-            <TableRow key={externalOrganization.id}>
-              <TableCell className="font-medium text-foreground">{externalOrganization.name}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <ManageContactsDialog externalOrganization={externalOrganization} />
-                  <EditExternalOrganizationDialog externalOrganization={externalOrganization} />
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={organizations}
+        isLoading={isLoading}
+        isError={isError}
+        noun="external organizations"
+        getKey={(o) => o.id}
+        search={{
+          label: 'Search external organizations',
+          placeholder: 'Search by organization or contact',
+          text: (o) => [o.name, ...o.contacts.map((c) => `${c.fullName} ${c.email}`)].join(' '),
+        }}
+        empty={{ title: 'No external organizations yet.', description: 'Add the first organization, then its contacts.' }}
+        columns={[
+          { key: 'name', header: 'Organization', cell: (o) => <span className="font-medium text-foreground">{o.name}</span> },
+          { key: 'contacts', header: 'Contacts', cell: (o) => <span className="text-muted-foreground">{contactCount(o)}</span> },
+        ]}
+        renderCard={(o) => (
+          <>
+            <p className="font-medium text-foreground wrap-anywhere">{o.name}</p>
+            <p className="text-[13px] text-muted-foreground">{contactCount(o)}</p>
+          </>
+        )}
+        renderActions={(o) => <ExternalActions externalOrganization={o} />}
+      />
     </AdminSection>
   )
 }

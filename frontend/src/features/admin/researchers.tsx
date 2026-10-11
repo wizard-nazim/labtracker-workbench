@@ -3,18 +3,10 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Button } from '@/components/ui/button'
+import { Pencil } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -24,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { useResearchGroups } from './research-groups'
 import { useUsers } from './users'
@@ -57,10 +48,10 @@ const ROLE_FILTER_LABEL: Record<RoleFilter, string> = {
 // baseline case, so it stays as quiet text rather than a badge.
 function RoleBadge({ userRole }: { userRole: UserRole | null }) {
   if (userRole === 'ScienceOfficer') {
-    return <Badge className="bg-teal-500/10 text-teal-700 dark:text-teal-300">Science Officer</Badge>
+    return <Badge variant="secondary">Science Officer</Badge>
   }
   if (userRole === 'PrincipalInvestigator') {
-    return <Badge className="bg-purple-500/10 text-purple-700 dark:text-purple-300">Principal Investigator</Badge>
+    return <Badge variant="secondary">Principal Investigator</Badge>
   }
   return <span className="text-muted-foreground">Student</span>
 }
@@ -187,7 +178,7 @@ function ResearcherFields({
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label>Research groups (a student can belong to more than one)</Label>
+        <Label>Labs (choose at least one)</Label>
         <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-2">
           {groups?.map((group) => (
             <label key={group.id} className="flex items-center gap-2 text-sm text-foreground">
@@ -232,7 +223,7 @@ function CreateResearcherDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add researcher</Button>}
+      trigger={<AddButton>Add researcher</AddButton>}
       title="Add researcher"
       description="Creates a research profile, optionally linked to an existing login account."
       submitLabel="Add researcher"
@@ -255,8 +246,15 @@ function CreateResearcherDialog() {
   )
 }
 
-function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
-  const [open, setOpen] = useState(false)
+function EditResearcherDialog({
+  researcher,
+  open,
+  onOpenChange,
+}: {
+  researcher: Researcher
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [fullName, setFullName] = useState(researcher.fullName)
   const [studentNumber, setStudentNumber] = useState(researcher.studentNumber)
   const [fieldOfStudy, setFieldOfStudy] = useState<FieldOfStudy | ''>(researcher.fieldOfStudy ?? '')
@@ -277,17 +275,12 @@ function EditResearcherDialog({ researcher }: { researcher: Researcher }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
       title="Edit researcher"
       submitLabel="Save changes"
       submitDisabled={researchGroupIds.length === 0}
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <ResearcherFields
         fullName={fullName}
@@ -312,105 +305,95 @@ function matchesRoleFilter(researcher: Researcher, filter: RoleFilter) {
   return researcher.userRole === filter
 }
 
+function ResearcherActions({ researcher }: { researcher: Researcher }) {
+  const dialog = useRowDialog<'edit'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={researcher.fullName}
+        actions={[{ label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') }]}
+      />
+      {dialog.mounted === 'edit' && <EditResearcherDialog key={dialog.session} researcher={researcher} {...dialog.bind('edit')} />}
+    </>
+  )
+}
+
 export function ResearchersTab() {
   const { data: researchers, isLoading, isError } = useResearchers()
-  const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('All')
-
-  const query = search.trim().toLowerCase()
-  const filtered = (researchers ?? []).filter(
-    (r) =>
-      matchesRoleFilter(r, roleFilter) &&
-      (query === '' || r.fullName.toLowerCase().includes(query) || r.studentNumber.toLowerCase().includes(query)),
-  )
+  const filtered = researchers?.filter((r) => matchesRoleFilter(r, roleFilter))
 
   return (
     <AdminSection
       title="Researchers"
-      description="Students and researchers who use lab equipment."
+      description="Students and staff who book and use equipment."
       action={<CreateResearcherDialog />}
     >
-      <div className="flex flex-col gap-3 border-b border-border p-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input
-            aria-label="Search researchers"
-            placeholder="Search by name or student number…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
-          <SelectTrigger className="sm:w-56" aria-label="Filter by role">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(ROLE_FILTER_LABEL) as RoleFilter[]).map((value) => (
-              <SelectItem key={value} value={value}>
-                {ROLE_FILTER_LABEL[value]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden sm:table-cell">Student no.</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead className="hidden lg:table-cell">Field of study</TableHead>
-            <TableHead className="hidden md:table-cell">Research groups</TableHead>
-            <TableHead className="hidden lg:table-cell">Account</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={7}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={7}
-              tone="error"
-              title="Couldn't load researchers."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && researchers?.length === 0 && (
-            <TableEmptyState colSpan={7} title="No researchers yet." />
-          )}
-
-          {!isLoading && !isError && researchers && researchers.length > 0 && filtered.length === 0 && (
-            <TableEmptyState colSpan={7} title="No researchers match your search." />
-          )}
-
-          {filtered.map((researcher) => (
-            <TableRow key={researcher.id}>
-              <TableCell className="font-medium text-foreground">{researcher.fullName}</TableCell>
-              <TableCell className="hidden font-mono text-xs text-muted-foreground sm:table-cell">{researcher.studentNumber}</TableCell>
-              <TableCell>
-                <RoleBadge userRole={researcher.userRole} />
-              </TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">{researcher.fieldOfStudy ?? '—'}</TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">{researcher.researchGroupNames.join(', ')}</TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">{researcher.userEmail ?? 'No account yet'}</TableCell>
-              <TableCell className="text-right">
-                <EditResearcherDialog researcher={researcher} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={filtered}
+        isLoading={isLoading}
+        isError={isError}
+        noun="researchers"
+        getKey={(r) => r.id}
+        search={{
+          label: 'Search researchers',
+          placeholder: 'Search by name or student number',
+          text: (r) => `${r.fullName} ${r.studentNumber} ${r.userEmail ?? ''}`,
+        }}
+        toolbar={
+          <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as RoleFilter)}>
+            <SelectTrigger className="h-9 w-full sm:w-48" aria-label="Filter by role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(ROLE_FILTER_LABEL) as RoleFilter[]).map((value) => (
+                <SelectItem key={value} value={value}>
+                  {ROLE_FILTER_LABEL[value]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+        empty={
+          roleFilter === 'All'
+            ? { title: 'No researchers yet.', description: 'Add the first researcher and choose their lab.' }
+            : { title: `No researchers with the role ${ROLE_FILTER_LABEL[roleFilter]}.`, description: 'Choose All roles to see everyone.' }
+        }
+        columns={[
+          { key: 'name', header: 'Name', cell: (r) => <span className="font-medium text-foreground">{r.fullName}</span> },
+          {
+            key: 'student',
+            header: 'Student no.',
+            cell: (r) => <span className="text-muted-foreground tabular-nums">{r.studentNumber}</span>,
+          },
+          { key: 'role', header: 'Role', cell: (r) => <RoleBadge userRole={r.userRole} /> },
+          {
+            key: 'labs',
+            header: 'Labs',
+            className: 'hidden lg:table-cell',
+            cell: (r) => <span className="text-muted-foreground">{r.researchGroupNames.join(', ')}</span>,
+          },
+          {
+            key: 'account',
+            header: 'Login',
+            className: 'hidden xl:table-cell',
+            cell: (r) => <span className="text-muted-foreground wrap-anywhere">{r.userEmail ?? 'No login yet'}</span>,
+          },
+        ]}
+        renderCard={(r) => (
+          <>
+            <p className="font-medium text-foreground">{r.fullName}</p>
+            <p className="text-[13px] text-muted-foreground">
+              <span className="tabular-nums">{r.studentNumber}</span>
+              {r.researchGroupNames.length > 0 && `, ${r.researchGroupNames.join(', ')}`}
+            </p>
+            <div className="text-[13px]">
+              <RoleBadge userRole={r.userRole} />
+            </div>
+          </>
+        )}
+        renderActions={(r) => <ResearcherActions researcher={r} />}
+      />
     </AdminSection>
   )
 }

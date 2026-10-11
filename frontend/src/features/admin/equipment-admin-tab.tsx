@@ -1,16 +1,15 @@
-import { useState, type ComponentProps, type ReactNode } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2 } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, Pencil, Trash2, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableEmptyState } from '@/components/table-empty-state'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { ResponsiveList, RowActionsMenu, type ListColumn } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { apiErrorMessage } from '@/lib/api-error-message'
 import { CreateEquipmentDialog, EditEquipmentDialog } from '@/features/equipment/equipment-form-dialog'
+import { EquipmentAvatar } from '@/features/equipment/equipment-avatar'
 import { StatusIndicator } from '@/features/equipment/status-indicator'
 import {
   useArchiveEquipment,
@@ -21,9 +20,10 @@ import {
   type SortDirection,
 } from '@/features/equipment/use-equipment'
 import type { Equipment } from '@/features/equipment/types'
-import { AdminSection } from './admin-section'
+import { AddButton, AdminSection } from './admin-section'
+import { useEquipmentTypes } from './equipment-types'
 
-const COLUMN_COUNT = 8
+const ALL_TYPES = 'all'
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' })
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -31,7 +31,7 @@ const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium',
 // Dates sort newest first on the first click; names A to Z.
 const DEFAULT_DIR: Record<EquipmentSort, SortDirection> = { name: 'asc', createdAt: 'desc', updatedAt: 'desc' }
 
-// For narrow screens, where the Created/Updated columns are hidden.
+// For phones, where there are no column headers to click.
 const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'name:asc', label: 'Name, A to Z' },
   { value: 'name:desc', label: 'Name, Z to A' },
@@ -41,11 +41,21 @@ const SORT_OPTIONS: { value: string; label: string }[] = [
   { value: 'updatedAt:asc', label: 'Least recently updated' },
 ]
 
-export function EquipmentAdminTab() {
+export function EquipmentAdminTab({
+  typeId,
+  onTypeChange,
+}: {
+  // The type to show, as a string id, or null for every type.
+  typeId: string | null
+  onTypeChange: (typeId: string | null) => void
+}) {
   const [sort, setSort] = useState<EquipmentSort>('name')
   const [dir, setDir] = useState<SortDirection>('asc')
   const [includeArchived, setIncludeArchived] = useState(false)
   const { data: equipment, isLoading, isError } = useEquipment('All', { sort, dir, includeArchived })
+  const { data: types } = useEquipmentTypes()
+  const typeName = types?.find((t) => String(t.id) === typeId)?.name
+  const items = typeId ? equipment?.filter((e) => String(e.equipmentTypeId) === typeId) : equipment
 
   function sortBy(column: EquipmentSort) {
     if (column === sort) {
@@ -56,229 +66,244 @@ export function EquipmentAdminTab() {
     }
   }
 
+  function sortableColumn(column: EquipmentSort, label: string, className?: string): Pick<ListColumn<Equipment>, 'header' | 'headProps' | 'className'> {
+    const isActive = sort === column
+    const Icon = !isActive ? ArrowUpDown : dir === 'asc' ? ArrowUp : ArrowDown
+    return {
+      className,
+      headProps: { 'aria-sort': isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none' },
+      header: (
+        <button
+          type="button"
+          onClick={() => sortBy(column)}
+          className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          {label}
+          <Icon className={`size-3.5 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`} aria-hidden="true" />
+        </button>
+      ),
+    }
+  }
+
+  const empty = typeId
+    ? {
+        title: `No ${includeArchived ? '' : 'active '}equipment of type ${typeName ?? 'this type'}.`,
+        description: 'Add equipment of this type, or show all types.',
+        action: (
+          <Button size="sm" variant="outline" onClick={() => onTypeChange(null)}>
+            Show all types
+          </Button>
+        ),
+      }
+    : includeArchived
+      ? { title: 'No equipment yet.', description: 'Add the first item. You can create its type and room as you go.' }
+      : {
+          title: 'No active equipment.',
+          description: 'Add the first item, or turn on Show archived to see archived equipment.',
+        }
+
   return (
     <AdminSection
-      title="Equipment"
-      description="Every piece of equipment in one place. Edit it, archive what's no longer in use, or delete entries added by mistake."
-      action={<CreateEquipmentDialog />}
+      title="Items"
+      description="Every piece of equipment. Edit it, archive what's no longer used, or delete entries added by mistake."
+      action={<CreateEquipmentDialog trigger={<AddButton>Add equipment</AddButton>} />}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-2">
-        <label className="flex items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            className="size-4 rounded border-border accent-primary"
-            checked={includeArchived}
-            onChange={(e) => setIncludeArchived(e.target.checked)}
-          />
-          Show archived
-        </label>
-        <div className="flex items-center gap-2 sm:hidden">
-          <Label htmlFor="equipment-admin-sort" className="shrink-0">
-            Sort by
-          </Label>
-          <Select
-            value={`${sort}:${dir}`}
-            onValueChange={(value) => {
-              const [nextSort, nextDir] = value.split(':') as [EquipmentSort, SortDirection]
-              setSort(nextSort)
-              setDir(nextDir)
-            }}
-          >
-            <SelectTrigger id="equipment-admin-sort" size="sm" className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <SortableHead column="name" label="Name" sort={sort} dir={dir} onSort={sortBy} />
-            <TableHead className="hidden md:table-cell">Type</TableHead>
-            <TableHead className="hidden 2xl:table-cell">Location</TableHead>
-            <TableHead className="hidden 2xl:table-cell">Owner</TableHead>
-            <TableHead className="hidden sm:table-cell">Status</TableHead>
-            <SortableHead column="createdAt" label="Created" sort={sort} dir={dir} onSort={sortBy} className="hidden sm:table-cell" />
-            <SortableHead column="updatedAt" label="Updated" sort={sort} dir={dir} onSort={sortBy} className="hidden md:table-cell" />
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={COLUMN_COUNT}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={COLUMN_COUNT}
-              tone="error"
-              title="Couldn't load equipment."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && equipment?.length === 0 && (
-            <TableEmptyState
-              colSpan={COLUMN_COUNT}
-              title={includeArchived ? 'No equipment yet.' : 'No active equipment.'}
-              description={includeArchived ? 'Add equipment to get started.' : 'Turn on Show archived to see archived equipment.'}
-            />
-          )}
-
-          {equipment?.map((item) => (
-            <EquipmentRow key={item.id} item={item} />
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={items}
+        isLoading={isLoading}
+        isError={isError}
+        noun="equipment"
+        getKey={(item) => item.id}
+        search={{
+          label: 'Search equipment',
+          placeholder: 'Search by name, serial number or room',
+          text: (item) => `${item.name} ${item.serialNumber ?? ''} ${item.roomLabel} ${item.equipmentTypeName}`,
+        }}
+        toolbar={
+          <>
+            <Select value={typeId ?? ALL_TYPES} onValueChange={(v) => onTypeChange(v === ALL_TYPES ? null : v)}>
+              <SelectTrigger className="h-9 w-full sm:w-48" aria-label="Filter by type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_TYPES}>All types</SelectItem>
+                {types?.map((type) => (
+                  <SelectItem key={type.id} value={String(type.id)}>
+                    {type.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={`${sort}:${dir}`}
+              onValueChange={(value) => {
+                const [nextSort, nextDir] = value.split(':') as [EquipmentSort, SortDirection]
+                setSort(nextSort)
+                setDir(nextDir)
+              }}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-48 md:hidden" aria-label="Sort by">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex h-9 items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                className="size-4 rounded border-border accent-primary"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+              />
+              Show archived
+            </label>
+            {typeId && typeName && (
+              <Button size="sm" variant="ghost" className="self-start sm:self-auto" onClick={() => onTypeChange(null)}>
+                <X aria-hidden="true" />
+                Clear type filter
+              </Button>
+            )}
+          </>
+        }
+        empty={empty}
+        columns={[
+          { key: 'name', ...sortableColumn('name', 'Name'), cell: (item) => <NameCell item={item} /> },
+          { key: 'type', header: 'Type', cell: (item) => <span className="text-muted-foreground">{item.equipmentTypeName}</span> },
+          {
+            key: 'room',
+            header: 'Room',
+            className: 'hidden lg:table-cell',
+            cell: (item) => <span className="text-muted-foreground">{item.roomLabel}</span>,
+          },
+          {
+            key: 'owner',
+            header: 'Owner',
+            className: 'hidden 2xl:table-cell',
+            cell: (item) => <span className="text-muted-foreground">{ownerLabel(item)}</span>,
+          },
+          { key: 'status', header: 'Status', cell: (item) => <StatusIndicator status={item.status} /> },
+          {
+            key: 'createdAt',
+            ...sortableColumn('createdAt', 'Added', 'hidden 2xl:table-cell'),
+            cell: (item) => <DateText value={item.createdAt} />,
+          },
+          {
+            key: 'updatedAt',
+            ...sortableColumn('updatedAt', 'Updated'),
+            cell: (item) => <DateText value={item.updatedAt} />,
+          },
+        ]}
+        renderCard={(item) => (
+          <div className="flex min-w-0 items-start gap-3">
+            <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name="" className="size-10 shrink-0" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className={`font-medium wrap-anywhere ${item.status === 'Retired' ? 'text-muted-foreground' : 'text-foreground'}`}>
+                  {item.name}
+                </span>
+                {item.status === 'Retired' && <Badge variant="outline">Archived</Badge>}
+              </p>
+              <p className="text-[13px] text-muted-foreground wrap-anywhere">
+                {item.equipmentTypeName}, {item.roomLabel}
+              </p>
+              {item.status !== 'Retired' && (
+                <div className="text-[13px]">
+                  <StatusIndicator status={item.status} />
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        renderActions={(item) => <EquipmentActions item={item} />}
+        rowClassName={(item) => (item.status === 'Retired' ? 'bg-muted/30' : undefined)}
+      />
     </AdminSection>
   )
 }
 
-function SortableHead({
-  column,
-  label,
-  sort,
-  dir,
-  onSort,
-  className,
-}: {
-  column: EquipmentSort
-  label: string
-  sort: EquipmentSort
-  dir: SortDirection
-  onSort: (column: EquipmentSort) => void
-  className?: string
-}) {
-  const isActive = sort === column
-  const Icon = !isActive ? ArrowUpDown : dir === 'asc' ? ArrowUp : ArrowDown
+function ownerLabel(item: Equipment) {
+  return item.ownershipType === 'Individual' ? (item.owner?.name ?? 'A person') : item.owningDepartmentName
+}
 
+function NameCell({ item }: { item: Equipment }) {
+  const isArchived = item.status === 'Retired'
   return (
-    <TableHead aria-sort={isActive ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className="-mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium outline-none hover:text-primary focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
-        {label}
-        <Icon className={`size-3.5 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`} aria-hidden="true" />
-      </button>
-    </TableHead>
+    <div className="flex min-w-0 items-center gap-3">
+      <EquipmentAvatar imageUrl={item.imageUrl} iconKey={item.iconKey} name="" className="size-8 shrink-0" />
+      <span className="flex min-w-0 items-center gap-2">
+        <span title={item.name} className={`max-w-64 truncate font-medium ${isArchived ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {item.name}
+        </span>
+        {isArchived && (
+          <Badge variant="outline" className="shrink-0">
+            Archived
+          </Badge>
+        )}
+      </span>
+    </div>
   )
 }
 
-function DateCell({ value, className }: { value: string; className?: string }) {
+function DateText({ value }: { value: string }) {
   const date = new Date(value)
   return (
-    <TableCell className={`text-muted-foreground ${className ?? ''}`}>
-      <time dateTime={value} title={dateTimeFormat.format(date)}>
-        {dateFormat.format(date)}
-      </time>
-    </TableCell>
+    <time dateTime={value} title={dateTimeFormat.format(date)} className="whitespace-nowrap text-muted-foreground">
+      {dateFormat.format(date)}
+    </time>
   )
 }
 
-function EquipmentRow({ item }: { item: Equipment }) {
+function EquipmentActions({ item }: { item: Equipment }) {
+  const dialog = useRowDialog<'edit' | 'archive' | 'delete'>()
+  const unarchive = useUnarchiveEquipment()
   const isArchived = item.status === 'Retired'
-  const owner = item.ownershipType === 'Individual' ? (item.owner?.name ?? 'A person') : item.owningDepartmentName
+
+  async function handleUnarchive() {
+    try {
+      await unarchive.mutateAsync(item.id)
+      toast.success(`Unarchived "${item.name}".`)
+    } catch (err) {
+      toast.error(`Couldn't unarchive "${item.name}". ${apiErrorMessage(err)}`)
+    }
+  }
 
   return (
-    <TableRow>
-      <TableCell className="max-w-48 sm:max-w-56">
-        <div className="flex min-w-0 flex-col">
-          <span className="flex min-w-0 items-center gap-2">
-            <span title={item.name} className={`truncate font-medium ${isArchived ? 'text-muted-foreground' : 'text-foreground'}`}>{item.name}</span>
-            {isArchived && (
-              <Badge variant="outline" className="shrink-0">
-                Archived
-              </Badge>
-            )}
-          </span>
-          {/* Stands in for the Type/Location/Owner columns where they're hidden. */}
-          <span className="truncate text-xs text-muted-foreground 2xl:hidden">
-            <span className="md:hidden">{item.equipmentTypeName} · </span>
-            {item.roomLabel}
-            <span className="hidden sm:inline"> · {owner}</span>
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="hidden text-muted-foreground md:table-cell">{item.equipmentTypeName}</TableCell>
-      <TableCell className="hidden text-muted-foreground 2xl:table-cell">{item.roomLabel}</TableCell>
-      <TableCell className="hidden text-muted-foreground 2xl:table-cell">{owner}</TableCell>
-      <TableCell className="hidden sm:table-cell">
-        <StatusIndicator status={item.status} />
-      </TableCell>
-      <DateCell value={item.createdAt} className="hidden sm:table-cell" />
-      <DateCell value={item.updatedAt} className="hidden md:table-cell" />
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-1">
-          <EditEquipmentDialog
-            equipment={item}
-            trigger={
-              <RowActionButton label="Edit" itemName={item.name}>
-                <Pencil aria-hidden="true" />
-              </RowActionButton>
-            }
-          />
-          {isArchived ? <UnarchiveButton item={item} /> : <ArchiveButton item={item} />}
-          <DeleteEquipmentButton item={item} />
-        </div>
-      </TableCell>
-    </TableRow>
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={item.name}
+        actions={[
+          { label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') },
+          isArchived
+            ? { label: 'Unarchive', icon: ArchiveRestore, onSelect: handleUnarchive, disabled: unarchive.isPending }
+            : { label: 'Archive', icon: Archive, onSelect: () => dialog.show('archive') },
+          { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => dialog.show('delete') },
+        ]}
+      />
+      {dialog.mounted === 'edit' && <EditEquipmentDialog key={dialog.session} equipment={item} {...dialog.bind('edit')} />}
+      <ArchiveDialog item={item} {...dialog.bind('archive')} />
+      <DeleteEquipmentDialog item={item} {...dialog.bind('delete')} />
+    </>
   )
 }
 
-// Icon-only below the lg breakpoint; the accessible name always includes the
-// equipment name so a screen reader's button list isn't ten identical "Edit"s.
-function RowActionButton({
-  label,
-  itemName,
-  children,
-  destructive = false,
-  ...props
-}: Omit<ComponentProps<typeof Button>, 'children'> & {
-  label: string
-  itemName: string
-  children: ReactNode
-  destructive?: boolean
-}) {
-  // Rest props carry what a Dialog/AlertDialog trigger (asChild) injects:
-  // the click handler, ref and aria-haspopup/expanded state.
-  return (
-    <Button
-      {...props}
-      type="button"
-      size="sm"
-      variant="ghost"
-      aria-label={`${label} ${itemName}`}
-      title={label}
-      className={destructive ? 'text-destructive hover:text-destructive' : undefined}
-    >
-      {children}
-      <span className="hidden lg:inline">{label}</span>
-    </Button>
-  )
+interface ControlledProps {
+  item: Equipment
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-function ArchiveButton({ item }: { item: Equipment }) {
+function ArchiveDialog({ item, open, onOpenChange }: ControlledProps) {
   const archive = useArchiveEquipment()
 
   async function handleArchive() {
     try {
       await archive.mutateAsync(item.id)
-      toast.success('Archived')
+      toast.success(`Archived "${item.name}".`)
     } catch (err) {
       toast.error(`Couldn't archive "${item.name}". ${apiErrorMessage(err)}`)
     }
@@ -286,11 +311,8 @@ function ArchiveButton({ item }: { item: Equipment }) {
 
   return (
     <ConfirmDialog
-      trigger={
-        <RowActionButton label="Archive" itemName={item.name} disabled={archive.isPending}>
-          <Archive aria-hidden="true" />
-        </RowActionButton>
-      }
+      open={open}
+      onOpenChange={onOpenChange}
       title={`Archive "${item.name}"?`}
       description="It's hidden from the equipment list and can't be booked. Its booking and usage history is kept, and you can unarchive it at any time."
       confirmLabel="Archive"
@@ -299,32 +321,13 @@ function ArchiveButton({ item }: { item: Equipment }) {
   )
 }
 
-function UnarchiveButton({ item }: { item: Equipment }) {
-  const unarchive = useUnarchiveEquipment()
-
-  async function handleUnarchive() {
-    try {
-      await unarchive.mutateAsync(item.id)
-      toast.success('Unarchived')
-    } catch (err) {
-      toast.error(`Couldn't unarchive "${item.name}". ${apiErrorMessage(err)}`)
-    }
-  }
-
-  return (
-    <RowActionButton label="Unarchive" itemName={item.name} disabled={unarchive.isPending} onClick={handleUnarchive}>
-      <ArchiveRestore aria-hidden="true" />
-    </RowActionButton>
-  )
-}
-
-function DeleteEquipmentButton({ item }: { item: Equipment }) {
+function DeleteEquipmentDialog({ item, open, onOpenChange }: ControlledProps) {
   const remove = useDeleteEquipment()
 
   async function handleDelete() {
     try {
       await remove.mutateAsync(item.id)
-      toast.success('Deleted')
+      toast.success(`Deleted "${item.name}".`)
     } catch (err) {
       toast.error(`Couldn't delete "${item.name}". ${apiErrorMessage(err)}`)
     }
@@ -332,11 +335,8 @@ function DeleteEquipmentButton({ item }: { item: Equipment }) {
 
   return (
     <ConfirmDialog
-      trigger={
-        <RowActionButton label="Delete" itemName={item.name} destructive disabled={remove.isPending}>
-          <Trash2 aria-hidden="true" />
-        </RowActionButton>
-      }
+      open={open}
+      onOpenChange={onOpenChange}
       title={`Delete "${item.name}"?`}
       description="This can't be undone. Equipment with bookings or usage history can't be deleted; archive it instead."
       confirmLabel="Delete equipment"
