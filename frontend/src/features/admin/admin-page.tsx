@@ -28,6 +28,7 @@ import { PrincipalInvestigatorsTab } from './principal-investigators'
 import { ResearchGroupsTab } from './research-groups'
 import { ResearchersTab } from './researchers'
 import { EquipmentTypesTab } from './equipment-types'
+import { EquipmentAdminTab } from './equipment-admin-tab'
 import { RoomsTab } from './rooms'
 import { FacilitiesTab } from './facilities'
 import { ExternalTab } from './external'
@@ -61,6 +62,12 @@ const TABS = [
     label: 'Researchers',
     accentClass:
       'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 data-active:bg-indigo-500/25 data-active:text-indigo-700 dark:data-active:text-indigo-300',
+  },
+  {
+    value: 'equipment',
+    label: 'Equipment',
+    accentClass:
+      'bg-violet-500/10 text-violet-700 dark:text-violet-300 data-active:bg-violet-500/25 data-active:text-violet-700 dark:data-active:text-violet-300',
   },
   {
     value: 'equipment-types',
@@ -166,6 +173,9 @@ export function AdminPage() {
         </TabsContent>
         <TabsContent value="researchers">
           <ResearchersTab />
+        </TabsContent>
+        <TabsContent value="equipment">
+          <EquipmentAdminTab />
         </TabsContent>
         <TabsContent value="equipment-types">
           <EquipmentTypesTab />

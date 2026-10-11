@@ -55,7 +55,8 @@ export function ReportsPage() {
   const [equipmentId, setEquipmentId] = useState<string>('All')
   const [metric, setMetric] = useState<Metric>('sessions')
 
-  const { data: equipment } = useEquipment('All')
+  // Archived (Retired) equipment can still have usage in the reported month.
+  const { data: equipment } = useEquipment('All', { includeArchived: true })
   const { from, to } = useMemo(() => monthBounds(month), [month])
   const { data: rows, isLoading, isError } = useUsageStats({
     from,

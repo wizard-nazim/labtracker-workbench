@@ -26,6 +26,8 @@ import {
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
 import { useUsers } from './users'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { apiErrorMessage } from '@/lib/api-error-message'
 
 export interface Facility {
   id: number
@@ -47,7 +49,7 @@ export function useFacilities() {
   return useQuery({ queryKey: ['facilities'], queryFn: () => apiClient.get<Facility[]>('/facilities') })
 }
 
-function useCreateFacility() {
+export function useCreateFacility() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertFacilityRequest) => apiClient.post<Facility>('/facilities', request),
@@ -61,6 +63,47 @@ function useUpdateFacility(id: number) {
     mutationFn: (request: UpsertFacilityRequest) => apiClient.put<Facility>(`/facilities/${id}`, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['facilities'] }),
   })
+}
+
+function useDeleteFacility() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete<void>(`/facilities/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['facilities'] })
+      // Its rooms are unlinked, which changes room and equipment facility labels.
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment'] })
+    },
+  })
+}
+
+export function DeleteFacilityButton({ facility }: { facility: Facility }) {
+  const remove = useDeleteFacility()
+
+  async function handleDelete() {
+    try {
+      await remove.mutateAsync(facility.id)
+      toast.success('Deleted')
+    } catch (err) {
+      toast.error(`Couldn't delete "${facility.name}". ${apiErrorMessage(err)}`)
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} aria-label={`Delete ${facility.name}`}>
+          Delete
+        </Button>
+      }
+      title={`Delete "${facility.name}"?`}
+      description="Its rooms stay, but they'll no longer be part of a facility, and its overseers lose access through it. This can't be undone."
+      confirmLabel="Delete facility"
+      destructive
+      onConfirm={handleDelete}
+    />
+  )
 }
 
 function FacilityFields({
@@ -258,6 +301,7 @@ export function FacilitiesTab() {
               </TableCell>
               <TableCell className="text-right">
                 <EditFacilityDialog facility={facility} />
+                <DeleteFacilityButton facility={facility} />
               </TableCell>
             </TableRow>
           ))}

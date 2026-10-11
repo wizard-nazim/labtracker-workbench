@@ -27,6 +27,8 @@ import {
 import { useDepartments } from './departments'
 import { useResearchGroups } from './research-groups'
 import { useFacilities } from './facilities'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { apiErrorMessage } from '@/lib/api-error-message'
 
 export interface Room {
   id: number
@@ -40,7 +42,7 @@ export interface Room {
   facilityName: string | null
 }
 
-interface UpsertRoomRequest {
+export interface UpsertRoomRequest {
   building: string
   floor: string
   roomNumber: string
@@ -53,7 +55,7 @@ export function useRooms() {
   return useQuery({ queryKey: ['rooms'], queryFn: () => apiClient.get<Room[]>('/rooms') })
 }
 
-function useCreateRoom() {
+export function useCreateRoom() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertRoomRequest) => apiClient.post<Room>('/rooms', request),
@@ -61,12 +63,61 @@ function useCreateRoom() {
   })
 }
 
-function useUpdateRoom(id: number) {
+export function useUpdateRoom(id: number) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertRoomRequest) => apiClient.put<Room>(`/rooms/${id}`, request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rooms'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      // Room labels and facility membership show up in both of these.
+      queryClient.invalidateQueries({ queryKey: ['facilities'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment'] })
+    },
   })
+}
+
+export function roomLabel(room: Pick<Room, 'building' | 'floor' | 'roomNumber'>) {
+  return `${room.building} ${room.floor} ${room.roomNumber}`
+}
+
+function useDeleteRoom() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete<void>(`/rooms/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: ['facilities'] })
+    },
+  })
+}
+
+function DeleteRoomButton({ room }: { room: Room }) {
+  const remove = useDeleteRoom()
+  const label = roomLabel(room)
+
+  async function handleDelete() {
+    try {
+      await remove.mutateAsync(room.id)
+      toast.success('Deleted')
+    } catch (err) {
+      toast.error(`Couldn't delete room ${room.roomNumber}. ${apiErrorMessage(err)}`)
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      trigger={
+        <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} aria-label={`Delete room ${label}`}>
+          Delete
+        </Button>
+      }
+      title={`Delete room ${label}?`}
+      description="Only rooms with no equipment in them can be deleted. This can't be undone."
+      confirmLabel="Delete room"
+      destructive
+      onConfirm={handleDelete}
+    />
+  )
 }
 
 function RoomFields({
@@ -314,6 +365,7 @@ export function RoomsTab() {
               <TableCell className="hidden text-muted-foreground md:table-cell">{room.facilityName ?? '—'}</TableCell>
               <TableCell className="text-right">
                 <EditRoomDialog room={room} />
+                <DeleteRoomButton room={room} />
               </TableCell>
             </TableRow>
           ))}

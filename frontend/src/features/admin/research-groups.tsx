@@ -46,7 +46,7 @@ export function useResearchGroups() {
   return useQuery({ queryKey: ['research-groups'], queryFn: () => apiClient.get<ResearchGroup[]>('/research-groups') })
 }
 
-function useCreateResearchGroup() {
+export function useCreateResearchGroup() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertResearchGroupRequest) => apiClient.post<ResearchGroup>('/research-groups', request),
