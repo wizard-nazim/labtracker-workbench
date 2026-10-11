@@ -70,6 +70,7 @@ API settings (environment variables use `__` for `:`, e.g. `Jwt__SigningKey`):
 | `Database:MigrateOnStartup` | no | apply pending migrations when the API starts |
 | `Bootstrap:AdminEmail`, `Bootstrap:AdminPassword` | first start | creates the first Super Admin on an empty database; remove afterwards |
 | `Features:DemoDataReset` | no | enables Admin → "Reset demo data" (wipes everything). On only in Development |
+| `Features:McbImport` | no | enables Admin → "Import MCB equipment" (adds the client's equipment list; safe to re-run). Set `Features__McbImport=true` on a deployment only while importing; imported science officers start inactive with placeholder emails |
 
 Frontend: `VITE_API_BASE_URL` (build time) only if the API is on a different
 origin; it defaults to same-origin `/api`.
