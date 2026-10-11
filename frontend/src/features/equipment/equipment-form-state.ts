@@ -40,6 +40,15 @@ export function useEquipmentFormState(initial?: Equipment) {
   return [state, setState] as const
 }
 
+// Fills in what the form shows as already chosen but the user never touched:
+// the owning department when there's only one.
+export function applyFormDefaults(state: EquipmentFormState, departments: { id: number }[] | undefined): EquipmentFormState {
+  if (!state.owningDepartmentId && departments?.length === 1) {
+    return { ...state, owningDepartmentId: String(departments[0].id) }
+  }
+  return state
+}
+
 // Client-side checks, keyed by the same PascalCase names the API uses for its
 // validation errors so both render through one path.
 export function validateEquipmentForm(state: EquipmentFormState): FieldErrors {

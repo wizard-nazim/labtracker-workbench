@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { apiErrorMessage } from '@/lib/api-error-message'
-import { useFacilities, DeleteFacilityButton } from '@/features/admin/facilities'
+import { useFacilities, DeleteFacilityDialog, type Facility } from '@/features/admin/facilities'
 import { roomLabel, useUpdateRoom, type Room } from '@/features/admin/rooms'
 import { QuickCreateButton, QuickCreateFacilityDialog } from './quick-create-dialogs'
 
@@ -123,5 +123,24 @@ function FacilityList() {
         ))}
       </ul>
     </div>
+  )
+}
+
+function DeleteFacilityButton({ facility }: { facility: Facility }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="text-destructive"
+        aria-label={`Delete ${facility.name}`}
+        onClick={() => setOpen(true)}
+      >
+        Delete
+      </Button>
+      <DeleteFacilityDialog facility={facility} open={open} onOpenChange={setOpen} />
+    </>
   )
 }

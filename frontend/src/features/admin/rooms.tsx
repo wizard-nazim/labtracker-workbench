@@ -3,18 +3,10 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Button } from '@/components/ui/button'
+import { Pencil, Trash2 } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -91,26 +83,31 @@ function useDeleteRoom() {
   })
 }
 
-function DeleteRoomButton({ room }: { room: Room }) {
+function DeleteRoomDialog({
+  room,
+  open,
+  onOpenChange,
+}: {
+  room: Room
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const remove = useDeleteRoom()
   const label = roomLabel(room)
 
   async function handleDelete() {
     try {
       await remove.mutateAsync(room.id)
-      toast.success('Deleted')
+      toast.success(`Deleted room ${label}.`)
     } catch (err) {
-      toast.error(`Couldn't delete room ${room.roomNumber}. ${apiErrorMessage(err)}`)
+      toast.error(`Couldn't delete room ${label}. ${apiErrorMessage(err)}`)
     }
   }
 
   return (
     <ConfirmDialog
-      trigger={
-        <Button size="sm" variant="ghost" className="text-destructive" disabled={remove.isPending} aria-label={`Delete room ${label}`}>
-          Delete
-        </Button>
-      }
+      open={open}
+      onOpenChange={onOpenChange}
       title={`Delete room ${label}?`}
       description="Only rooms with no equipment in them can be deleted. This can't be undone."
       confirmLabel="Delete room"
@@ -166,7 +163,7 @@ function RoomFields({
         <Input id="room-number" required value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="room-department">Department (optional, for shared rooms)</Label>
+        <Label htmlFor="room-department">Department (optional; leave empty for a shared room)</Label>
         <Select value={departmentId} onValueChange={setDepartmentId}>
           <SelectTrigger id="room-department">
             <SelectValue placeholder="No department (shared)" />
@@ -181,7 +178,7 @@ function RoomFields({
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="room-lab">Lab (optional — a lab's rooms can span multiple floors)</Label>
+        <Label htmlFor="room-lab">Lab (optional)</Label>
         <Select value={researchGroupId} onValueChange={setResearchGroupId}>
           <SelectTrigger id="room-lab">
             <SelectValue placeholder="No lab" />
@@ -196,7 +193,7 @@ function RoomFields({
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="room-facility">Facility (optional — a facility's rooms can span multiple floors)</Label>
+        <Label htmlFor="room-facility">Facility (optional, e.g. a BSL2 suite)</Label>
         <Select value={facilityId} onValueChange={setFacilityId}>
           <SelectTrigger id="room-facility">
             <SelectValue placeholder="No facility" />
@@ -243,7 +240,7 @@ function CreateRoomDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add room</Button>}
+      trigger={<AddButton>Add room</AddButton>}
       title="Add room"
       submitLabel="Add room"
       onSubmit={handleSubmit}
@@ -266,8 +263,15 @@ function CreateRoomDialog() {
   )
 }
 
-function EditRoomDialog({ room }: { room: Room }) {
-  const [open, setOpen] = useState(false)
+function EditRoomDialog({
+  room,
+  open,
+  onOpenChange,
+}: {
+  room: Room
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [building, setBuilding] = useState(room.building)
   const [floor, setFloor] = useState(room.floor)
   const [roomNumber, setRoomNumber] = useState(room.roomNumber)
@@ -290,16 +294,11 @@ function EditRoomDialog({ room }: { room: Room }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
       title="Edit room"
       submitLabel="Save changes"
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <RoomFields
         building={building}
@@ -319,58 +318,67 @@ function EditRoomDialog({ room }: { room: Room }) {
   )
 }
 
+function RoomActions({ room }: { room: Room }) {
+  const dialog = useRowDialog<'edit' | 'delete'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={`room ${roomLabel(room)}`}
+        actions={[
+          { label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') },
+          { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => dialog.show('delete') },
+        ]}
+      />
+      {dialog.mounted === 'edit' && <EditRoomDialog key={dialog.session} room={room} {...dialog.bind('edit')} />}
+      <DeleteRoomDialog room={room} {...dialog.bind('delete')} />
+    </>
+  )
+}
+
 export function RoomsTab() {
   const { data: rooms, isLoading, isError } = useRooms()
 
   return (
-    <AdminSection title="Rooms" description="Physical locations where equipment lives." action={<CreateRoomDialog />}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Building</TableHead>
-            <TableHead className="hidden sm:table-cell">Floor</TableHead>
-            <TableHead>Room</TableHead>
-            <TableHead className="hidden md:table-cell">Lab</TableHead>
-            <TableHead className="hidden md:table-cell">Facility</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={6}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={6}
-              tone="error"
-              title="Couldn't load rooms."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && rooms?.length === 0 && <TableEmptyState colSpan={6} title="No rooms yet." />}
-
-          {rooms?.map((room) => (
-            <TableRow key={room.id}>
-              <TableCell className="text-muted-foreground">{room.building}</TableCell>
-              <TableCell className="hidden text-muted-foreground sm:table-cell">{room.floor}</TableCell>
-              <TableCell className="font-medium text-foreground">{room.roomNumber}</TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">{room.researchGroupName ?? '—'}</TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">{room.facilityName ?? '—'}</TableCell>
-              <TableCell className="text-right">
-                <EditRoomDialog room={room} />
-                <DeleteRoomButton room={room} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <AdminSection title="Rooms" description="Where equipment is kept. Each piece of equipment belongs to one room." action={<CreateRoomDialog />}>
+      <ResponsiveList
+        items={rooms}
+        isLoading={isLoading}
+        isError={isError}
+        noun="rooms"
+        getKey={(r) => r.id}
+        search={{
+          label: 'Search rooms',
+          placeholder: 'Search by building, room, lab or facility',
+          text: (r) => `${roomLabel(r)} ${r.researchGroupName ?? ''} ${r.facilityName ?? ''}`,
+        }}
+        empty={{ title: 'No rooms yet.', description: 'Add the first room.' }}
+        columns={[
+          { key: 'room', header: 'Room', cell: (r) => <span className="font-medium text-foreground">{r.roomNumber}</span> },
+          { key: 'building', header: 'Building', cell: (r) => <span className="text-muted-foreground">{r.building}</span> },
+          { key: 'floor', header: 'Floor', cell: (r) => <span className="text-muted-foreground">{r.floor}</span> },
+          {
+            key: 'lab',
+            header: 'Lab',
+            className: 'hidden lg:table-cell',
+            cell: (r) => <span className="text-muted-foreground">{r.researchGroupName ?? '—'}</span>,
+          },
+          { key: 'facility', header: 'Facility', cell: (r) => <span className="text-muted-foreground">{r.facilityName ?? '—'}</span> },
+        ]}
+        renderCard={(r) => (
+          <>
+            <p className="font-medium text-foreground">Room {r.roomNumber}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {r.building}, {r.floor}
+            </p>
+            {(r.facilityName || r.researchGroupName) && (
+              <p className="text-[13px] text-muted-foreground">
+                {[r.facilityName, r.researchGroupName].filter(Boolean).join(', ')}
+              </p>
+            )}
+          </>
+        )}
+        renderActions={(r) => <RoomActions room={r} />}
+      />
     </AdminSection>
   )
 }

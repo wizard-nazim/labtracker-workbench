@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { cn } from 'cn'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -29,8 +30,9 @@ interface EntityDialogProps {
   onSubmit: () => Promise<void>
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  // Widens the dialog (e.g. "sm:max-w-2xl") and pins the footer to the bottom
-  // of the scrolling content so the submit button stays reachable.
+  // Widens the dialog (e.g. "sm:max-w-2xl"). stickyFooter pins the footer to
+  // the bottom of the scrolling content on desktop too; on phones the dialog
+  // is full screen and its footer is always pinned.
   contentClassName?: string
   stickyFooter?: boolean
   // When given, validation errors (client-side FieldValidationError or an API
@@ -107,19 +109,24 @@ export function EntityDialog({
   return (
     <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className={cn(stickyFooter && 'pb-0', contentClassName)}>
+      <DialogContent className={cn(stickyFooter && 'sm:has-data-[slot=dialog-footer]:pb-0', contentClassName)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <form ref={formRef} className="flex min-w-0 flex-col gap-4" onSubmit={handleSubmit} noValidate={Boolean(onFieldErrors)}>
+        <form ref={formRef} className="flex min-w-0 flex-1 flex-col gap-4" onSubmit={handleSubmit} noValidate={Boolean(onFieldErrors)}>
           {children}
           {error && (
             <p data-slot="form-error" role="alert" tabIndex={-1} className="text-sm text-destructive outline-none">
               {error}
             </p>
           )}
-          <DialogFooter className={cn(stickyFooter && 'sticky bottom-0 z-10 mb-0 bg-popover')}>
+          <DialogFooter className={cn(stickyFooter && 'sm:sticky sm:mb-0 sm:bg-popover')}>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
             <Button type="submit" disabled={isSubmitting || submitDisabled}>
               {isSubmitting ? 'Saving…' : submitLabel}
             </Button>

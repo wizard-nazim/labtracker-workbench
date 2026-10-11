@@ -151,7 +151,7 @@ function QuickCreateForm({
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
-      <form ref={formRef} noValidate className="flex min-w-0 flex-col gap-4" onSubmit={handleSubmit}>
+      <form ref={formRef} noValidate className="flex min-w-0 flex-1 flex-col gap-4" onSubmit={handleSubmit}>
         {children(errors)}
         {message && (
           <p role="alert" className="text-sm text-destructive">

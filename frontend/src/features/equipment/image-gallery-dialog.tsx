@@ -47,8 +47,8 @@ export function ImageGalleryDialog({ trigger, onSelect }: { trigger: React.React
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Choose an image</DialogTitle>
-          <DialogDescription>Pick a photo already uploaded, or upload a new one from your device.</DialogDescription>
+          <DialogTitle>Choose a photo</DialogTitle>
+          <DialogDescription>Pick a photo that's already here, or upload one from your device.</DialogDescription>
         </DialogHeader>
 
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
@@ -60,7 +60,7 @@ export function ImageGalleryDialog({ trigger, onSelect }: { trigger: React.React
         <div className="grid max-h-80 grid-cols-4 gap-2 overflow-y-auto sm:grid-cols-5">
           {isLoading && <p className="col-span-full text-sm text-muted-foreground">Loading…</p>}
           {!isLoading && images?.length === 0 && (
-            <p className="col-span-full text-sm text-muted-foreground">No images uploaded yet — upload one above.</p>
+            <p className="col-span-full text-sm text-muted-foreground">No photos yet. Upload one from your device.</p>
           )}
           {images?.map((image) => (
             <div key={image.id} className="group relative overflow-hidden rounded-md border border-border">
@@ -70,7 +70,8 @@ export function ImageGalleryDialog({ trigger, onSelect }: { trigger: React.React
                   onSelect(image.url)
                   setOpen(false)
                 }}
-                className="block size-full"
+                aria-label={`Choose photo ${image.id}`}
+                className="block size-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <img src={image.url} alt="" className="aspect-square size-full object-cover" />
               </button>
