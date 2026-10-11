@@ -4,7 +4,8 @@ import { cn } from '@/lib/utils'
 
 // Adapted from the 21st.dev "floating paths" background. Strokes follow
 // currentColor (navy in light, light blue in dark via text-primary) and stay
-// faint so text placed on top keeps its contrast. Durations are derived from
+// faint so text placed on top keeps its contrast. The drawing stretches to
+// fill any panel shape; non-scaling strokes keep the line weights even. Durations are derived from
 // the path index (stable across renders), and with "reduce motion" on the paths are drawn still.
 
 function FloatingPaths({ position }: { position: number }) {
@@ -28,13 +29,20 @@ function FloatingPaths({ position }: { position: number }) {
       className="absolute inset-0 size-full text-primary"
       viewBox="0 0 696 316"
       fill="none"
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio="none"
       aria-hidden="true"
       focusable="false"
     >
       {paths.map((path) =>
         reduceMotion ? (
-          <path key={path.id} d={path.d} stroke="currentColor" strokeWidth={path.width} strokeOpacity={path.opacity} />
+          <path
+            key={path.id}
+            d={path.d}
+            stroke="currentColor"
+            strokeWidth={path.width}
+            strokeOpacity={path.opacity}
+            vectorEffect="non-scaling-stroke"
+          />
         ) : (
           <motion.path
             key={path.id}
@@ -42,6 +50,7 @@ function FloatingPaths({ position }: { position: number }) {
             stroke="currentColor"
             strokeWidth={path.width}
             strokeOpacity={path.opacity}
+            vectorEffect="non-scaling-stroke"
             initial={{ pathLength: 0.3, opacity: 0.6 }}
             animate={{ pathLength: 1, opacity: [0.3, 0.6, 0.3], pathOffset: [0, 1, 0] }}
             transition={{ duration: path.duration, repeat: Number.POSITIVE_INFINITY, ease: 'linear' }}
