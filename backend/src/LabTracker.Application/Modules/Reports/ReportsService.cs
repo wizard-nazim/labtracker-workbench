@@ -10,7 +10,8 @@ public class ReportsService(IApplicationDbContext db)
     private const string ExternalBucketName = "External";
     private const string UnassignedBucketName = "Unassigned";
 
-    // Attributes each usage session to the research group that owns the room the
+    // Attributes each usage session to the equipment's own lab when it has one
+    // (Equipment.ResearchGroupId), otherwise to the research group that owns the room the
     // booked equipment lives in — i.e. by what was actually booked, not by every
     // lab the researcher happens to belong to. A researcher in two labs no longer
     // has a single session double-counted toward both (that used to fan out over
@@ -31,6 +32,7 @@ public class ReportsService(IApplicationDbContext db)
         var query = db.UsageRecords
             .Include(u => u.Actor)
             .Include(u => u.Equipment).ThenInclude(e => e.Room).ThenInclude(r => r.ResearchGroup).ThenInclude(g => g!.PrincipalInvestigator)
+            .Include(u => u.Equipment).ThenInclude(e => e.ResearchGroup).ThenInclude(g => g!.PrincipalInvestigator)
             .Where(u => u.ActualStart >= from && u.ActualStart < to)
             .AsQueryable();
 
@@ -42,7 +44,7 @@ public class ReportsService(IApplicationDbContext db)
         var attributions = records.Select(record =>
         {
             var isExternal = record.Actor.ActorType == ActorType.External;
-            var group = isExternal ? null : record.Equipment.Room.ResearchGroup;
+            var group = isExternal ? null : record.Equipment.ResearchGroup ?? record.Equipment.Room.ResearchGroup;
             return (Record: record, Group: group, IsExternal: isExternal);
         });
 

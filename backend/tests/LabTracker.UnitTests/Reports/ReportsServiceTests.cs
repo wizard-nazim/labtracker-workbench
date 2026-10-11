@@ -149,4 +149,44 @@ public class ReportsServiceTests
         row.ResearchGroupId.Should().BeNull();
         row.ResearchGroupName.Should().Be("External");
     }
+
+    [Fact]
+    public async Task GetEquipmentUsageStatsAsync_PrefersTheEquipmentsOwnLabOverTheRoomsLab()
+    {
+        var db = TestDbContextFactory.Create();
+        var sut = new ReportsService(db);
+
+        var department = db.AddDepartment();
+        var pi = db.AddPrincipalInvestigator(department);
+        var roomLab = db.AddResearchGroup(department, pi, "Room Lab");
+        var equipmentLab = db.AddResearchGroup(department, pi, "Plant Stress");
+
+        var room = db.AddRoom(department);
+        room.ResearchGroupId = roomLab.Id;
+        var equipment = db.AddEquipment(room, db.AddEquipmentType(), department);
+        equipment.ResearchGroupId = equipmentLab.Id;
+        db.SaveChanges();
+
+        var researcher = db.AddResearcher(roomLab);
+        var actor = new UsageActor { ActorType = ActorType.Internal, ResearcherId = researcher.Id, DisplayNameSnapshot = researcher.FullName };
+        db.UsageActors.Add(actor);
+        db.SaveChanges();
+
+        var admin = db.AddUser("admin@labtracker.local", Role.SuperAdmin);
+        var start = DateTime.UtcNow.AddHours(-2);
+        db.UsageRecords.Add(new UsageRecord
+        {
+            EquipmentId = equipment.Id,
+            ActorId = actor.Id,
+            ActualStart = start,
+            ActualEnd = start.AddHours(1),
+            CreatedAt = start,
+            RecordedByUserId = admin.Id,
+        });
+        db.SaveChanges();
+
+        var result = await sut.GetEquipmentUsageStatsAsync(DefaultFilter());
+
+        result.Should().ContainSingle().Which.ResearchGroupName.Should().Be("Plant Stress");
+    }
 }
