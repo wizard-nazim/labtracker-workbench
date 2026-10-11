@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BrandLockup } from '@/components/brand-mark'
 
 const COLUMNS = 12
 const ROWS = 8
@@ -59,16 +60,16 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
           )
         })}
       </div>
-      <p
-        className="text-sm font-medium text-foreground opacity-0"
+      <div
+        className="opacity-0"
         style={{
           animation: 'labtracker-fade-in 400ms ease-out forwards',
           animationDelay: `${(ROWS - 1 + COLUMNS - 1) * STAGGER_MS + 280}ms`,
         }}
         aria-hidden="true"
       >
-        LabTracker
-      </p>
+        <BrandLockup />
+      </div>
     </div>
   )
 }
