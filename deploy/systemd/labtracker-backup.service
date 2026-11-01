@@ -1,0 +1,20 @@
+# Installed by deploy/install-systemd.sh, which fills in @USER@ and @APP_DIR@.
+[Unit]
+Description=LabTracker backup (local, then off-site)
+Wants=network-online.target
+After=docker.service network-online.target
+Requires=docker.service
+OnFailure=labtracker-alert@%n.service
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@APP_DIR@
+StateDirectory=labtracker
+ExecStart=@APP_DIR@/deploy/backup.sh
+ExecStart=@APP_DIR@/deploy/offsite-backup.sh
+# A success re-arms alerting for this unit (see deploy/alert.sh).
+ExecStartPost=/usr/bin/rm -f %S/labtracker/alert-%n
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h
