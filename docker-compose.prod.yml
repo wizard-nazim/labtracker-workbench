@@ -125,7 +125,7 @@ services:
     depends_on:
       api: { condition: service_healthy }
       storage: { condition: service_healthy }
-    networks: [internal, edge]
+    networks: [internal, edge, tunnel]
     # Bound to one host address. Docker-published ports bypass ufw, so never
     # widen this to 0.0.0.0 by accident.
     ports:
@@ -140,11 +140,49 @@ services:
         limits: { cpus: "0.5", memory: 128m }
     logging: *logging
 
+  # Cloudflare Tunnel: public HTTPS without opening a port. Off unless
+  # COMPOSE_PROFILES=tunnel and TUNNEL_TOKEN are set in .env.production; the
+  # tunnel's public hostname points at http://web:80 (docs/deploy-homelab.md,
+  # section 10).
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--metrics", "localhost:2000", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      web: { condition: service_healthy }
+    networks:
+      tunnel:
+        # nginx trusts CF-Connecting-IP from this exact address only.
+        ipv4_address: 10.213.47.10
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "localhost:2000", "ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+    logging: *logging
+
 networks:
   # No route to the internet or the host's LAN: Postgres and Garage live only here.
   internal:
     internal: true
   edge: {}
+  # Only cloudflared and nginx. nginx takes the visitor's address from
+  # CF-Connecting-IP for requests from cloudflared's fixed address only, so
+  # the API's per-IP sign-in limit applies per tester. Not the whole subnet:
+  # traffic to nginx's published port can arrive from this network's gateway
+  # (.1), and trusting that would let anyone on the LAN fake their address.
+  # Keep in sync with set_real_ip_from in frontend/nginx.conf.
+  tunnel:
+    ipam:
+      config:
+        - subnet: 10.213.47.0/28
 
 volumes:
   pgdata:
