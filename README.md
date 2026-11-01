@@ -1,25 +1,114 @@
-# LabTracker
+<h1 align="center">LabTracker</h1>
 
-Equipment booking and usage tracking for research labs: departments, rooms and
-facilities, equipment with assigned Science Officers, bookings (internal ones are
-auto-approved, external ones need approval), usage records, reports and in-app
-notifications.
+<p align="center">
+  Equipment booking and usage tracking for research labs, built for the
+  Department of Molecular and Cell Biology at the University of Cape Town.
+</p>
 
-| Part | Stack |
+<p align="center">
+  <a href="https://github.com/wizard-nazim/labtracker-workbench/actions/workflows/ci.yml"><img src="https://github.com/wizard-nazim/labtracker-workbench/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+</p>
+
+## Tech stack
+
+<table align="center">
+  <tr>
+    <td width="420" align="center" valign="top">
+      <pre><code>Frontend:</code></pre>
+      <img src="https://skillicons.dev/icons?i=react,ts,vite,tailwind&theme=dark" alt="React, TypeScript, Vite, Tailwind CSS" />
+      <br /><sub>shadcn/ui · Radix · TanStack Query · React Router · Recharts · Motion</sub>
+    </td>
+    <td width="420" align="center" valign="top">
+      <pre><code>Backend:</code></pre>
+      <img src="https://skillicons.dev/icons?i=dotnet,cs,postgres&theme=dark" alt=".NET, C#, PostgreSQL" />
+      <br /><sub>ASP.NET Core 10 · EF Core · FluentValidation · JWT + Google sign-in · SkiaSharp</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="420" align="center" valign="top">
+      <pre><code>Infrastructure:</code></pre>
+      <img src="https://skillicons.dev/icons?i=docker,nginx,cloudflare,ubuntu,bash&theme=dark" alt="Docker, nginx, Cloudflare, Ubuntu, Bash" />
+      <br /><sub>Docker Compose · Garage (S3 storage) · Cloudflare Tunnel · systemd timers · restic</sub>
+    </td>
+    <td width="420" align="center" valign="top">
+      <pre><code>Testing &amp; CI:</code></pre>
+      <img src="https://skillicons.dev/icons?i=git,github,githubactions,nodejs&theme=dark" alt="Git, GitHub, GitHub Actions, Node.js" />
+      <br /><sub>xUnit · Testcontainers (PostgreSQL) · FluentAssertions · ESLint</sub>
+    </td>
+  </tr>
+</table>
+
+## Features
+
+- **Equipment catalogue**: types, rooms, facilities and labs, with photos,
+  status (available, faulty, under maintenance, retired) and assigned Science Officers. The
+  department's 67-item list can be imported in one step.
+- **Bookings**: internal bookings are approved automatically; external ones
+  wait for approval. There are clear time ranges and booking cards on phones.
+- **Usage records**, including walk-in use, and **reports** with filters and
+  summary tiles.
+- **Admin hub** for non-technical admins: Equipment, Rooms, People and
+  Settings, each one page with search and a single ⋯ menu per row.
+- **Sign-in**: email and password, or Google (Gmail and Workspace accounts that
+  already have a login). Rate-limited per IP and per account.
+- **In-app notifications** and short guided tours for new users and admins.
+- UCT / MCB branding, light and dark themes, and layouts that work on phones.
+
+Roles: **Super Admin** (everything), **Science Officer** (equipment they're
+assigned to, or whose facility they oversee), **Principal Investigator** and
+**Researcher** (their own and their group's bookings).
+
+## Architecture
+
+```mermaid
+flowchart LR
+  user([Browser]) -->|HTTPS| cf[Cloudflare<br/>Access + TLS]
+  cf -->|tunnel| cfd[cloudflared]
+  lan([LAN browser]) --> web
+  cfd --> web[nginx<br/>React SPA]
+  web -->|/api| api[ASP.NET Core API]
+  web -->|/storage, read-only| s3[(Garage<br/>photos)]
+  api --> db[(PostgreSQL)]
+  api -->|S3 API| s3
+```
+
+In production everything runs on one Docker host. Only nginx publishes a
+port. PostgreSQL and Garage sit on an internal network with no internet
+access. The Cloudflare Tunnel is optional and needs no inbound port. Details
+are in the [deployment runbook](docs/deploy-homelab.md).
+
+## Repository layout
+
+```
+backend/                 .NET 10 solution
+  src/LabTracker.Api             controllers, auth, rate limiting, startup checks
+  src/LabTracker.Application     use cases, DTOs, validation, MCB import data
+  src/LabTracker.Domain          entities
+  src/LabTracker.Infrastructure  EF Core, migrations, identity, seeding
+  src/LabTracker.Shared          enums and shared exceptions
+  tests/                         unit and PostgreSQL integration tests
+frontend/                React SPA (src/features/<area>), nginx.conf for production
+deploy/                  deploy, backup, restore, rehearsal and monitoring scripts; systemd units
+docs/                    deploy-homelab.md: the self-hosted runbook
+docker-compose.prod.yml  self-hosted production stack
+render.yaml              alternative hosting: API on Render (frontend on Vercel)
+```
+
+## Documentation
+
+| Document | What's in it |
 |---|---|
-| `backend/` | .NET 10 Web API, EF Core 10 + Npgsql (PostgreSQL), S3-compatible blob storage for equipment images |
-| `frontend/` | React 19 + Vite + TypeScript, Tailwind 4, shadcn/ui, TanStack Query |
-
-Roles: **Super Admin** (everything), **Science Officer** (equipment they're assigned
-to or whose facility they oversee), **Principal Investigator** and **Researcher**
-(their own/their group's bookings).
+| This README | local development, tests, configuration reference, hosting options |
+| [docs/deploy-homelab.md](docs/deploy-homelab.md) | self-hosted runbook: deploy, verify, update, roll back, back up and restore, monitoring, Cloudflare Tunnel |
+| [frontend/README.md](frontend/README.md) | frontend commands |
+| [.env.production.example](.env.production.example) | every production setting, with notes |
 
 ## Local development
 
 Prerequisites: .NET 10 SDK, Node 22+, Docker.
 
 ```bash
-# 1. Postgres + MinIO
+# 1. Postgres + MinIO (development only; Chainguard's build of MinIO)
 cd backend
 cp .env.example .env
 docker compose up -d
@@ -74,7 +163,7 @@ API settings (environment variables use `__` for `:`, e.g. `Jwt__SigningKey`):
 | `RateLimiting:Login:PermitLimit`, `WindowSeconds` | no | sign-in attempts allowed per client IP per window (default 10 per 60 s); excess gets `429` |
 | `Https:RedirectToHttps` | no | redirect plain-HTTP requests to HTTPS (default `true`). Set `false` where a proxy in front terminates TLS and does the redirect itself; the self-hosted compose stack does |
 | `ForwardedHeaders:ForwardLimit` | no | proxy hops whose `X-Forwarded-For` entries are trusted (default 1). Keep 1 whenever the API is publicly reachable: a higher value lets a client spoof its IP |
-| `Features:McbImport` | no | enables Admin → "Import MCB equipment" (adds the client's equipment list; safe to re-run). Set `Features__McbImport=true` on a deployment only while importing; imported science officers start inactive with placeholder emails |
+| `Features:McbImport` | no | enables Admin → Settings → Data tools → "Import MCB equipment" (adds the client's 67-item equipment list once; it refuses to run again after equipment exists, and a run that failed part-way can be repeated). Set `Features__McbImport=true` on a deployment only while importing; imported science officers start inactive with placeholder emails |
 
 Frontend (build time): `VITE_API_BASE_URL` only if the API is on a different
 origin (it defaults to same-origin `/api`), and `VITE_GOOGLE_CLIENT_ID` to show
@@ -96,17 +185,26 @@ Health check: `GET /health` (also reports whether the database is reachable).
 ### Self-hosted (Docker Compose)
 
 `docker-compose.prod.yml` runs the whole stack on one Docker host: nginx
-(serves the SPA and proxies `/api` and `/storage`), the API, PostgreSQL and
-[Garage](https://garagehq.deuxfleurs.fr/) for equipment photos. Only nginx
-publishes a port.
+(serves the SPA and proxies `/api` and `/storage`), the API, PostgreSQL,
+[Garage](https://garagehq.deuxfleurs.fr/) for equipment photos, and,
+optionally, `cloudflared` for public access through a Cloudflare Tunnel. Only
+nginx publishes a port.
 
 ```bash
-deploy/generate-env.sh   # writes .env.production with random secrets; edit the EDIT lines
-deploy/deploy.sh         # backs up (if running), builds, starts, waits for health
+deploy/generate-env.sh          # writes .env.production with random secrets; edit the EDIT lines
+deploy/deploy.sh                # backs up (if running), builds, starts, waits for health
+deploy/install-systemd.sh       # nightly backups + 10-minute health checks (asks first)
+deploy/restore-rehearsal.sh     # proves the newest backup restores, without touching live
 ```
 
+| Script | Purpose |
+|---|---|
+| `deploy/backup.sh` / `restore.sh` | database dump plus storage volumes, with checksums; restore replaces live data |
+| `deploy/offsite-backup.sh` | encrypted restic copy off the server (optional) |
+| `deploy/monitor.sh` / `alert.sh` | health, disk, memory and backup-age checks; ntfy or Healthchecks alerts |
+
 The full runbook (first deploy, updates, rollback, backups and restores,
-Cloudflare Tunnel preparation) is in [docs/deploy-homelab.md](docs/deploy-homelab.md).
+monitoring, Cloudflare Tunnel) is in [docs/deploy-homelab.md](docs/deploy-homelab.md).
 
 ### Vercel (frontend) + Render (API)
 
