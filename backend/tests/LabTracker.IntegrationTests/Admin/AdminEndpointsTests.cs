@@ -57,4 +57,36 @@ public class AdminEndpointsTests(PostgresApiFactory factory) : IntegrationTestBa
 
         act.Should().Throw<InvalidOperationException>().WithMessage($"*{expected}*");
     }
+
+    [Fact]
+    public void StartupConfiguration_RejectsBootstrapPairWithShortPassword()
+    {
+        var act = () => StartupConfiguration.Validate(ValidConfiguration("admin@example.org", "short"), NullLogger.Instance);
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Bootstrap:AdminPassword must be at least 12 characters.*");
+    }
+
+    // After the first start the password is removed from config; leaving the
+    // email behind must not stop the API from starting.
+    [Theory]
+    [InlineData("admin@example.org", "")]
+    [InlineData("", "a-long-enough-password")]
+    [InlineData("", "")]
+    public void StartupConfiguration_AllowsHalfSetOrEmptyBootstrap(string email, string password)
+    {
+        var act = () => StartupConfiguration.Validate(ValidConfiguration(email, password), NullLogger.Instance);
+
+        act.Should().NotThrow();
+    }
+
+    private static IConfiguration ValidConfiguration(string bootstrapEmail, string bootstrapPassword) =>
+        new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["ConnectionStrings:DefaultConnection"] = "Host=db",
+            ["Jwt:SigningKey"] = new string('k', 32),
+            ["Jwt:Issuer"] = "LabTracker",
+            ["Jwt:Audience"] = "LabTracker.Clients",
+            ["Bootstrap:AdminEmail"] = bootstrapEmail,
+            ["Bootstrap:AdminPassword"] = bootstrapPassword,
+        }).Build();
 }
