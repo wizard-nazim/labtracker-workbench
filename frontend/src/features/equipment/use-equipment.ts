@@ -1,12 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { Equipment, EquipmentStatus } from './types'
+import type { Equipment, EquipmentStatus, OwnershipType } from './types'
 
-export function useEquipment(status?: EquipmentStatus | 'All') {
-  const query = status && status !== 'All' ? `?status=${status}` : ''
+export type EquipmentSort = 'name' | 'createdAt' | 'updatedAt'
+export type SortDirection = 'asc' | 'desc'
+
+export interface EquipmentListOptions {
+  // Archived (Retired) equipment is hidden by the API unless asked for.
+  includeArchived?: boolean
+  sort?: EquipmentSort
+  dir?: SortDirection
+}
+
+export function useEquipment(status?: EquipmentStatus | 'All', options: EquipmentListOptions = {}) {
+  const { includeArchived = false, sort = 'name', dir = 'asc' } = options
+  const params = new URLSearchParams()
+  if (status && status !== 'All') params.set('status', status)
+  if (includeArchived) params.set('includeArchived', 'true')
+  if (sort !== 'name') params.set('sort', sort)
+  if (dir !== 'asc') params.set('dir', dir)
+  const queryString = params.toString()
+  const query = queryString ? `?${queryString}` : ''
 
   return useQuery({
-    queryKey: ['equipment', status ?? 'All'],
+    queryKey: ['equipment', status ?? 'All', { includeArchived, sort, dir }],
     queryFn: () => apiClient.get<Equipment[]>(`/equipment${query}`),
   })
 }
@@ -28,6 +45,10 @@ export interface UpsertEquipmentRequest {
   equipmentTypeId: number
   roomId: number
   owningDepartmentId: number
+  // PUT is a full replace, so these are always sent.
+  ownershipType: OwnershipType
+  ownerUserId: number | null
+  researchGroupId: number | null
 }
 
 export function useCreateEquipment() {
@@ -69,6 +90,30 @@ export function useRemoveScienceOfficer() {
   return useMutation({
     mutationFn: ({ equipmentId, userId }: { equipmentId: number; userId: number }) =>
       apiClient.delete<void>(`/equipment/${equipmentId}/science-officers/${userId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
+  })
+}
+
+export function useArchiveEquipment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.post<Equipment>(`/equipment/${id}/archive`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
+  })
+}
+
+export function useUnarchiveEquipment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.post<Equipment>(`/equipment/${id}/unarchive`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
+  })
+}
+
+export function useDeleteEquipment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete<void>(`/equipment/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['equipment'] }),
   })
 }

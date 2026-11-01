@@ -3,19 +3,11 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
+import { Pencil } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -124,7 +116,7 @@ function PiFields({
           checked={hasEquipmentPermissions}
           onChange={(e) => setHasEquipmentPermissions(e.target.checked)}
         />
-        Can manage equipment for their lab (add/edit equipment, post maintenance notices)
+        Can manage their lab's equipment (add and edit it, post maintenance notices)
       </label>
     </>
   )
@@ -156,7 +148,7 @@ function CreatePiDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add PI</Button>}
+      trigger={<AddButton>Add PI</AddButton>}
       title="Add principal investigator"
       description="Leave the password blank to add them without a login for now."
       submitLabel="Add PI"
@@ -174,7 +166,7 @@ function CreatePiDialog() {
         setHasEquipmentPermissions={setHasEquipmentPermissions}
       />
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="pi-password">Password (optional — sets up their login)</Label>
+        <Label htmlFor="pi-password">Password (optional, sets up their login)</Label>
         <Input
           id="pi-password"
           type="password"
@@ -187,8 +179,15 @@ function CreatePiDialog() {
   )
 }
 
-function EditPiDialog({ pi }: { pi: PrincipalInvestigator }) {
-  const [open, setOpen] = useState(false)
+function EditPiDialog({
+  pi,
+  open,
+  onOpenChange,
+}: {
+  pi: PrincipalInvestigator
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [fullName, setFullName] = useState(pi.fullName)
   const [email, setEmail] = useState(pi.email)
   const [departmentId, setDepartmentId] = useState(String(pi.departmentId))
@@ -202,17 +201,12 @@ function EditPiDialog({ pi }: { pi: PrincipalInvestigator }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
       title="Edit principal investigator"
       submitLabel="Save changes"
       submitDisabled={!departmentId}
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <PiFields
         fullName={fullName}
@@ -224,8 +218,22 @@ function EditPiDialog({ pi }: { pi: PrincipalInvestigator }) {
         hasEquipmentPermissions={hasEquipmentPermissions}
         setHasEquipmentPermissions={setHasEquipmentPermissions}
       />
-      {!pi.hasLogin && <p className="text-xs text-muted-foreground">No login yet — this PI can't sign in.</p>}
+      {!pi.hasLogin && <p className="text-xs text-muted-foreground">No login yet, so this PI can't sign in.</p>}
     </EntityDialog>
+  )
+}
+
+function LoginBadge({ pi }: { pi: PrincipalInvestigator }) {
+  return <Badge variant={pi.hasLogin ? 'secondary' : 'outline'}>{pi.hasLogin ? 'Can sign in' : 'No login'}</Badge>
+}
+
+function PiActions({ pi }: { pi: PrincipalInvestigator }) {
+  const dialog = useRowDialog<'edit'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef} itemName={pi.fullName} actions={[{ label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') }]} />
+      {dialog.mounted === 'edit' && <EditPiDialog key={dialog.session} pi={pi} {...dialog.bind('edit')} />}
+    </>
   )
 }
 
@@ -235,65 +243,50 @@ export function PrincipalInvestigatorsTab() {
   return (
     <AdminSection
       title="Principal investigators"
-      description="PIs lead research groups and can optionally log in and be given equipment permissions."
+      description="PIs lead labs. They can be given a login and permission to manage their lab's equipment."
       action={<CreatePiDialog />}
     >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead className="hidden md:table-cell">Email</TableHead>
-            <TableHead className="hidden lg:table-cell">Department</TableHead>
-            <TableHead>Login</TableHead>
-            <TableHead>Permissions</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={6}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={6}
-              tone="error"
-              title="Couldn't load principal investigators."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && pis?.length === 0 && (
-            <TableEmptyState colSpan={6} title="No principal investigators yet." />
-          )}
-
-          {pis?.map((pi) => (
-            <TableRow key={pi.id}>
-              <TableCell className="font-medium text-foreground">{pi.fullName}</TableCell>
-              <TableCell className="hidden text-muted-foreground md:table-cell">{pi.email}</TableCell>
-              <TableCell className="hidden text-muted-foreground lg:table-cell">{pi.departmentName}</TableCell>
-              <TableCell>
-                <Badge variant={pi.hasLogin ? 'secondary' : 'outline'}>{pi.hasLogin ? 'Active' : 'No login'}</Badge>
-              </TableCell>
-              <TableCell>
-                {pi.hasEquipmentPermissions ? (
-                  <Badge variant="secondary">Equipment</Badge>
-                ) : (
-                  <span className="text-sm text-muted-foreground">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                <EditPiDialog pi={pi} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={pis}
+        isLoading={isLoading}
+        isError={isError}
+        noun="principal investigators"
+        getKey={(pi) => pi.id}
+        search={{
+          label: 'Search principal investigators',
+          placeholder: 'Search by name or email',
+          text: (pi) => `${pi.fullName} ${pi.email} ${pi.departmentName}`,
+        }}
+        empty={{ title: 'No principal investigators yet.', description: 'Add the first PI, then create their lab.' }}
+        columns={[
+          { key: 'name', header: 'Name', cell: (pi) => <span className="font-medium text-foreground">{pi.fullName}</span> },
+          { key: 'email', header: 'Email', cell: (pi) => <span className="text-muted-foreground wrap-anywhere">{pi.email}</span> },
+          {
+            key: 'department',
+            header: 'Department',
+            className: 'hidden xl:table-cell',
+            cell: (pi) => <span className="text-muted-foreground">{pi.departmentName}</span>,
+          },
+          { key: 'login', header: 'Login', cell: (pi) => <LoginBadge pi={pi} /> },
+          {
+            key: 'permissions',
+            header: 'Manages equipment',
+            className: 'hidden lg:table-cell',
+            cell: (pi) => <span className="text-muted-foreground">{pi.hasEquipmentPermissions ? 'Yes' : 'No'}</span>,
+          },
+        ]}
+        renderCard={(pi) => (
+          <>
+            <p className="font-medium text-foreground">{pi.fullName}</p>
+            <p className="text-[13px] text-muted-foreground wrap-anywhere">{pi.email}</p>
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              <LoginBadge pi={pi} />
+              {pi.hasEquipmentPermissions && <span>Manages equipment</span>}
+            </div>
+          </>
+        )}
+        renderActions={(pi) => <PiActions pi={pi} />}
+      />
     </AdminSection>
   )
 }

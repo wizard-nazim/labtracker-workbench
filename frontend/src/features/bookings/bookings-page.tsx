@@ -1,48 +1,22 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, Check, Clock, MapPin, X } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
-import { PageBanner } from '@/components/page-banner'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { ResponsiveList } from '@/components/responsive-list'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Calendar33 } from '@/components/beste/piece/calendar33'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/context/auth-context'
-import { ApiError } from '@/lib/api-client'
+import { apiErrorMessage } from '@/lib/api-error-message'
 import { RecordUsageDialog } from '@/features/usage/record-usage-dialog'
 import { BookingStatusIndicator } from './booking-status-indicator'
+import { bookingStatusLabel } from './booking-status'
 import { useApproveBooking, useBookings, useCancelBooking, useRejectBooking } from './use-bookings'
-import type { Booking } from './types'
+import { formatWhen } from './format-when'
+import type { Booking, BookingStatus } from './types'
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  })
-}
-
-function errorMessage(err: unknown) {
-  return err instanceof ApiError ? err.message : 'Something went wrong. Try again.'
-}
-
-// Real upcoming days (not the component's hardcoded demo dates) so the empty
-// state's illustration never shows a date that doesn't match today.
-function upcomingDays() {
-  const today = new Date()
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(today)
-    date.setDate(today.getDate() + i)
-    return { weekday: date.toLocaleDateString(undefined, { weekday: 'short' }), date: String(date.getDate()) }
-  })
-}
+const STATUS_FILTERS: Array<BookingStatus | 'All'> = ['All', 'Requested', 'Approved', 'Completed', 'Rejected', 'Cancelled', 'NoShow']
 
 export function BookingsPage() {
   const { user } = useAuth()
@@ -50,188 +24,254 @@ export function BookingsPage() {
 
   const { data: allBookings, isLoading, isError } = useBookings()
   const [needsMyApproval, setNeedsMyApproval] = useState(false)
+  const [status, setStatus] = useState<BookingStatus | 'All'>('All')
   const awaitingMe = allBookings?.filter((b) => b.canApprove) ?? []
-  const bookings = needsMyApproval ? awaitingMe : allBookings
+  const bookings = (needsMyApproval ? awaitingMe : allBookings)?.filter((b) => status === 'All' || b.status === status)
   const approve = useApproveBooking()
   const reject = useRejectBooking()
   const cancel = useCancelBooking()
+  const isPending = approve.isPending || reject.isPending || cancel.isPending
 
-  async function handleApprove(booking: Booking) {
+  async function run(action: typeof approve, booking: Booking, doneTitle: string) {
     try {
-      await approve.mutateAsync(booking.id)
-      toast.success(`Approved booking for ${booking.equipmentName}.`)
+      await action.mutateAsync(booking.id)
+      toast.success(doneTitle, {
+        description: `${booking.equipmentName}, ${formatWhen(booking.scheduledStart, booking.scheduledEnd)}.`,
+      })
     } catch (err) {
-      toast.error(errorMessage(err))
+      toast.error(apiErrorMessage(err))
     }
   }
 
-  async function handleReject(booking: Booking) {
-    try {
-      await reject.mutateAsync(booking.id)
-      toast.success(`Rejected booking for ${booking.equipmentName}.`)
-    } catch (err) {
-      toast.error(errorMessage(err))
-    }
+  function actions(booking: Booking, size: 'sm' | 'lg') {
+    const canCancel = booking.status === 'Requested' || booking.status === 'Approved'
+    const canRecordUsage = isManager && booking.status === 'Approved'
+    if (!booking.canApprove && !canCancel && !canRecordUsage) return null
+    const name = `${booking.equipmentName}, ${formatWhen(booking.scheduledStart, booking.scheduledEnd)}`
+
+    return (
+      <div className={size === 'lg' ? 'flex flex-wrap gap-2 [&>*]:flex-1' : 'flex items-center justify-end gap-1.5'}>
+        {booking.canApprove && (
+          <>
+            <Button size={size} disabled={isPending} onClick={() => run(approve, booking, 'Booking approved')} aria-label={`Approve ${name}`}>
+              <Check data-icon="inline-start" aria-hidden="true" />
+              Approve
+            </Button>
+            <Button
+              size={size}
+              variant="outline"
+              disabled={isPending}
+              onClick={() => run(reject, booking, 'Booking rejected')}
+              aria-label={`Reject ${name}`}
+            >
+              <X data-icon="inline-start" aria-hidden="true" />
+              Reject
+            </Button>
+          </>
+        )}
+        {canRecordUsage && (
+          <RecordUsageDialog
+            equipmentId={booking.equipmentId}
+            equipmentName={booking.equipmentName}
+            bookingId={booking.id}
+            bookedStart={booking.scheduledStart}
+            bookedEnd={booking.scheduledEnd}
+            triggerSize={size}
+          />
+        )}
+        {canCancel && (
+          <ConfirmDialog
+            trigger={
+              <Button size={size} variant="ghost" disabled={isPending} aria-label={`Cancel booking: ${name}`}>
+                {size === 'lg' ? 'Cancel booking' : 'Cancel'}
+              </Button>
+            }
+            title="Cancel this booking?"
+            description={`${name}. The slot becomes free for someone else.`}
+            confirmLabel="Cancel booking"
+            destructive
+            onConfirm={() => run(cancel, booking, 'Booking cancelled')}
+          />
+        )}
+      </div>
+    )
   }
 
-  async function handleCancel(booking: Booking) {
-    try {
-      await cancel.mutateAsync(booking.id)
-      toast.success(`Cancelled booking for ${booking.equipmentName}.`)
-    } catch (err) {
-      toast.error(errorMessage(err))
-    }
-  }
-
-  const columnCount = (isManager ? 6 : 5) + 1
+  const filtered = needsMyApproval || status !== 'All'
 
   return (
     <div className="flex flex-col gap-4">
-      <PageBanner src="/banners/bookings-banner.jpg" alt="Bookings" />
-
       <PageHeader
         icon={CalendarClock}
         title="Bookings"
-        description={isManager ? 'All equipment bookings across the department.' : 'Your equipment bookings.'}
-        action={
-          isManager && (awaitingMe.length > 0 || needsMyApproval) ? (
-            <Button
-              size="sm"
-              variant={needsMyApproval ? 'default' : 'outline'}
-              aria-pressed={needsMyApproval}
-              onClick={() => setNeedsMyApproval((v) => !v)}
-            >
-              Needs my approval ({awaitingMe.length})
-            </Button>
-          ) : undefined
+        description={
+          isManager
+            ? 'Every booking in the department. Approve new requests and record what was used.'
+            : 'Your bookings and where each one stands.'
         }
       />
 
-      <div className="overflow-hidden rounded-md border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-36">Status</TableHead>
-              <TableHead>Equipment</TableHead>
-              <TableHead className="hidden lg:table-cell">Room</TableHead>
-              {isManager && <TableHead className="hidden md:table-cell">Booked for</TableHead>}
-              <TableHead>Start</TableHead>
-              <TableHead className="hidden sm:table-cell">End</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  <TableCell colSpan={columnCount}>
-                    <Skeleton className="h-5 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))}
-
-            {isError && (
-              <TableEmptyState
-                colSpan={columnCount}
-                tone="error"
-                title="Couldn't load bookings."
-                description="Check that the API is running and try again."
-              />
+      <ResponsiveList
+        items={bookings}
+        isLoading={isLoading}
+        isError={isError}
+        getKey={(booking) => booking.id}
+        noun="bookings"
+        search={{
+          label: 'Search bookings',
+          placeholder: isManager ? 'Search by equipment or person' : 'Search by equipment',
+          text: (b) => [b.equipmentName, b.actorDisplayName, b.roomLabel, b.notes].filter(Boolean).join(' '),
+        }}
+        toolbar={
+          <>
+            <Select value={status} onValueChange={(value) => setStatus(value as BookingStatus | 'All')}>
+              <SelectTrigger className="h-9 w-full sm:w-52" aria-label="Filter by status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option === 'All' ? 'Any status' : bookingStatusLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isManager && (awaitingMe.length > 0 || needsMyApproval) && (
+              <Button
+                variant={needsMyApproval ? 'default' : 'outline'}
+                className="h-9"
+                aria-pressed={needsMyApproval}
+                onClick={() => setNeedsMyApproval((v) => !v)}
+              >
+                <Clock data-icon="inline-start" aria-hidden="true" />
+                Needs my approval
+                <span
+                  className={`ml-0.5 rounded-full px-1.5 text-xs font-semibold tabular-nums ${
+                    needsMyApproval ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary'
+                  }`}
+                >
+                  {awaitingMe.length}
+                </span>
+              </Button>
             )}
-
-            {!isLoading && !isError && needsMyApproval && bookings?.length === 0 && (
-              <TableEmptyState
-                colSpan={columnCount}
-                title="Nothing is waiting for your approval."
-                description="New requests for equipment you look after will show up here."
-              />
-            )}
-
-            {!isLoading && !isError && !needsMyApproval && bookings?.length === 0 && (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={columnCount} className="py-8">
-                  <div className="mx-auto flex max-w-xs flex-col items-center gap-3">
-                    <Calendar33
-                      title="Book a session"
-                      days={upcomingDays()}
-                      slots={['09:00', '13:00', '16:00']}
-                      tone="primary"
-                    />
-                    <p className="text-sm text-foreground">
-                      {isManager ? 'No bookings yet.' : "You haven't booked any equipment yet."}
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-
-            {bookings?.map((booking) => {
-              const isPending = approve.isPending || reject.isPending || cancel.isPending
-              const canCancel = booking.status === 'Requested' || booking.status === 'Approved'
-
-              return (
-                <TableRow key={booking.id}>
-                  <TableCell>
-                    <BookingStatusIndicator status={booking.status} />
-                  </TableCell>
-                  <TableCell className="font-medium text-foreground">
-                    {booking.equipmentName}
-                    {booking.notes && (
-                      <p className="mt-0.5 max-w-48 truncate text-xs font-normal text-muted-foreground" title={booking.notes}>
-                        {booking.notes}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">{booking.roomLabel}</TableCell>
-                  {isManager && (
-                    <TableCell className="hidden text-muted-foreground md:table-cell">
-                      {booking.actorDisplayName}
-                      {booking.actorType === 'External' && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">(external)</span>
-                      )}
-                      {booking.actorPhone && (
-                        <a href={`tel:${booking.actorPhone}`} className="block text-xs text-primary hover:underline">
-                          {booking.actorPhone}
-                        </a>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-muted-foreground">{formatDateTime(booking.scheduledStart)}</TableCell>
-                  <TableCell className="hidden text-muted-foreground sm:table-cell">
-                    {formatDateTime(booking.scheduledEnd)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {booking.canApprove && (
-                        <>
-                          <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleApprove(booking)}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleReject(booking)}>
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                      {isManager && booking.status === 'Approved' && (
-                        <RecordUsageDialog
-                          equipmentId={booking.equipmentId}
-                          equipmentName={booking.equipmentName}
-                          bookingId={booking.id}
-                        />
-                      )}
-                      {canCancel && (
-                        <Button size="sm" variant="ghost" disabled={isPending} onClick={() => handleCancel(booking)}>
-                          Cancel
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+          </>
+        }
+        empty={
+          needsMyApproval && status === 'All'
+            ? {
+                title: 'Nothing is waiting for your approval.',
+                description: 'New requests for equipment you look after will show up here.',
+              }
+            : filtered
+              ? {
+                  title: 'No bookings match this filter.',
+                  action: (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setStatus('All')
+                        setNeedsMyApproval(false)
+                      }}
+                    >
+                      Show all bookings
+                    </Button>
+                  ),
+                }
+              : {
+                  title: isManager ? 'No bookings yet.' : "You haven't booked anything yet.",
+                  description: isManager ? undefined : 'Find an instrument and pick a time that suits you.',
+                  action: isManager ? undefined : (
+                    <Button size="sm" asChild>
+                      <Link to="/equipment">Find equipment</Link>
+                    </Button>
+                  ),
+                }
+        }
+        columns={[
+          {
+            key: 'equipment',
+            header: 'Equipment',
+            cell: (b) => (
+              <div className="min-w-0">
+                <Link to={`/equipment/${b.equipmentId}`} className="font-medium text-foreground hover:text-primary hover:underline">
+                  {b.equipmentName}
+                </Link>
+                <p className="text-xs text-muted-foreground">{b.roomLabel}</p>
+                {b.notes && (
+                  <p className="mt-0.5 max-w-64 truncate text-xs text-muted-foreground italic" title={b.notes}>
+                    “{b.notes}”
+                  </p>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'when',
+            header: 'When',
+            cell: (b) => <span className="whitespace-nowrap text-foreground tabular-nums">{formatWhen(b.scheduledStart, b.scheduledEnd)}</span>,
+          },
+          ...(isManager
+            ? [
+                {
+                  key: 'who',
+                  header: 'Booked for',
+                  className: 'hidden lg:table-cell',
+                  cell: (b: Booking) => <BookedFor booking={b} />,
+                },
+              ]
+            : []),
+          { key: 'status', header: 'Status', className: 'w-44', cell: (b) => <BookingStatusIndicator status={b.status} /> },
+          {
+            key: 'actions',
+            header: <span className="sr-only">Actions</span>,
+            className: 'text-right',
+            cell: (b) => actions(b, 'sm'),
+          },
+        ]}
+        renderCard={(b) => {
+          const cardActions = actions(b, 'lg')
+          return (
+            <div className="flex min-w-0 flex-col gap-2">
+              <div className="flex items-start justify-between gap-2">
+                <Link to={`/equipment/${b.equipmentId}`} className="font-medium leading-snug text-foreground wrap-anywhere">
+                  {b.equipmentName}
+                </Link>
+                <BookingStatusIndicator status={b.status} className="shrink-0" />
+              </div>
+              <p className="flex items-center gap-1.5 text-sm text-foreground tabular-nums">
+                <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                {formatWhen(b.scheduledStart, b.scheduledEnd)}
+              </p>
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+                <span className="wrap-anywhere">{b.roomLabel}</span>
+              </p>
+              {isManager && (
+                <div className="text-xs">
+                  <BookedFor booking={b} />
+                </div>
+              )}
+              {b.notes && <p className="text-xs text-muted-foreground italic wrap-anywhere">“{b.notes}”</p>}
+              {cardActions && <div className="mt-1">{cardActions}</div>}
+            </div>
+          )
+        }}
+      />
     </div>
+  )
+}
+
+function BookedFor({ booking }: { booking: Booking }) {
+  return (
+    <span className="text-muted-foreground">
+      <span className="text-foreground">{booking.actorDisplayName}</span>
+      {booking.actorType === 'External' && <span className="ml-1 text-xs">(visitor)</span>}
+      {booking.actorPhone && (
+        <a href={`tel:${booking.actorPhone}`} className="block text-xs text-primary hover:underline">
+          {booking.actorPhone}
+        </a>
+      )}
+    </span>
   )
 }

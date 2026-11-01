@@ -386,10 +386,13 @@ public class EquipmentService(
     }
 
     // User has no name of its own — use the linked PI or researcher profile's
-    // name when there is one, falling back to the login email the projection set.
+    // name when there is one, for owners and science officers alike. Owners fall
+    // back to the login email the projection set.
     private async Task FillOwnerNamesAsync(List<EquipmentDto> results, CancellationToken cancellationToken)
     {
-        var ownerIds = results.Where(r => r.Owner is not null).Select(r => r.Owner!.Id).Distinct().ToList();
+        var ownerIds = results.Where(r => r.Owner is not null).Select(r => r.Owner!.Id)
+            .Concat(results.SelectMany(r => r.ScienceOfficers).Select(so => so.UserId))
+            .Distinct().ToList();
         if (ownerIds.Count == 0) return;
 
         var piNames = await db.PrincipalInvestigators
@@ -408,6 +411,10 @@ public class EquipmentService(
         foreach (var owner in results.Select(r => r.Owner).OfType<EntityReferenceDto>())
         {
             if (names.TryGetValue(owner.Id, out var name) && !string.IsNullOrWhiteSpace(name)) owner.Name = name;
+        }
+        foreach (var officer in results.SelectMany(r => r.ScienceOfficers))
+        {
+            if (names.TryGetValue(officer.UserId, out var name) && !string.IsNullOrWhiteSpace(name)) officer.Name = name;
         }
     }
 

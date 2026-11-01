@@ -20,21 +20,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ROLE_LABEL } from '@/types/roles'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { BrandLockup, UctShield } from '@/components/brand-mark'
+import { BrandFooter } from '@/components/brand-footer'
 
-
-function LabTrackerMark() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="size-5" aria-hidden="true">
-      <path
-        d="M9 3v6.5L4.5 17a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L15 9.5V3M9 3h6"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 // Shared between the desktop <aside> and the mobile Sheet so both stay in sync.
 function NavList({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collapsed: boolean; onNavigate?: () => void }) {
@@ -57,7 +45,7 @@ function NavList({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collap
                 onClick={onNavigate}
                 data-tour={`nav-${to === '/' ? 'dashboard' : to.slice(1)}`}
                 className={({ isActive }) =>
-                  `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors ${
+                  `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring ${
                     collapsed ? 'justify-center px-0' : ''
                   } ${
                     isActive
@@ -157,20 +145,15 @@ export function AppShell() {
 
       <aside
         className={`hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex ${
-          collapsed ? 'w-16' : 'w-60'
+          collapsed ? 'w-16' : 'w-64'
         }`}
       >
-        <div className={`flex h-14 shrink-0 items-center border-b border-sidebar-border ${collapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
-          {!collapsed && (
-            <div className="flex items-center gap-2 text-sidebar-primary">
-              <LabTrackerMark />
-              <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">LabTracker</span>
-            </div>
-          )}
+        <div className={`flex h-16 shrink-0 items-center border-b border-sidebar-border ${collapsed ? 'flex-col justify-center gap-1 px-2' : 'justify-between gap-2 pr-3 pl-4'}`}>
+          {collapsed ? <UctShield className="h-7" /> : <BrandLockup />}
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronsRight className="size-4" aria-hidden="true" /> : <ChevronsLeft className="size-4" aria-hidden="true" />}
@@ -184,9 +167,9 @@ export function AppShell() {
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
         <SheetContent side="left" className="w-72 p-0 text-sidebar-foreground [&]:bg-sidebar">
-          <SheetHeader className="flex-row items-center gap-2 border-b border-sidebar-border text-sidebar-primary">
-            <LabTrackerMark />
-            <SheetTitle className="text-sidebar-foreground">LabTracker</SheetTitle>
+          <SheetHeader className="border-b border-sidebar-border">
+            <SheetTitle className="sr-only">LabTracker navigation</SheetTitle>
+            <BrandLockup />
           </SheetHeader>
           <NavList groups={visibleGroups} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
           <div className="shrink-0 border-t border-sidebar-border">{profileMenu}</div>
@@ -194,23 +177,22 @@ export function AppShell() {
       </Sheet>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border px-4 sm:px-6">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 sm:px-6 lg:h-16">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               data-tour="mobile-nav-toggle"
               onClick={() => setMobileNavOpen(true)}
-              className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground lg:hidden"
+              className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
               aria-label="Open navigation"
             >
               <Menu className="size-5" aria-hidden="true" />
             </button>
-            <div className="flex items-center gap-2 text-primary lg:hidden">
-              <LabTrackerMark />
-              <span className="hidden text-sm font-semibold tracking-tight text-foreground min-[420px]:inline">
-                LabTracker
-              </span>
-            </div>
+            <Link to="/" aria-label="LabTracker home" className="shrink-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
+              <UctShield className="h-7 min-[420px]:hidden" />
+              <BrandLockup compact className="hidden min-[420px]:flex sm:hidden" />
+              <BrandLockup className="hidden sm:flex" />
+            </Link>
             <GlobalSearch />
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -219,8 +201,11 @@ export function AppShell() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
-          <Outlet />
+        <main className="flex flex-1 flex-col overflow-y-auto px-4 pt-6 pb-4 sm:px-6 sm:pt-8">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <BrandFooter className="-mx-4 -mb-4 sm:-mx-6 sm:px-6" />
         </main>
       </div>
     </div>

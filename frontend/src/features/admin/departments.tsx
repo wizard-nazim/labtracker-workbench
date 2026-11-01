@@ -3,18 +3,10 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Button } from '@/components/ui/button'
+import { Pencil } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -88,7 +80,7 @@ function CreateDepartmentDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add department</Button>}
+      trigger={<AddButton>Add department</AddButton>}
       title="Add department"
       submitLabel="Add department"
       onSubmit={handleSubmit}
@@ -98,8 +90,15 @@ function CreateDepartmentDialog() {
   )
 }
 
-function EditDepartmentDialog({ department }: { department: Department }) {
-  const [open, setOpen] = useState(false)
+function EditDepartmentDialog({
+  department,
+  open,
+  onOpenChange,
+}: {
+  department: Department
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [name, setName] = useState(department.name)
   const [code, setCode] = useState(department.code)
   const update = useUpdateDepartment(department.id)
@@ -111,19 +110,24 @@ function EditDepartmentDialog({ department }: { department: Department }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
       title="Edit department"
       submitLabel="Save changes"
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <DepartmentFields name={name} setName={setName} code={code} setCode={setCode} />
     </EntityDialog>
+  )
+}
+
+function DepartmentActions({ department }: { department: Department }) {
+  const dialog = useRowDialog<'edit'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef} itemName={department.name} actions={[{ label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') }]} />
+      {dialog.mounted === 'edit' && <EditDepartmentDialog key={dialog.session} department={department} {...dialog.bind('edit')} />}
+    </>
   )
 }
 
@@ -133,51 +137,28 @@ export function DepartmentsTab() {
   return (
     <AdminSection
       title="Departments"
-      description="Departments that own equipment and organize research groups."
+      description="Departments own equipment and run labs."
       action={<CreateDepartmentDialog />}
     >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Code</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={3}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={3}
-              tone="error"
-              title="Couldn't load departments."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && departments?.length === 0 && (
-            <TableEmptyState colSpan={3} title="No departments yet." />
-          )}
-
-          {departments?.map((dept) => (
-            <TableRow key={dept.id}>
-              <TableCell className="font-medium text-foreground">{dept.name}</TableCell>
-              <TableCell className="font-mono text-xs text-muted-foreground">{dept.code}</TableCell>
-              <TableCell className="text-right">
-                <EditDepartmentDialog department={dept} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={departments}
+        isLoading={isLoading}
+        isError={isError}
+        noun="departments"
+        getKey={(d) => d.id}
+        empty={{ title: 'No departments yet.', description: 'Add the first department.' }}
+        columns={[
+          { key: 'name', header: 'Name', cell: (d) => <span className="font-medium text-foreground">{d.name}</span> },
+          { key: 'code', header: 'Code', cell: (d) => <span className="text-muted-foreground">{d.code}</span> },
+        ]}
+        renderCard={(d) => (
+          <>
+            <p className="font-medium text-foreground">{d.name}</p>
+            <p className="text-[13px] text-muted-foreground">Code {d.code}</p>
+          </>
+        )}
+        renderActions={(d) => <DepartmentActions department={d} />}
+      />
     </AdminSection>
   )
 }

@@ -3,18 +3,10 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Button } from '@/components/ui/button'
+import { Pencil, Trash2 } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -26,6 +18,8 @@ import {
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
 import { useUsers } from './users'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { apiErrorMessage } from '@/lib/api-error-message'
 
 export interface Facility {
   id: number
@@ -47,7 +41,7 @@ export function useFacilities() {
   return useQuery({ queryKey: ['facilities'], queryFn: () => apiClient.get<Facility[]>('/facilities') })
 }
 
-function useCreateFacility() {
+export function useCreateFacility() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertFacilityRequest) => apiClient.post<Facility>('/facilities', request),
@@ -61,6 +55,52 @@ function useUpdateFacility(id: number) {
     mutationFn: (request: UpsertFacilityRequest) => apiClient.put<Facility>(`/facilities/${id}`, request),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['facilities'] }),
   })
+}
+
+function useDeleteFacility() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => apiClient.delete<void>(`/facilities/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['facilities'] })
+      // Its rooms are unlinked, which changes room and equipment facility labels.
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: ['equipment'] })
+    },
+  })
+}
+
+export function DeleteFacilityDialog({
+  facility,
+  open,
+  onOpenChange,
+}: {
+  facility: Facility
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const remove = useDeleteFacility()
+
+  async function handleDelete() {
+    try {
+      await remove.mutateAsync(facility.id)
+      toast.success(`Deleted facility "${facility.name}".`)
+    } catch (err) {
+      toast.error(`Couldn't delete "${facility.name}". ${apiErrorMessage(err)}`)
+    }
+  }
+
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Delete "${facility.name}"?`}
+      description="Its rooms stay, but they'll no longer be part of a facility, and its overseers lose access through it. This can't be undone."
+      confirmLabel="Delete facility"
+      destructive
+      onConfirm={handleDelete}
+    />
+  )
 }
 
 function FacilityFields({
@@ -110,7 +150,7 @@ function FacilityFields({
         </Select>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label>Overseers (optional — Science Officers who manage this facility)</Label>
+        <Label>Overseers (optional): Science Officers who look after this facility</Label>
         <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-2">
           {scienceOfficers.length === 0 && (
             <p className="px-1 py-1 text-sm text-muted-foreground">No Science Officer accounts yet.</p>
@@ -148,7 +188,7 @@ function CreateFacilityDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add facility</Button>}
+      trigger={<AddButton>Add facility</AddButton>}
       title="Add facility"
       submitLabel="Add facility"
       submitDisabled={!departmentId}
@@ -166,8 +206,15 @@ function CreateFacilityDialog() {
   )
 }
 
-function EditFacilityDialog({ facility }: { facility: Facility }) {
-  const [open, setOpen] = useState(false)
+function EditFacilityDialog({
+  facility,
+  open,
+  onOpenChange,
+}: {
+  facility: Facility
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [name, setName] = useState(facility.name)
   const [departmentId, setDepartmentId] = useState(String(facility.departmentId))
   const [overseerUserIds, setOverseerUserIds] = useState<number[]>(facility.overseerUserIds)
@@ -180,17 +227,12 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
       title="Edit facility"
       submitLabel="Save changes"
       submitDisabled={!departmentId}
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <FacilityFields
         name={name}
@@ -204,65 +246,75 @@ function EditFacilityDialog({ facility }: { facility: Facility }) {
   )
 }
 
+function FacilityActions({ facility }: { facility: Facility }) {
+  const dialog = useRowDialog<'edit' | 'delete'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef}
+        itemName={facility.name}
+        actions={[
+          { label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') },
+          { label: 'Delete', icon: Trash2, destructive: true, onSelect: () => dialog.show('delete') },
+        ]}
+      />
+      {dialog.mounted === 'edit' && <EditFacilityDialog key={dialog.session} facility={facility} {...dialog.bind('edit')} />}
+      <DeleteFacilityDialog facility={facility} {...dialog.bind('delete')} />
+    </>
+  )
+}
+
+function listOrDash(values: string[]) {
+  return values.length > 0 ? values.join(', ') : '—'
+}
+
 export function FacilitiesTab() {
   const { data: facilities, isLoading, isError } = useFacilities()
 
   return (
     <AdminSection
       title="Facilities"
-      description="Department-level facilities (e.g. BSL2 labs) that Science Officers can be assigned to oversee. Assign a room to a facility from the Rooms tab."
+      description="Shared spaces such as BSL2 suites, looked after by Science Officers. Add rooms to a facility from the room's edit form."
       action={<CreateFacilityDialog />}
     >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Overseers</TableHead>
-            <TableHead>Rooms</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={5}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={5}
-              tone="error"
-              title="Couldn't load facilities."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && facilities?.length === 0 && (
-            <TableEmptyState colSpan={5} title="No facilities yet." />
-          )}
-
-          {facilities?.map((facility) => (
-            <TableRow key={facility.id}>
-              <TableCell className="font-medium text-foreground">{facility.name}</TableCell>
-              <TableCell className="text-muted-foreground">{facility.departmentName}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {facility.overseerEmails.length > 0 ? facility.overseerEmails.join(', ') : '—'}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {facility.roomLabels.length > 0 ? facility.roomLabels.join(', ') : '—'}
-              </TableCell>
-              <TableCell className="text-right">
-                <EditFacilityDialog facility={facility} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      <ResponsiveList
+        items={facilities}
+        isLoading={isLoading}
+        isError={isError}
+        noun="facilities"
+        getKey={(f) => f.id}
+        empty={{ title: 'No facilities yet.', description: 'Add a facility, then add rooms to it.' }}
+        columns={[
+          { key: 'name', header: 'Facility', cell: (f) => <span className="font-medium text-foreground">{f.name}</span> },
+          {
+            key: 'rooms',
+            header: 'Rooms',
+            cell: (f) => <span className="text-muted-foreground">{listOrDash(f.roomLabels)}</span>,
+          },
+          {
+            key: 'overseers',
+            header: 'Overseers',
+            cell: (f) => <span className="text-muted-foreground wrap-anywhere">{listOrDash(f.overseerEmails)}</span>,
+          },
+          {
+            key: 'department',
+            header: 'Department',
+            className: 'hidden xl:table-cell',
+            cell: (f) => <span className="text-muted-foreground">{f.departmentName}</span>,
+          },
+        ]}
+        renderCard={(f) => (
+          <>
+            <p className="font-medium text-foreground">{f.name}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {f.roomLabels.length === 0 ? 'No rooms yet' : `Rooms: ${f.roomLabels.join(', ')}`}
+            </p>
+            {f.overseerEmails.length > 0 && (
+              <p className="text-[13px] text-muted-foreground wrap-anywhere">Overseen by {f.overseerEmails.join(', ')}</p>
+            )}
+          </>
+        )}
+        renderActions={(f) => <FacilityActions facility={f} />}
+      />
     </AdminSection>
   )
 }

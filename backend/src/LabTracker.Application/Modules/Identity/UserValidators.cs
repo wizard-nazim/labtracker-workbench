@@ -22,6 +22,17 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
         => !await db.Users.AnyAsync(u => u.Email == EmailAddress.Normalize(email), ct);
 }
 
+public class UpdateUserLoginRequestValidator : AbstractValidator<UpdateUserLoginRequest>
+{
+    public UpdateUserLoginRequestValidator()
+    {
+        // Uniqueness is checked in UserService, which knows whose login this is.
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(200);
+
+        RuleFor(x => x.Password).MinimumLength(8).When(x => !string.IsNullOrEmpty(x.Password));
+    }
+}
+
 public class UpdateMeRequestValidator : AbstractValidator<UpdateMeRequest>
 {
     public UpdateMeRequestValidator()

@@ -12,6 +12,10 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.4" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Modules\Admin\SeedData\mcb-equipment.json" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

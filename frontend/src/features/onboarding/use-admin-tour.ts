@@ -1,38 +1,72 @@
+import { useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { Step } from 'react-joyride'
 import { useMe } from '@/features/account/use-me'
 import { useTour } from './use-tour'
 
-const STEPS: Step[] = [
-  {
-    target: '[data-tour="admin-tabs"]',
-    content: 'These tabs hold all the master data your equipment and bookings depend on.',
-  },
-  {
-    target: '[data-tour="admin-tab-departments"]',
-    content: 'Start here — departments own equipment and organize research groups.',
-  },
-  {
-    target: '[data-tour="admin-tab-equipment-types"]',
-    content: 'Add an equipment type here, then click it to manage its actual units — add machines, upload photos, change status, and assign Science Officers, all in one place.',
-  },
-  {
-    target: '[data-tour="admin-tab-facilities"]',
-    content: 'Facilities like BSL2 labs can have Science Officers assigned to oversee them.',
-  },
-  {
-    target: '[data-tour="admin-tab-users"]',
-    content: 'Create login accounts here, then link them to a Researcher or PI profile so they can book equipment.',
-  },
-  {
-    target: '[data-tour="danger-zone"]',
-    content: "Use this to wipe demo data before entering a real client's data. This can't be undone.",
-  },
-]
+const HUB = '/admin'
+const EXAMPLE_PAGE = '/admin/equipment'
 
-// The danger-zone step only exists where demo-data reset is enabled
-// (development); elsewhere its target isn't rendered.
-export function useAdminTour(includeDangerZone: boolean) {
+// Resolves once the step's target has rendered after a route change (or
+// after 3 seconds, when Joyride skips a step whose target is missing).
+function waitForTarget(selector: string) {
+  return new Promise<void>((resolve) => {
+    const started = performance.now()
+    function check() {
+      if (document.querySelector(selector) || performance.now() - started > 3000) resolve()
+      else requestAnimationFrame(check)
+    }
+    check()
+  })
+}
+
+// Three steps that teach the whole of Admin: pick an area, add with the one
+// Add button, change things from a row's ⋯ menu. Runs from the admin layout,
+// so it can move from the hub to the Equipment page and back.
+export function useAdminTour() {
   const { data: me } = useMe()
-  const steps = includeDangerZone ? STEPS : STEPS.filter((s) => s.target !== '[data-tour="danger-zone"]')
-  return useTour(steps, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
+  const navigate = useNavigate()
+  const location = useLocation()
+  // Only start on its own when someone first lands on the hub, never by
+  // pulling them off a page they opened directly.
+  const [startedOnHub] = useState(location.pathname === HUB)
+  const [manual, setManual] = useState(false)
+
+  const steps = useMemo<Step[]>(
+    () => [
+      {
+        target: '[data-tour="admin-tiles"]',
+        content: 'Everything you manage is grouped into these four areas. Choose one to see its list.',
+        before: async () => {
+          if (window.location.pathname !== HUB) navigate(HUB)
+          await waitForTarget('[data-tour="admin-tiles"]')
+        },
+      },
+      {
+        target: '[data-tour="admin-add"]',
+        content: 'Each list has one Add button. Use it to create something new.',
+        before: async () => {
+          if (window.location.pathname !== EXAMPLE_PAGE) navigate(EXAMPLE_PAGE)
+          await waitForTarget('[data-tour="admin-add"]')
+        },
+      },
+      {
+        target: '[data-tour="row-menu"]',
+        content: 'To change something that already exists, open the ⋯ menu on its row: edit, archive or delete it there.',
+      },
+    ],
+    [navigate],
+  )
+
+  const tour = useTour(steps, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
+  return {
+    ...tour,
+    // Waits for the general app tour to finish first, so two tours never
+    // overlap on someone's first visit.
+    run: tour.run && (manual || (startedOnHub && me?.hasCompletedOnboarding === true)),
+    restart: () => {
+      setManual(true)
+      tour.restart()
+    },
+  }
 }
