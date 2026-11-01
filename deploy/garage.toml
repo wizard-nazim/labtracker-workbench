@@ -1,0 +1,27 @@
+# Garage (S3-compatible storage) for docker-compose.prod.yml. Single node, no
+# replication. Secrets come from the environment (GARAGE_RPC_SECRET, and the
+# default access key), never from this file.
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+rpc_public_addr = "127.0.0.1:3901"
+
+# S3 API, used by the API container only.
+[s3_api]
+# The API's AWS SDK signs requests to a custom endpoint for us-east-1, and
+# Garage rejects signatures for any region but its own.
+s3_region = "us-east-1"
+api_bind_addr = "[::]:3900"
+root_domain = ".s3.garage.localhost"
+
+# Anonymous read-only endpoint; nginx serves /storage/ from it.
+[s3_web]
+bind_addr = "[::]:3902"
+root_domain = ".web.garage.localhost"
+index = "index.html"
+
+# No [admin] section: the admin HTTP API stays off. Use `garage` CLI via
+# `docker compose exec storage /garage ...` instead.

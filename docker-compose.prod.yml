@@ -1,36 +1,149 @@
-# Production stack: the API plus nginx serving the frontend and proxying /api.
-# Postgres and S3-compatible storage are external (e.g. Supabase / S3 / MinIO).
+# Self-hosted production stack: nginx (SPA + reverse proxy), the API,
+# Postgres and Garage (S3-compatible storage for equipment photos), all on one
+# Docker host. Only nginx publishes a port; see docs/deploy-homelab.md.
 #
-#   cp .env.production.example .env.production   # fill it in
+#   deploy/generate-env.sh                       # creates .env.production
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+name: labtracker
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
-  api:
-    build: ./backend
+  db:
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING:?set DATABASE_CONNECTION_STRING}
+      POSTGRES_DB: ${POSTGRES_DB:-labtracker}
+      POSTGRES_USER: ${POSTGRES_USER:-labtracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    # Sized for ~10 users on an 8 GB host.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=768MB
+      - -c
+      - max_connections=50
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 1g }
+    logging: *logging
+
+  storage:
+    image: dxflrs/garage:v2.5.0
+    restart: unless-stopped
+    # Single-node layout, plus the API's access key and bucket from the
+    # environment (created on first start, left alone afterwards).
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?set GARAGE_RPC_SECRET}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY:?set S3_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_KEY:?set S3_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: labtracker-equipment
+    volumes:
+      - ./deploy/garage.toml:/etc/garage.toml:ro
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512m }
+    logging: *logging
+
+  api:
+    build: ./backend
+    image: labtracker-api:${APP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      storage: { condition: service_healthy }
+    environment:
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-labtracker};Username=${POSTGRES_USER:-labtracker};Password=${POSTGRES_PASSWORD};Maximum Pool Size=20
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY}
       Database__MigrateOnStartup: ${MIGRATE_ON_STARTUP:-true}
-      AllowedHosts: ${ALLOWED_HOSTS:-*}
+      AllowedHosts: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS}
       Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
       Bootstrap__AdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      Minio__ServiceUrl: ${S3_SERVICE_URL:-}
-      Minio__AccessKey: ${S3_ACCESS_KEY:-}
-      Minio__SecretKey: ${S3_SECRET_KEY:-}
-      Minio__Bucket: ${S3_BUCKET:-labtracker-equipment}
-      Minio__PublicBaseUrl: ${S3_PUBLIC_BASE_URL:-}
+      Minio__ServiceUrl: http://storage:3900
+      Minio__AccessKey: ${S3_ACCESS_KEY}
+      Minio__SecretKey: ${S3_SECRET_KEY}
+      Minio__Bucket: labtracker-equipment
+      # Same-origin path that nginx serves read-only from the bucket.
+      Minio__PublicBaseUrl: /storage
+      # AWS SDK v4 adds a checksum trailer to every upload by default, which
+      # Garage rejects as an invalid payload signature.
+      AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+      AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
       Google__ClientId: ${GOOGLE_CLIENT_ID:-}
-    # No published port: only reachable through the web container.
-    expose:
-      - "8080"
+      Features__McbImport: ${FEATURE_MCB_IMPORT:-false}
+      RateLimiting__Login__PermitLimit: ${LOGIN_RATE_LIMIT:-10}
+    # No published port: only nginx reaches it. `edge` gives it outbound
+    # internet for Google sign-in certificate checks.
+    networks: [internal, edge]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      # Migrations run before the API starts listening.
+      start_period: 60s
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 1g }
+    logging: *logging
 
   web:
     build:
       context: ./frontend
       args:
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    image: labtracker-web:${APP_VERSION:-latest}
     restart: unless-stopped
     depends_on:
-      - api
+      api: { condition: service_healthy }
+      storage: { condition: service_healthy }
+    networks: [internal, edge]
+    # Bound to one host address. Docker-published ports bypass ufw, so never
+    # widen this to 0.0.0.0 by accident.
     ports:
-      - "${WEB_PORT:-80}:80"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 128m }
+    logging: *logging
+
+networks:
+  # No route to the internet or the host's LAN: Postgres and Garage live only here.
+  internal:
+    internal: true
+  edge: {}
+
+volumes:
+  pgdata:
+  garage_meta:
+  garage_data:

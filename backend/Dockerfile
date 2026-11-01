@@ -16,9 +16,10 @@ RUN dotnet publish src/LabTracker.Api/LabTracker.Api.csproj -c Release -o /app -
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 # SkiaSharp (equipment image processing) needs fontconfig; Npgsql probes for
-# GSSAPI on connect and logs an error on every start without it.
+# GSSAPI on connect and logs an error on every start without it. curl is for
+# the container health check.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libfontconfig1 libgssapi-krb5-2 \
+    && apt-get install -y --no-install-recommends libfontconfig1 libgssapi-krb5-2 curl \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app .

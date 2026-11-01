@@ -92,22 +92,20 @@ Health check: `GET /health` (also reports whether the database is reachable).
 
 ## Production deployment
 
-`docker-compose.prod.yml` runs the API and an nginx container that serves the
-built frontend and proxies `/api` to the API. PostgreSQL and object storage are
-external.
+### Self-hosted (Docker Compose)
+
+`docker-compose.prod.yml` runs the whole stack on one Docker host: nginx
+(serves the SPA and proxies `/api` and `/storage`), the API, PostgreSQL and
+[Garage](https://garagehq.deuxfleurs.fr/) for equipment photos. Only nginx
+publishes a port.
 
 ```bash
-cp .env.production.example .env.production   # fill in; it's gitignored
-docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+deploy/generate-env.sh   # writes .env.production with random secrets; edit the EDIT lines
+deploy/deploy.sh         # backs up (if running), builds, starts, waits for health
 ```
 
-- **Database**: for Supabase, use the direct or session-pooler connection
-  (port 5432) with `SSL Mode=Require`; the transaction pooler (6543) doesn't
-  suit migrations.
-- **First login**: set `BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PASSWORD` for the
-  first start, sign in, change the password, then remove them.
-- **TLS**: terminate HTTPS in front of the web container (load balancer or
-  reverse proxy) and set `ALLOWED_HOSTS` to your hostname.
+The full runbook (first deploy, updates, rollback, backups and restores,
+Cloudflare Tunnel preparation) is in [docs/deploy-homelab.md](docs/deploy-homelab.md).
 
 ### Vercel (frontend) + Render (API)
 
