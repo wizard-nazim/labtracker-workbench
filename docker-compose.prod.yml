@@ -97,6 +97,9 @@ services:
       Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       Features__McbImport: ${FEATURE_MCB_IMPORT:-false}
       RateLimiting__Login__PermitLimit: ${LOGIN_RATE_LIMIT:-10}
+      # TLS ends at Cloudflare (later) or nowhere (LAN); HTTP->HTTPS redirects
+      # belong at that edge, so the API's own redirect middleware is off.
+      Https__RedirectToHttps: "false"
     # No published port: only nginx reaches it. `edge` gives it outbound
     # internet for Google sign-in certificate checks.
     networks: [internal, edge]

@@ -7,20 +7,24 @@
 # Garage's access key is inside the backup and must match S3_ACCESS_KEY.
 #
 #   deploy/restore.sh /srv/labtracker/backups/20261101T020000Z
+#
+# LABTRACKER_PROJECT picks the Compose project (default: the live one,
+# labtracker). deploy/restore-rehearsal.sh uses it to restore into a separate
+# throwaway copy instead.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 dir=${1:?usage: deploy/restore.sh <backup directory>}
 dir=$(cd "$dir" && pwd)
-compose=(docker compose -f docker-compose.prod.yml --env-file .env.production)
-project=labtracker
+project=${LABTRACKER_PROJECT:-labtracker}
+compose=(docker compose -p "$project" -f docker-compose.prod.yml --env-file .env.production)
 tool_image=postgres:16-alpine
 
 echo "==> Checking $dir"
 (cd "$dir" && sha256sum --check --quiet SHA256SUMS)
 
 if [[ ${2:-} != --yes ]]; then
-  echo "This replaces every record and photo with the contents of $dir."
+  echo "This replaces every record and photo in the '$project' stack with the contents of $dir."
   read -r -p "Type 'restore' to continue: " answer
   [[ $answer == restore ]] || { echo "Cancelled."; exit 1; }
 fi
@@ -36,6 +40,8 @@ echo "==> Restoring the database"
 "${compose[@]}" exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --exit-on-error' < "$dir/db.dump"
 
 echo "==> Restoring object storage"
+# Creates the storage container and its volumes if this stack is new.
+"${compose[@]}" up --no-start storage
 "${compose[@]}" stop storage
 docker run --rm \
   -v "${project}_garage_meta:/meta" \

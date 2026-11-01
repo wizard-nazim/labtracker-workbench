@@ -290,37 +290,211 @@ You're now on a detached HEAD. Go back to normal updates later with
 
 ## 9. Backups and restores
 
+### What a backup is
+
 `deploy/backup.sh` writes `/srv/labtracker/backups/<UTC timestamp>/` containing:
 
 - `db.dump`: `pg_dump` in custom format, checked with `pg_restore --list`
-- `storage.tar.gz`: Garage's metadata and data volumes, copied while Garage
-  is stopped for a few seconds so the copy is consistent
+- `storage.tar.gz`: Garage's metadata and data volumes (see
+  [Why storage pauses](#why-storage-pauses-during-a-backup))
 - `SHA256SUMS` and `app-version` (the git commit running at the time)
 
-It deletes backup folders older than `KEEP_DAYS` (default 14). Run it nightly
-from cron:
+A run writes into `<timestamp>.partial` and renames it only when every step
+succeeded, so **a folder without `.partial` is always a complete backup**.
+`last-success` in the same folder names the newest one. A failed run leaves
+its `.partial` folder for a day so you can look at it, then it's deleted.
+
+### Nightly backups and health checks (systemd timers)
+
+The repo ships systemd units in `deploy/systemd/`. One more install step puts
+them in place for your user and this checkout. It shows what it will change
+and asks before doing it:
 
 ```bash
-sudo tee /etc/cron.d/labtracker-backup > /dev/null <<EOF
-# m h dom mon dow user command
-30 2 * * * $USER cd /srv/labtracker/app && deploy/backup.sh >> /srv/labtracker/backups/backup.log 2>&1
-EOF
+cd /srv/labtracker/app && deploy/install-systemd.sh
 ```
 
-**Keep a copy off this machine.** A backup on the same disk doesn't survive
-disk failure or theft. For example, copy the folders nightly to another
-machine or an external drive (`rsync -a /srv/labtracker/backups/ nas:/backups/labtracker/`),
-preferably encrypted (e.g. restic). Keep `.env.production` with them, stored
-separately.
+It enables two timers:
 
-To restore a backup (this **replaces all current data**):
+| Timer | When | Runs |
+|---|---|---|
+| `labtracker-backup.timer` | daily ~02:30 (random 0–15 min); runs at boot if the server was off | `backup.sh`, then `offsite-backup.sh` |
+| `labtracker-monitor.timer` | every 10 minutes | `monitor.sh` (section 12) |
+
+If either fails, systemd starts `labtracker-alert@…`, which records it and,
+once configured, notifies you (section 12). Output goes to the journal; no log
+files to rotate:
+
+```bash
+systemctl list-timers 'labtracker-*'             # next and last runs
+journalctl -u labtracker-backup -n 50            # last backup's output
+sudo systemctl start labtracker-backup           # run a backup now (waits until done)
+systemctl status labtracker-backup --no-pager    # did the last run succeed?
+```
+
+If you added a cron line for backups earlier, remove it
+(`sudo rm /etc/cron.d/labtracker-backup`) so backups don't run twice.
+
+### Retention and disk space
+
+- **Local:** complete backups older than `KEEP_DAYS` (14) are deleted, but the
+  newest `KEEP_MIN` (7) are always kept, so a stretch of failed backups never
+  empties the folder.
+- **Disk guard:** a backup refuses to start unless `MIN_FREE_MB` (5120) plus
+  twice the size of the last backup is free. It fails before touching
+  anything, and the alert tells you.
+- To change these, run `sudo systemctl edit labtracker-backup.service` and add,
+  for example:
+
+  ```ini
+  [Service]
+  Environment=KEEP_DAYS=30 KEEP_MIN=10
+  ```
+
+- **Off-site** (below): 7 daily, 4 weekly and 6 monthly copies.
+- **Other disk users.** Docker logs are capped at 50 MB per container. Images
+  pile up, one set per deploy, and the monitor warns at 85% full. To keep the
+  last three deployed versions (for rollbacks) and drop the rest:
+
+  ```bash
+  cd /srv/labtracker/app
+  keep=$(tail -n 3 .deploy-history | awk '{print $2}' | sort -u | paste -sd'|')
+  docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E '^labtracker-(api|web):' \
+    | grep -vE ":($keep)$" | xargs -r docker image rm
+  docker builder prune -f --filter until=168h      # build cache older than a week
+  ```
+
+### Why storage pauses during a backup
+
+Garage keeps object metadata in a SQLite database and photo bytes in
+content-addressed block files. A file copy of a SQLite database that's being
+written to can be corrupt, so `backup.sh` stops Garage, copies both volumes,
+and starts it again. `backup.sh` logs how long that took ("storage was paused
+for Ns"). On this server it's about 1–2 seconds. During the pause, photo
+uploads and photo loads fail; everything else works.
+
+The alternatives were considered and not used:
+
+- **`garage meta snapshot`** copies the metadata database consistently while
+  Garage runs. But the block files would still be copied live, so a photo
+  deleted between the snapshot and the copy could restore as a broken image.
+  Restoring would also mean swapping database files by hand, a path that's
+  harder to rehearse.
+- **Copying objects through the S3 API** (rclone or the AWS CLI) needs no
+  pause. But it adds a tool and a separate restore path (re-uploading every
+  object), for a saving of about two seconds a night.
+
+At 02:30 with about 10 users, a pause of a couple of seconds is the simpler
+and better-tested option. Revisit it if the logged pause grows past about 30
+seconds, which would mean tens of GB of photos.
+
+### Off-site, encrypted (restic)
+
+`deploy/offsite-backup.sh` runs right after each local backup. It copies the
+newest backup **and `.env.production`** into a [restic](https://restic.net)
+repository. restic encrypts everything on this server before it leaves, and
+deduplicates, so each night only sends what changed. Until it's configured it
+does nothing. Setup, once:
+
+1. **Pick a destination that isn't this server:** another machine or NAS over
+   SFTP (`sftp:user@nas:/backups/labtracker`), an S3-compatible bucket such as
+   Backblaze B2 (`s3:https://s3.<region>.backblazeb2.com/<bucket>`), or a USB
+   disk you take away (a local path). For SFTP, set up key-based SSH from this
+   server's user to the destination first (`ssh-copy-id user@nas`), and
+   check that `ssh user@nas` works without a password prompt.
+2. **Install restic and create a long random repository password.**
+   `/etc/labtracker` is created by `deploy/install-systemd.sh`, so run that
+   first.
+
+   ```bash
+   sudo apt install restic
+   openssl rand -base64 32 > /etc/labtracker/restic-password && chmod 600 /etc/labtracker/restic-password
+   ```
+
+3. **Write `/etc/labtracker/offsite.env`** (mode 600):
+
+   ```bash
+   cat > /etc/labtracker/offsite.env <<'EOF'
+   RESTIC_REPOSITORY=sftp:user@nas:/backups/labtracker
+   RESTIC_PASSWORD_FILE=/etc/labtracker/restic-password
+   # For S3/B2 also set: AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+   EOF
+   chmod 600 /etc/labtracker/offsite.env
+   ```
+
+4. **Initialise the repository and run once:**
+
+   ```bash
+   set -a; . /etc/labtracker/offsite.env; set +a; restic init
+   cd /srv/labtracker/app && deploy/offsite-backup.sh
+   restic snapshots
+   ```
+
+5. **Make your recovery kit.** Store these in your password manager, **not
+   only on this server**:
+   - the restic repository location (the `RESTIC_REPOSITORY` line)
+   - the restic password (`cat /etc/labtracker/restic-password`)
+   - any S3/B2 keys
+   - a copy of `.env.production`
+
+   Without the restic password the off-site copy is unreadable, by design.
+   `.env.production` is inside every off-site snapshot too, so the kit is
+   enough to rebuild from nothing.
+
+On Sundays the script also re-reads 10% of the stored data
+(`restic check --read-data-subset=10%`) to catch corruption at the
+destination.
+
+### Rehearsing a restore (safe)
+
+`deploy/restore-rehearsal.sh` restores a backup into a **separate, temporary
+copy** of the stack (Compose project `labtracker-rehearsal`, with its own
+containers, volumes and networks, on `127.0.0.1:18088`), checks it, and
+removes it. It never stops or changes the live app.
+
+```bash
+cd /srv/labtracker/app
+deploy/restore-rehearsal.sh                          # newest backup
+deploy/restore-rehearsal.sh /srv/labtracker/backups/<timestamp>
+```
+
+It ends with `REHEARSAL PASSED` or `REHEARSAL FAILED`. It checks that:
+
+- all four rehearsal containers are healthy and `/health` answers through nginx
+- every table's row count matches, shown next to the live database (live
+  counts can be higher if people added data since the backup)
+- every photo recorded in the database loads from the restored storage
+- the live containers weren't restarted
+
+While it runs it needs about 1.5 GB of free memory, and it refuses to start
+with less. To look around the restored copy yourself, add `--keep`, then open
+an SSH tunnel **from your laptop**
+(`ssh -L 18088:127.0.0.1:18088 wizard-nazim@10.0.0.20`) and browse
+http://localhost:18088. Remove it afterwards with
+`deploy/restore-rehearsal.sh --down`.
+
+To rehearse the **off-site** copy too, restore it to a scratch folder and
+rehearse from there:
+
+```bash
+set -a; . /etc/labtracker/offsite.env; set +a
+restic restore latest --target /tmp/offsite-test
+deploy/restore-rehearsal.sh "$(find /tmp/offsite-test -type d -name '2*Z' | head -n 1)"
+rm -r /tmp/offsite-test
+```
+
+Rehearse once now, then monthly.
+
+### Restoring for real
+
+This **replaces all current data** in the live app:
 
 ```bash
 cd /srv/labtracker/app
 deploy/restore.sh /srv/labtracker/backups/<timestamp>
 ```
 
-The restore script:
+The script:
 
 - refuses to start if a file doesn't match its checksum
 - asks you to type `restore`
@@ -330,13 +504,15 @@ The restore script:
 Use the same `.env.production` the backup was taken with: Garage's keys are
 inside the backup.
 
-**Test a restore at least once before the beta starts**, and again every few
-months: restore the latest backup, sign in, and open a photo. A backup you
-haven't restored isn't proven.
+**Onto a new server** (the old one is gone):
 
-To restore onto a new server: install Docker, clone the repo, put the saved
-`.env.production` in place, run `deploy/deploy.sh`, then
-`deploy/restore.sh <copied backup folder>`.
+1. Install Docker and restic, and clone the repo to `/srv/labtracker/app`.
+2. Recreate `/etc/labtracker/offsite.env` and the password file from your
+   recovery kit.
+3. Run `restic restore latest --target /tmp/recovered`.
+4. Copy the recovered `.env.production` into `/srv/labtracker/app`
+   (mode 600).
+5. Run `deploy/deploy.sh`, then `deploy/restore.sh <recovered backup folder>`.
 
 ## 10. Preparing for Cloudflare Tunnel (not set up yet)
 
@@ -348,25 +524,35 @@ hostnames are baked in. Nothing is exposed until you set this up. When you do:
    Cloudflare nameservers), and you've picked a hostname, e.g.
    `labtracker.<domain>`.
 2. **Run `cloudflared` on this server.** Run it as a systemd service or its
-   own container, with the tunnel's public hostname pointing to
-   `http://127.0.0.1:8080`. With `cloudflared` on the host, `WEB_BIND` can stay
-   at `127.0.0.1`.
-3. **Add the hostname.** Add it to `ALLOWED_HOSTS` in `.env.production` and run
+   own container, with the tunnel's public hostname pointing to nginx at
+   `http://<WEB_BIND>:<WEB_PORT>`. Once only the tunnel needs it, set
+   `WEB_BIND=127.0.0.1` with a port nothing else uses on 127.0.0.1 (check with
+   `sudo ss -tlnp | grep ':<port>\b'`; on desclution, Wekan's FerretDB already
+   has `127.0.0.1:8088`, so use e.g. 8090), and point the tunnel there.
+3. **HTTPS.** TLS ends at Cloudflare. In the Cloudflare dashboard, turn on
+   SSL/TLS → Edge Certificates → **Always Use HTTPS**. The API's own
+   HTTP→HTTPS redirect is off in this stack (`Https:RedirectToHttps=false`),
+   because it has no HTTPS port to redirect to; that's what used to log
+   "Failed to determine the https port for redirect". The tunnel tells the
+   API, through nginx's `X-Forwarded-Proto`, that the visitor used HTTPS, so
+   the API sends HSTS headers to tunnel visitors and none to plain-HTTP LAN
+   visitors.
+4. **Add the hostname.** Add it to `ALLOWED_HOSTS` in `.env.production` and run
    `$C up -d --wait`. Requests for an unlisted hostname get `400`.
-4. **Sign-in rate limit.** Through the tunnel, every visitor reaches nginx from
+5. **Sign-in rate limit.** Through the tunnel, every visitor reaches nginx from
    the tunnel's address, so the per-IP sign-in limit (`LOGIN_RATE_LIMIT`,
    default 10 per minute) is shared by all users. That's fine for about 10
    beta users; raise it (e.g. 30) if people see "Too many sign-in attempts".
    Per-user limiting behind the tunnel would mean having nginx trust
    `CF-Connecting-IP` from the tunnel only. That's a later change, not needed
    for the beta.
-5. **Google sign-in (optional).** Add `https://labtracker.<domain>` to the
+6. **Google sign-in (optional).** Add `https://labtracker.<domain>` to the
    OAuth client's authorised JavaScript origins, set `GOOGLE_CLIENT_ID`, and
    run `deploy/deploy.sh`. The client ID is built into the frontend, so it
    needs a rebuild.
-6. **Protect it.** Consider Cloudflare Access in front of the hostname during
+7. **Protect it.** Consider Cloudflare Access in front of the hostname during
    the beta, so only invited emails reach the app.
-7. **Re-verify.** Re-run section 5 against `https://labtracker.<domain>`.
+8. **Re-verify.** Re-run section 5 against `https://labtracker.<domain>`.
 
 ## 11. Day-to-day commands
 
@@ -377,6 +563,8 @@ $C logs -f --tail=100 api               # API logs (also: web, db, storage)
 $C restart api                          # restart one service
 $C exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'   # SQL shell
 $C exec -e RUST_LOG=warn storage /garage bucket info labtracker-equipment   # photo count and size
+systemctl list-timers 'labtracker-*'    # next backup and health-check runs
+journalctl -u labtracker-backup -n 30   # last backup (also: labtracker-monitor)
 docker system df                        # disk used by images, volumes, build cache
 docker builder prune                    # reclaim build cache
 $C down                                 # stop everything (volumes and data are kept)
@@ -384,3 +572,61 @@ $C down                                 # stop everything (volumes and data are 
 
 Never run `$C down -v` or `docker volume rm labtracker_*` on the live server:
 that deletes the database and every photo.
+
+## 12. Monitoring and alerts
+
+No extra services: `labtracker-monitor.timer` runs `deploy/monitor.sh` every
+10 minutes and writes one line to the journal:
+
+```
+containers: healthy | disk: / 23% /srv/labtracker/backups 23% | mem available: 5123 MB | backup: 7h ago | off-site: 7h ago | usage: web 11MiB,api 120MiB,db 45MiB,storage 9MiB
+```
+
+The run fails, and alerts, when:
+
+- a container isn't running and healthy
+- `/health` fails through nginx
+- a filesystem (`/`, Docker's data, the backups) is over `DISK_MAX_PCT` (85%)
+- available memory is under `MEM_MIN_MB` (400 MB)
+- the last successful local backup, or the off-site one once configured, is
+  over 26 hours old
+
+It skips the container checks while a backup or deploy is running, because
+both pause containers on purpose.
+
+```bash
+journalctl -u labtracker-monitor -n 20 --no-pager   # recent checks
+cd /srv/labtracker/app && deploy/monitor.sh          # run a check now
+```
+
+**Getting notified.** Until you configure it, failures only go to the
+journal. Create `/etc/labtracker/alert.env` (mode 600) with either or both:
+
+```bash
+cat > /etc/labtracker/alert.env <<'ENV'
+# Where to POST a short message when a backup or health check fails.
+# e.g. a private ntfy topic (phone app: ntfy) or a Healthchecks.io ".../fail" URL.
+ALERT_URL=https://ntfy.sh/<long-random-topic-name>
+# Pinged after every healthy check. A dead-man's switch such as Healthchecks.io
+# then alerts when pings stop, which covers the whole server being down.
+PING_URL=https://hc-ping.com/<uuid>
+ENV
+chmod 600 /etc/labtracker/alert.env
+```
+
+- An alert includes the failing unit's last 12 log lines. Those contain no
+  secrets, but treat the topic as private: use a long random ntfy topic name,
+  or a service with an account.
+- The same unit alerts at most once every 6 hours while it keeps failing, and
+  alerts again right away after it has recovered and fails anew.
+- For alerts to include log lines, your user must be able to read the system
+  journal: `sudo usermod -aG adm wizard-nazim`, then log in again.
+
+To test the alert path once it's configured:
+
+```bash
+sudo systemctl start labtracker-alert@test.service; journalctl -u labtracker-alert@test -n 5
+```
+
+Leave heavier tooling (Prometheus, Grafana, Netdata) for later. On a 2-core,
+8 GB host with about 10 users it would cost more than it tells you.

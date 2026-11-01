@@ -1,0 +1,11 @@
+# Installed by deploy/install-systemd.sh, which fills in @USER@ and @APP_DIR@.
+# Started by OnFailure= of the other LabTracker units; %i is the failed unit.
+[Unit]
+Description=LabTracker alert for %i
+
+[Service]
+Type=oneshot
+User=@USER@
+StateDirectory=labtracker
+Environment=ALERT_STATE_DIR=%S/labtracker
+ExecStart=@APP_DIR@/deploy/alert.sh %i

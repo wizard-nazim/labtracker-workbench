@@ -9,6 +9,13 @@ cd "$(dirname "$0")/.."
 [[ -f .env.production ]] || { echo "Missing .env.production; run deploy/generate-env.sh first." >&2; exit 1; }
 compose=(docker compose -f docker-compose.prod.yml --env-file .env.production)
 
+# One deploy at a time; deploy/monitor.sh also skips container checks while
+# this is held, since a deploy restarts containers on purpose.
+BACKUP_ROOT=${BACKUP_ROOT:-/srv/labtracker/backups}
+mkdir -p "$BACKUP_ROOT"
+exec 8> "$BACKUP_ROOT/.deploy.lock"
+flock -n 8 || { echo "Another deploy is already running." >&2; exit 1; }
+
 # Overrides APP_VERSION in .env.production, so images are tagged per commit
 # and older ones stay available for a rollback.
 APP_VERSION=$(git rev-parse --short HEAD)

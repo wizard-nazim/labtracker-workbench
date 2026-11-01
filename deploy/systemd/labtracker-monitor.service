@@ -1,0 +1,14 @@
+# Installed by deploy/install-systemd.sh, which fills in @USER@ and @APP_DIR@.
+[Unit]
+Description=LabTracker health check
+After=docker.service
+OnFailure=labtracker-alert@%n.service
+
+[Service]
+Type=oneshot
+User=@USER@
+WorkingDirectory=@APP_DIR@
+StateDirectory=labtracker
+ExecStart=@APP_DIR@/deploy/monitor.sh
+ExecStartPost=/usr/bin/rm -f %S/labtracker/alert-%n
+TimeoutStartSec=5min

@@ -127,7 +127,14 @@ if (!app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-app.UseHttpsRedirection();
+// Behind a proxy that terminates TLS (the self-hosted compose stack, where
+// Cloudflare does the HTTP->HTTPS redirect) the API has no HTTPS port of its
+// own; Https:RedirectToHttps=false skips the middleware, which would otherwise
+// log "Failed to determine the https port for redirect" and do nothing.
+if (app.Configuration.GetValue("Https:RedirectToHttps", true))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("Frontend");
 
