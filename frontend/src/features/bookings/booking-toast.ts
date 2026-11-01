@@ -1,20 +1,19 @@
 import { toast } from 'sonner'
+import { formatWhen } from './format-when'
 import type { Booking } from './types'
 
-const whenFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-
-// One confirmation for every "book equipment" entry point, so the outcome
-// (auto-approved vs. waiting on a Science Officer) and where to go are always
-// spelled out the same way.
+// One confirmation for every "book equipment" entry point. The button says
+// "Request booking", so the toast says the request went through and what
+// happens next (auto-approved vs. waiting on a Science Officer).
 export function showBookingCreatedToast(booking: Booking) {
-  const when = whenFormat.formatRange(new Date(booking.scheduledStart), new Date(booking.scheduledEnd))
-  const where = booking.roomLabel.trim() ? `${booking.equipmentName}, ${booking.roomLabel}` : booking.equipmentName
+  const when = formatWhen(booking.scheduledStart, booking.scheduledEnd)
+  const what = booking.equipmentName
 
   if (booking.status === 'Approved') {
-    toast.success('Booking confirmed', { description: `${where}. ${when}.` })
+    toast.success('Booking confirmed', { description: `${what}, ${when}. It's in your bookings.` })
   } else {
-    toast.success('Booking submitted for approval', {
-      description: `${where}. ${when}. You'll be notified once a Science Officer decides.`,
+    toast.success('Booking requested', {
+      description: `${what}, ${when}. We'll notify you when a Science Officer approves it.`,
     })
   }
 }

@@ -73,6 +73,7 @@ API settings (environment variables use `__` for `:`, e.g. `Jwt__SigningKey`):
 | `Google:ClientId` | no | OAuth client ID for "Sign in with Google"; empty disables it. The client secret is not used |
 | `RateLimiting:Login:PermitLimit`, `WindowSeconds` | no | sign-in attempts allowed per client IP per window (default 10 per 60 s); excess gets `429` |
 | `ForwardedHeaders:ForwardLimit` | no | proxy hops whose `X-Forwarded-For` entries are trusted (default 1). Keep 1 whenever the API is publicly reachable: a higher value lets a client spoof its IP |
+| `Features:McbImport` | no | enables Admin → "Import MCB equipment" (adds the client's equipment list; safe to re-run). Set `Features__McbImport=true` on a deployment only while importing; imported science officers start inactive with placeholder emails |
 
 Frontend (build time): `VITE_API_BASE_URL` only if the API is on a different
 origin (it defaults to same-origin `/api`), and `VITE_GOOGLE_CLIENT_ID` to show

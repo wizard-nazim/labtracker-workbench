@@ -1,8 +1,16 @@
 export type EquipmentStatus = 'Available' | 'Faulty' | 'UnderMaintenance' | 'Retired'
 
+export type OwnershipType = 'Department' | 'Individual'
+
+export interface EntityReference {
+  id: number
+  name: string
+}
+
 export interface ScienceOfficerAssignment {
   userId: number
   email: string
+  name: string | null
   isPrimary: boolean
 }
 
@@ -22,5 +30,10 @@ export interface Equipment {
   facilityName: string | null
   owningDepartmentId: number
   owningDepartmentName: string
+  ownershipType: OwnershipType
+  owner: EntityReference | null
+  researchGroup: EntityReference | null
+  createdAt: string
+  updatedAt: string
   scienceOfficers: ScienceOfficerAssignment[]
 }

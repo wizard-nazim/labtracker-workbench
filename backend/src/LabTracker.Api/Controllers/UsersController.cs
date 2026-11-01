@@ -17,6 +17,10 @@ public class UsersController(UserService service) : ControllerBase
     public async Task<ActionResult<UserDto>> Create(CreateUserRequest request, CancellationToken cancellationToken)
         => Ok(await service.CreateAsync(request, cancellationToken));
 
+    [HttpPut("{id:int}/login")]
+    public async Task<ActionResult<UserDto>> UpdateLogin(int id, UpdateUserLoginRequest request, CancellationToken cancellationToken)
+        => await service.UpdateLoginAsync(id, request, cancellationToken);
+
     [HttpPatch("{id:int}/status")]
     public async Task<ActionResult<UserDto>> UpdateStatus(int id, UpdateUserStatusRequest request, CancellationToken cancellationToken)
         => Ok(await service.UpdateStatusAsync(id, request.IsActive, cancellationToken));

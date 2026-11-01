@@ -10,13 +10,12 @@ interface PageHeaderProps {
 
 export function PageHeader({ icon: Icon, title, description, action }: PageHeaderProps) {
   return (
-    <div className="relative flex flex-col items-start justify-between gap-3 overflow-hidden rounded-md border border-border bg-card px-4 py-2.5 shadow-sm ring-1 ring-foreground/5 sm:flex-row sm:items-center sm:gap-4">
-      <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
-      <div className="flex min-w-0 items-center gap-3">
-        <Icon className="size-5 shrink-0 text-primary" aria-hidden="true" />
-        <div>
-          <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-          <p className="text-sm text-muted-foreground wrap-anywhere">{description}</p>
+    <div className="flex flex-col items-start justify-between gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:gap-4">
+      <div className="flex min-w-0 items-start gap-3">
+        <Icon className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground wrap-anywhere">{description}</p>
         </div>
       </div>
       {action}

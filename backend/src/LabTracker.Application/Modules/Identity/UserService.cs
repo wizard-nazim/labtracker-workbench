@@ -8,7 +8,7 @@ using LabTracker.Shared.Identity;
 
 namespace LabTracker.Application.Modules.Identity;
 
-public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwordHasher, IValidator<CreateUserRequest> createValidator)
+public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwordHasher, IValidator<CreateUserRequest> createValidator, IValidator<UpdateUserLoginRequest> loginValidator)
 {
     public async Task<List<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
@@ -43,6 +43,29 @@ public class UserService(IApplicationDbContext db, IPasswordHasher<User> passwor
             ?? throw new NotFoundException(nameof(User), id);
 
         user.IsActive = isActive;
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt, Phone = user.Phone };
+    }
+
+    public async Task<UserDto> UpdateLoginAsync(int id, UpdateUserLoginRequest request, CancellationToken cancellationToken = default)
+    {
+        await loginValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var user = await db.Users.FindAsync([id], cancellationToken)
+            ?? throw new NotFoundException(nameof(User), id);
+
+        var email = EmailAddress.Normalize(request.Email);
+        if (await db.Users.AnyAsync(u => u.Id != id && u.Email == email, cancellationToken))
+        {
+            throw new ConflictException("A user with this email already exists.");
+        }
+
+        user.Email = email;
+        if (!string.IsNullOrEmpty(request.Password))
+        {
+            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        }
         await db.SaveChangesAsync(cancellationToken);
 
         return new UserDto { Id = user.Id, Email = user.Email, Role = user.Role, IsActive = user.IsActive, CreatedAt = user.CreatedAt, Phone = user.Phone };

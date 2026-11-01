@@ -3,18 +3,10 @@ import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { EntityDialog } from '@/components/entity-dialog'
-import { AdminSection } from './admin-section'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
-import { TableEmptyState } from '@/components/table-empty-state'
-import { Button } from '@/components/ui/button'
+import { Pencil } from 'lucide-react'
+import { AddButton, AdminSection } from './admin-section'
+import { ResponsiveList, RowActionsMenu } from '@/components/responsive-list'
+import { useRowDialog } from '@/hooks/use-row-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -46,7 +38,7 @@ export function useResearchGroups() {
   return useQuery({ queryKey: ['research-groups'], queryFn: () => apiClient.get<ResearchGroup[]>('/research-groups') })
 }
 
-function useCreateResearchGroup() {
+export function useCreateResearchGroup() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (request: UpsertResearchGroupRequest) => apiClient.post<ResearchGroup>('/research-groups', request),
@@ -132,7 +124,7 @@ function CreateResearchGroupDialog() {
       departmentId: Number(departmentId),
       principalInvestigatorId: Number(principalInvestigatorId),
     })
-    toast.success(`Added research group "${name}".`)
+    toast.success(`Added lab "${name}".`)
     setName('')
     setDepartmentId('')
     setPrincipalInvestigatorId('')
@@ -140,9 +132,9 @@ function CreateResearchGroupDialog() {
 
   return (
     <EntityDialog
-      trigger={<Button size="sm">Add group</Button>}
-      title="Add research group"
-      submitLabel="Add group"
+      trigger={<AddButton>Add lab</AddButton>}
+      title="Add lab"
+      submitLabel="Add lab"
       submitDisabled={!departmentId || !principalInvestigatorId}
       onSubmit={handleSubmit}
     >
@@ -158,8 +150,15 @@ function CreateResearchGroupDialog() {
   )
 }
 
-function EditResearchGroupDialog({ group }: { group: ResearchGroup }) {
-  const [open, setOpen] = useState(false)
+function EditResearchGroupDialog({
+  group,
+  open,
+  onOpenChange,
+}: {
+  group: ResearchGroup
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const [name, setName] = useState(group.name)
   const [departmentId, setDepartmentId] = useState(String(group.departmentId))
   const [principalInvestigatorId, setPrincipalInvestigatorId] = useState(String(group.principalInvestigatorId))
@@ -171,22 +170,17 @@ function EditResearchGroupDialog({ group }: { group: ResearchGroup }) {
       departmentId: Number(departmentId),
       principalInvestigatorId: Number(principalInvestigatorId),
     })
-    toast.success(`Updated research group "${name}".`)
+    toast.success(`Updated lab "${name}".`)
   }
 
   return (
     <EntityDialog
-      trigger={
-        <Button size="sm" variant="ghost">
-          Edit
-        </Button>
-      }
-      title="Edit research group"
+      title="Edit lab"
       submitLabel="Save changes"
       submitDisabled={!departmentId || !principalInvestigatorId}
       onSubmit={handleSubmit}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={onOpenChange}
     >
       <ResearchGroupFields
         name={name}
@@ -200,59 +194,52 @@ function EditResearchGroupDialog({ group }: { group: ResearchGroup }) {
   )
 }
 
+function LabActions({ group }: { group: ResearchGroup }) {
+  const dialog = useRowDialog<'edit'>()
+  return (
+    <>
+      <RowActionsMenu triggerRef={dialog.triggerRef} itemName={group.name} actions={[{ label: 'Edit', icon: Pencil, onSelect: () => dialog.show('edit') }]} />
+      {dialog.mounted === 'edit' && <EditResearchGroupDialog key={dialog.session} group={group} {...dialog.bind('edit')} />}
+    </>
+  )
+}
+
+// Called "research groups" in the API; "labs" everywhere people see it.
 export function ResearchGroupsTab() {
   const { data: groups, isLoading, isError } = useResearchGroups()
 
   return (
-    <AdminSection
-      title="Research groups"
-      description="Groups of researchers led by a principal investigator."
-      action={<CreateResearchGroupDialog />}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Principal investigator</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {isLoading &&
-            Array.from({ length: 3 }).map((_, i) => (
-              <TableRow key={i}>
-                <TableCell colSpan={4}>
-                  <Skeleton className="h-5 w-full" />
-                </TableCell>
-              </TableRow>
-            ))}
-
-          {isError && (
-            <TableEmptyState
-              colSpan={4}
-              tone="error"
-              title="Couldn't load research groups."
-              description="Check that the API is running and try again."
-            />
-          )}
-
-          {!isLoading && !isError && groups?.length === 0 && (
-            <TableEmptyState colSpan={4} title="No research groups yet." />
-          )}
-
-          {groups?.map((group) => (
-            <TableRow key={group.id}>
-              <TableCell className="font-medium text-foreground">{group.name}</TableCell>
-              <TableCell className="text-muted-foreground">{group.departmentName}</TableCell>
-              <TableCell className="text-muted-foreground">{group.principalInvestigatorName}</TableCell>
-              <TableCell className="text-right">
-                <EditResearchGroupDialog group={group} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <AdminSection title="Labs" description="Each lab is led by a principal investigator." action={<CreateResearchGroupDialog />}>
+      <ResponsiveList
+        items={groups}
+        isLoading={isLoading}
+        isError={isError}
+        noun="labs"
+        getKey={(g) => g.id}
+        search={{
+          label: 'Search labs',
+          placeholder: 'Search by lab or PI',
+          text: (g) => `${g.name} ${g.principalInvestigatorName} ${g.departmentName}`,
+        }}
+        empty={{ title: 'No labs yet.', description: 'Add a principal investigator first, then add their lab.' }}
+        columns={[
+          { key: 'name', header: 'Lab', cell: (g) => <span className="font-medium text-foreground">{g.name}</span> },
+          { key: 'pi', header: 'Principal investigator', cell: (g) => <span className="text-muted-foreground">{g.principalInvestigatorName}</span> },
+          {
+            key: 'department',
+            header: 'Department',
+            className: 'hidden lg:table-cell',
+            cell: (g) => <span className="text-muted-foreground">{g.departmentName}</span>,
+          },
+        ]}
+        renderCard={(g) => (
+          <>
+            <p className="font-medium text-foreground">{g.name}</p>
+            <p className="text-[13px] text-muted-foreground">Led by {g.principalInvestigatorName}</p>
+          </>
+        )}
+        renderActions={(g) => <LabActions group={g} />}
+      />
     </AdminSection>
   )
 }

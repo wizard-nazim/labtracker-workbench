@@ -23,3 +23,11 @@ public class UpdateUserStatusRequest
 {
     public bool IsActive { get; set; }
 }
+
+// Lets an admin correct a login — e.g. an imported science officer who was
+// created with a placeholder email. Password is optional: left empty, it stays.
+public class UpdateUserLoginRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string? Password { get; set; }
+}
