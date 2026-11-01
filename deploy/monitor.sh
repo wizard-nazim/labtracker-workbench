@@ -30,7 +30,8 @@ if lock_busy "$BACKUP_ROOT/.lock" || lock_busy "$BACKUP_ROOT/.deploy.lock"; then
   containers="skipped (backup or deploy running)"
 else
   containers="healthy"
-  for svc in db storage api web; do
+  # The active services, so the tunnel is checked only when its profile is on.
+  for svc in $("${compose[@]}" config --services); do
     id=$("${compose[@]}" ps -q "$svc" 2> /dev/null || true)
     if [[ -z $id ]]; then
       problems+=("$svc: not running"); containers="PROBLEM"; continue
@@ -81,7 +82,7 @@ if [[ -f $OFFSITE_ENV ]]; then
 fi
 
 usage=$(docker stats --no-stream --format '{{.Name}}={{.MemUsage}}' 2> /dev/null \
-  | grep -E '^labtracker-(db|storage|api|web)-1=' | sed -E 's/^labtracker-([a-z]+)-1=([^ ]+) .*/\1 \2/' | paste -sd, - || true)
+  | grep -E '^labtracker-(db|storage|api|web|tunnel)-1=' | sed -E 's/^labtracker-([a-z]+)-1=([^ ]+) .*/\1 \2/' | paste -sd, - || true)
 
 echo "containers: $containers | disk: ${disks% }| mem available: $mem | backup: $backup | off-site: $offsite | usage: ${usage:-n/a}"
 

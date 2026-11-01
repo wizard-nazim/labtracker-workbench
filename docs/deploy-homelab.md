@@ -2,19 +2,21 @@
 
 This runbook covers running LabTracker on one Ubuntu server with Docker
 Compose: first deploy, verification, updates, rollback, backups and
-restores, and preparing for a Cloudflare Tunnel. It was written for the beta
-host (HP ProDesk 600 G3 DM, Ubuntu 26.04, 8 GB RAM, LAN IP `10.0.0.20`, app in
-`/srv/labtracker/app`), but nothing in it is specific to that machine beyond
-the examples.
+restores, monitoring, and public access through a Cloudflare Tunnel. It was
+written for the beta host (HP ProDesk 600 G3 DM, Ubuntu 26.04, 8 GB RAM, LAN
+IP `10.0.0.20`, app in `/srv/labtracker/app`), but nothing in it is specific to
+that machine beyond the examples.
 
 ## What runs
 
 ```
- browser ──▶ web (nginx :80, published on WEB_BIND:WEB_PORT only)
-               ├─ /            built React app
-               ├─ /api/, /health ─▶ api (ASP.NET Core :8080)
-               └─ /storage/…   ─▶ storage web endpoint (read-only photos)
-             api ─▶ db (PostgreSQL 16)  and  storage S3 API (Garage :3900)
+ tester ──HTTPS──▶ Cloudflare (Access, TLS) ══tunnel══▶ tunnel (cloudflared, optional)
+                                                          │ http://web:80
+ LAN browser ──▶ WEB_BIND:WEB_PORT ──────────────────────▶ web (nginx :80)
+                    ├─ /                built React app
+                    ├─ /api/, /health ─▶ api (ASP.NET Core :8080)
+                    └─ /storage/…     ─▶ storage web endpoint (read-only photos)
+                 api ─▶ db (PostgreSQL 16)  and  storage S3 API (Garage :3900)
 ```
 
 | Service | Image | Data | Memory limit |
@@ -23,14 +25,15 @@ the examples.
 | `api` | built from `backend/` | none | 1 GB |
 | `db` | `postgres:16-alpine` | volume `labtracker_pgdata` | 1 GB |
 | `storage` | `dxflrs/garage:v2.5.0` | volumes `labtracker_garage_meta`, `labtracker_garage_data` | 512 MB |
+| `tunnel` (optional) | `cloudflare/cloudflared:2026.9.3` | none | 128 MB |
 
-That's about 2.7 GB at most, which leaves room on an 8 GB host for the OS,
+That's about 2.8 GB at most, which leaves room on an 8 GB host for the OS,
 image builds (about 2 GB while the .NET SDK runs) and the page cache.
 
 - **Networks.** `db` and `storage` are only on the `internal` network, which
   has no internet access and isn't reachable from the LAN. `api` and `web` are
-  also on `edge` so the API can reach Google for sign-in checks. Only `web`
-  publishes a port.
+  also on `edge` so the API can reach Google for sign-in checks. `tunnel` and
+  `web` share the `tunnel` network (section 10). Only `web` publishes a port.
 - **Object storage.** [Garage](https://garagehq.deuxfleurs.fr/) is an actively
   maintained, S3-compatible store built for small self-hosted setups. MinIO
   was ruled out: its community edition is archived and no longer publishes
@@ -514,45 +517,126 @@ inside the backup.
    (mode 600).
 5. Run `deploy/deploy.sh`, then `deploy/restore.sh <recovered backup folder>`.
 
-## 10. Preparing for Cloudflare Tunnel (not set up yet)
+## 10. Public access through Cloudflare Tunnel
 
-The stack is ready to sit behind a tunnel: nginx forwards `X-Forwarded-Proto`,
-so the API sees HTTPS, and photos and API calls are same-origin, so no
-hostnames are baked in. Nothing is exposed until you set this up. When you do:
+The stack includes an optional `cloudflared` container, Compose profile
+`tunnel`, which connects out to Cloudflare. Visitors reach the app over HTTPS
+at a Cloudflare hostname, and this server never opens an inbound port. It's
+off until you turn it on.
 
-1. **Verify first.** The domain is on Cloudflare (`dig NS <domain>` shows
-   Cloudflare nameservers), and you've picked a hostname, e.g.
-   `labtracker.<domain>`.
-2. **Run `cloudflared` on this server.** Run it as a systemd service or its
-   own container, with the tunnel's public hostname pointing to nginx at
-   `http://<WEB_BIND>:<WEB_PORT>`. Once only the tunnel needs it, set
-   `WEB_BIND=127.0.0.1` with a port nothing else uses on 127.0.0.1 (check with
-   `sudo ss -tlnp | grep ':<port>\b'`; on desclution, Wekan's FerretDB already
-   has `127.0.0.1:8088`, so use e.g. 8090), and point the tunnel there.
-3. **HTTPS.** TLS ends at Cloudflare. In the Cloudflare dashboard, turn on
-   SSL/TLS → Edge Certificates → **Always Use HTTPS**. The API's own
-   HTTP→HTTPS redirect is off in this stack (`Https:RedirectToHttps=false`),
-   because it has no HTTPS port to redirect to; that's what used to log
-   "Failed to determine the https port for redirect". The tunnel tells the
-   API, through nginx's `X-Forwarded-Proto`, that the visitor used HTTPS, so
-   the API sends HSTS headers to tunnel visitors and none to plain-HTTP LAN
-   visitors.
-4. **Add the hostname.** Add it to `ALLOWED_HOSTS` in `.env.production` and run
-   `$C up -d --wait`. Requests for an unlisted hostname get `400`.
-5. **Sign-in rate limit.** Through the tunnel, every visitor reaches nginx from
-   the tunnel's address, so the per-IP sign-in limit (`LOGIN_RATE_LIMIT`,
-   default 10 per minute) is shared by all users. That's fine for about 10
-   beta users; raise it (e.g. 30) if people see "Too many sign-in attempts".
-   Per-user limiting behind the tunnel would mean having nginx trust
-   `CF-Connecting-IP` from the tunnel only. That's a later change, not needed
-   for the beta.
-6. **Google sign-in (optional).** Add `https://labtracker.<domain>` to the
-   OAuth client's authorised JavaScript origins, set `GOOGLE_CLIENT_ID`, and
-   run `deploy/deploy.sh`. The client ID is built into the frontend, so it
-   needs a rebuild.
-7. **Protect it.** Consider Cloudflare Access in front of the hostname during
-   the beta, so only invited emails reach the app.
-8. **Re-verify.** Re-run section 5 against `https://labtracker.<domain>`.
+How it fits together:
+
+- `cloudflared` sits on its own Docker network, `tunnel`, at the fixed
+  address `10.213.47.10`, next to nginx. The tunnel's public hostname points
+  at `http://web:80`.
+- **Real visitor IPs.** Through the tunnel, every request reaches nginx from
+  `cloudflared`. nginx therefore takes the visitor's address from Cloudflare's
+  `CF-Connecting-IP` header, **but only for requests from `10.213.47.10`**.
+  That way the API's sign-in limit (`LOGIN_RATE_LIMIT` per minute) applies to
+  each tester separately. A `CF-Connecting-IP` sent by anyone else, such as a
+  LAN machine using the published port or another container, is ignored.
+  Never widen the trusted address to the whole subnet: the network's gateway
+  also forwards LAN traffic to the published port.
+- **HTTPS.** TLS ends at Cloudflare. The API's own HTTP→HTTPS redirect is off
+  (`Https:RedirectToHttps=false`). The API still knows tunnel visitors used
+  HTTPS, from `X-Forwarded-Proto`, so it sends HSTS headers to them.
+- **Monitoring.** While the profile is on, `deploy/monitor.sh` also checks
+  that `cloudflared` is healthy, using `cloudflared tunnel ready`.
+
+### Before you start (verify; don't assume)
+
+1. The domain is on Cloudflare. `dig NS <domain> +short` should show
+   `*.ns.cloudflare.com`.
+2. Pick the hostname, e.g. `labtracker.<domain>`. Make sure no DNS record for
+   it exists yet: the tunnel creates its own.
+3. Make sure the tunnel subnet doesn't clash with anything on the server.
+   `ip -4 route | grep 10.213.47` should print nothing before the first
+   tunnel deploy.
+4. The first nightly backup has run: `journalctl -u labtracker-backup -n 5`.
+
+### In the Cloudflare dashboard
+
+1. **Zero Trust → Networks → Tunnels → Create a tunnel**, type *Cloudflared*.
+   Name it `labtracker`. Choose the Docker install option and copy only the
+   **token**: the long string after `--token`. Don't run the command it
+   shows.
+2. **Public hostname:** subdomain `labtracker`, your domain, service type
+   `HTTP`, URL `web:80`. Add no other hostnames. Cloudflare's default
+   catch-all answers 404, so nothing else on this server, such as Wekan, is
+   reachable.
+3. **Zero Trust → Access → Applications → Add → Self-hosted** for
+   `labtracker.<domain>`:
+   - policy *Allow* with an **Emails** list of your testers
+   - login method **One-time PIN**
+   - session duration about 1 week
+
+   Only invited people then reach the sign-in page at all. When an Access
+   session expires mid-use, the app's requests fail until the tester reloads
+   the page. A longer session makes that rarer.
+4. **SSL/TLS → Edge Certificates:** turn on **Always Use HTTPS**.
+5. **Speed → Optimization:** make sure **Rocket Loader** is off. It rewrites
+   the app's scripts. Under **Scrape Shield**, turn off **Email
+   Obfuscation**.
+6. Optional: a **WAF rate-limiting rule** for `/api/auth/` as an outer layer.
+
+### On the server
+
+```bash
+cd /srv/labtracker/app && nano .env.production
+```
+
+- `COMPOSE_PROFILES=tunnel`
+- `TUNNEL_TOKEN=<the token>`. It's a secret: it's in the mode-600 file, it
+  goes into off-site backups with that file, and you should keep a copy in
+  your password manager.
+- Add the hostname to `ALLOWED_HOSTS`, e.g.
+  `ALLOWED_HOSTS="localhost;127.0.0.1;10.0.0.20;labtracker.<domain>"`.
+- `LOGIN_RATE_LIMIT` can stay at 10, now that it counts per tester.
+
+```bash
+deploy/deploy.sh
+docker compose -f docker-compose.prod.yml --env-file .env.production ps tunnel   # healthy
+```
+
+In the dashboard, the tunnel should show as **Healthy**. LAN access through
+`WEB_BIND:WEB_PORT` keeps working. Once you no longer need it, set
+`WEB_BIND=127.0.0.1` with a port nothing else uses on `127.0.0.1` (check with
+`sudo ss -tlnp | grep ':<port>\b'`; Wekan's FerretDB already has `8088`), so
+only the server itself and the tunnel can reach nginx.
+
+### Verify from outside (phone on mobile data, not your Wi-Fi)
+
+1. `https://labtracker.<domain>` shows the Cloudflare Access page first. After
+   the emailed PIN, it shows LabTracker's sign-in.
+2. `http://labtracker.<domain>` redirects to `https://`.
+3. Sign in, open the equipment list, and open a photo.
+4. On the server, nginx logs your phone's public IP, not `10.213.47.10`:
+   `docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail 5 web`.
+5. Rate limit per tester: from the phone, 11 wrong passwords within a minute
+   gets "Too many sign-in attempts", while signing in from another network at
+   the same moment still works.
+
+### Turning it off
+
+Set `COMPOSE_PROFILES=` (empty) and run `deploy/deploy.sh`, then remove the
+leftover container:
+`docker compose -f docker-compose.prod.yml --env-file .env.production rm -sf tunnel`.
+Or pause public access without touching the server: delete the public
+hostname in the dashboard.
+
+### Before inviting testers
+
+- **Accounts.** Create each tester in Admin → People. Testers can't change
+  their own password yet, and there's no password reset by email; you set
+  passwords. Google sign-in avoids passwords for testers with Gmail or
+  Workspace accounts: add `https://labtracker.<domain>` to the OAuth client's
+  authorised JavaScript origins, set `GOOGLE_CLIENT_ID`, and run
+  `deploy/deploy.sh`.
+- **Deactivating someone** blocks new sign-ins at once, but a session that's
+  already open keeps working for up to 8 hours, until the sign-in token
+  expires.
+- **Photos.** Anyone who has a photo's exact link can open it without signing
+  in. The links contain random IDs and can't be guessed.
 
 ## 11. Day-to-day commands
 
