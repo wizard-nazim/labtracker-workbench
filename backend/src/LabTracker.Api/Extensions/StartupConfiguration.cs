@@ -29,12 +29,21 @@ public static class StartupConfiguration
         if (string.IsNullOrWhiteSpace(configuration["Jwt:Audience"]))
             problems.Add("Jwt:Audience is not set.");
 
+        // Program.cs only bootstraps when both are set, so only a pair with a
+        // weak password is an error; a half-filled pair (often a password just
+        // removed after the first start) is ignored with a warning below.
+        var bootstrapEmail = configuration["Bootstrap:AdminEmail"];
         var bootstrapPassword = configuration["Bootstrap:AdminPassword"];
-        if (!string.IsNullOrWhiteSpace(configuration["Bootstrap:AdminEmail"]) && (bootstrapPassword?.Length ?? 0) < 12)
+        var hasBootstrapEmail = !string.IsNullOrWhiteSpace(bootstrapEmail);
+        var hasBootstrapPassword = !string.IsNullOrWhiteSpace(bootstrapPassword);
+        if (hasBootstrapEmail && hasBootstrapPassword && bootstrapPassword!.Length < 12)
             problems.Add("Bootstrap:AdminPassword must be at least 12 characters.");
 
         if (problems.Count > 0)
             throw new InvalidOperationException("LabTracker configuration is incomplete:\n- " + string.Join("\n- ", problems));
+
+        if (hasBootstrapEmail != hasBootstrapPassword)
+            logger.LogWarning("Only one of Bootstrap:AdminEmail and Bootstrap:AdminPassword is set; no initial admin will be created.");
 
         // Optional at startup: everything except equipment images works without it.
         if (string.IsNullOrWhiteSpace(configuration["Minio:ServiceUrl"]))

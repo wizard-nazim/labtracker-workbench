@@ -13,6 +13,9 @@ compose=(docker compose -f docker-compose.prod.yml --env-file .env.production)
 # and older ones stay available for a rollback.
 APP_VERSION=$(git rev-parse --short HEAD)
 export APP_VERSION
+# BuildKit's default provenance attestations make every rebuild a new image
+# ID, so the tag drifts off running containers even when nothing changed.
+export BUILDX_NO_DEFAULT_ATTESTATIONS=1
 if [[ -n $(git status --porcelain --untracked-files=no) ]]; then
   echo "Warning: uncommitted changes; image tag $APP_VERSION won't match them exactly." >&2
 fi
@@ -24,6 +27,16 @@ fi
 
 echo "==> Building $APP_VERSION"
 "${compose[@]}" build --pull
+
+# Record the version in .env.production, so plain `docker compose ... up`
+# (e.g. after editing a setting) reuses these images instead of building a
+# new `latest` from whatever is checked out.
+if grep -q '^APP_VERSION=' .env.production; then
+  sed -i "s/^APP_VERSION=.*/APP_VERSION=$APP_VERSION/" .env.production
+else
+  echo "APP_VERSION=$APP_VERSION" >> .env.production
+fi
+chmod 600 .env.production
 
 echo "==> Starting"
 # Garage reads deploy/garage.toml from a bind mount, and Compose doesn't

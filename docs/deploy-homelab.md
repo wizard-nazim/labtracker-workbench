@@ -139,12 +139,45 @@ Then remove the bootstrap credentials:
 1. Sign in as the bootstrap admin and set a new password: Admin → People →
    Users → ⋯ on your row → Edit login. There is no self-service password
    change; admins set passwords this way.
-2. Delete the two `BOOTSTRAP_ADMIN_*` values from `.env.production`.
-3. Apply the change:
-   `docker compose -f docker-compose.prod.yml --env-file .env.production up -d api`
+2. Empty both `BOOTSTRAP_ADMIN_*` values in `.env.production`, leaving
+   `BOOTSTRAP_ADMIN_EMAIL=` and `BOOTSTRAP_ADMIN_PASSWORD=`.
+3. Apply the change as in [Changing a setting](#changing-a-setting).
 
 (The bootstrap only ever creates an admin when the database has no users, but
-the password shouldn't stay in the file.)
+the password shouldn't stay in the file. If only one of the two is set, the
+API logs a warning and ignores both.)
+
+### Changing a setting
+
+After editing `.env.production`, recreate the affected containers:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --wait
+```
+
+This reuses the images of the last deploy: `deploy.sh` records their version
+as `APP_VERSION` in the file. Only `GOOGLE_CLIENT_ID` is built into an image;
+change it with `deploy/deploy.sh` instead. If the API doesn't come back
+healthy, its log says which setting is wrong:
+`docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail=20 api`.
+
+Edit the file carefully: one stray character can break it. Compose reports the
+line number (`failed to read .env.production: line 5 ...`). Values containing
+`$`, `#` or spaces go in single quotes.
+
+### Loading the MCB equipment list
+
+A one-off import adds the department's 67 items with their types, rooms,
+facilities and 6 science officers. It refuses to run twice.
+
+1. Set `FEATURE_MCB_IMPORT=true` and apply it (see above).
+2. In the browser, hard-refresh (Ctrl+Shift+R): the app checks the feature
+   once per page load. Then Admin → Settings → Data tools → Import MCB equipment.
+3. Set `FEATURE_MCB_IMPORT=false`, apply it, and run `deploy/backup.sh`.
+
+The imported science officers are inactive with `@mcb.placeholder.invalid`
+emails. Give each real tester a login with Admin → People → Users → ⋯ →
+Edit login, then activate them.
 
 ## 5. Verify
 
@@ -319,7 +352,7 @@ hostnames are baked in. Nothing is exposed until you set this up. When you do:
    `http://127.0.0.1:8080`. With `cloudflared` on the host, `WEB_BIND` can stay
    at `127.0.0.1`.
 3. **Add the hostname.** Add it to `ALLOWED_HOSTS` in `.env.production` and run
-   `$C up -d api`. Requests for an unlisted hostname get `400`.
+   `$C up -d --wait`. Requests for an unlisted hostname get `400`.
 4. **Sign-in rate limit.** Through the tunnel, every visitor reaches nginx from
    the tunnel's address, so the per-IP sign-in limit (`LOGIN_RATE_LIMIT`,
    default 10 per minute) is shared by all users. That's fine for about 10
