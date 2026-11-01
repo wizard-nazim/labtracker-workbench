@@ -13,7 +13,9 @@ services:
       - labtracker_pg_data:/var/lib/postgresql/data
 
   minio:
-    image: quay.io/minio/minio:latest
+    # MinIO no longer publishes images to quay.io or Docker Hub; Chainguard
+    # builds the same server from source.
+    image: cgr.dev/chainguard/minio:latest
     container_name: labtracker-minio
     restart: unless-stopped
     environment:
