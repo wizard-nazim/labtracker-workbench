@@ -1,9 +1,14 @@
 <h1 align="center">LabTracker</h1>
+<div align="center">
+  <img width="180" height="180" alt="apple-touch-icon" src="https://github.com/user-attachments/assets/a32539da-47b4-4178-a335-e5640911cd58" />
+<img width="140" height="180" alt="uct-shield-256" src="https://github.com/user-attachments/assets/3c2a1759-c22c-4438-b31b-fa9e468bff5f" />
 
-<p align="center">
-  Equipment booking and usage tracking for research labs, built for the
-  Department of Molecular and Cell Biology at the University of Cape Town.
-</p>
+</div>
+
+>Equipment booking and usage tracking for research labs,
+>built for the  Department of Molecular and Cell Biology
+>at the University of Cape Town.
+
 
 <p align="center">
   <a href="https://github.com/wizard-nazim/labtracker-workbench/actions/workflows/ci.yml"><img src="https://github.com/wizard-nazim/labtracker-workbench/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -39,6 +44,10 @@
 </table>
 
 ## Features
+
+
+<img width="552" height="585" alt="image" src="https://github.com/user-attachments/assets/85b28bb6-cc52-4a52-9974-0f20ade0321b" />
+
 
 - **Equipment catalogue**: types, rooms, facilities and labs, with photos,
   status (available, faulty, under maintenance, retired) and assigned Science Officers. The
