@@ -46,7 +46,7 @@
 ## Features
 
 <div align="center">
-<img width="756" height="512" alt="image" src="https://github.com/user-attachments/assets/ab66dcc9-01ec-401c-a096-16df7af0a605" />
+  <img width="1853" height="950" alt="image" src="https://github.com/user-attachments/assets/64ff6bd7-065f-4156-b5d8-3fbe34707582" />
 </div>
 
 - **Equipment catalogue**: types, rooms, facilities and labs, with photos,
@@ -70,6 +70,7 @@ assigned to, or whose facility they oversee), **Principal Investigator** and
 ## Architecture
 
 <div align="center">
+  <img width="756" height="512" alt="image" src="https://github.com/user-attachments/assets/ab66dcc9-01ec-401c-a096-16df7af0a605" />
 <img width="659" height="460" alt="image" src="https://github.com/user-attachments/assets/51731fcb-36fb-438c-a410-95a654ca5de0" />
 </div>
 
