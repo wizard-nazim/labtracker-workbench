@@ -45,9 +45,9 @@
 
 ## Features
 
-
-<img width="552" height="585" alt="image" src="https://github.com/user-attachments/assets/85b28bb6-cc52-4a52-9974-0f20ade0321b" />
-
+<div align="center">
+<img width="756" height="512" alt="image" src="https://github.com/user-attachments/assets/ab66dcc9-01ec-401c-a096-16df7af0a605" />
+</div>
 
 - **Equipment catalogue**: types, rooms, facilities and labs, with photos,
   status (available, faulty, under maintenance, retired) and assigned Science Officers. The
@@ -68,6 +68,10 @@ assigned to, or whose facility they oversee), **Principal Investigator** and
 **Researcher** (their own and their group's bookings).
 
 ## Architecture
+
+<div align="center">
+<img width="659" height="460" alt="image" src="https://github.com/user-attachments/assets/51731fcb-36fb-438c-a410-95a654ca5de0" />
+</div>
 
 ```mermaid
 flowchart LR
