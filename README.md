@@ -8,6 +8,7 @@
 >Equipment booking and usage tracking for research labs,
 >built for the  Department of Molecular and Cell Biology
 >at the University of Cape Town.
+>Developer: @wizard-nazim
 
 
 <p align="center">
