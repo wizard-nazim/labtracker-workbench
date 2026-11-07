@@ -54,6 +54,8 @@ public class PrincipalInvestigatorService(
                 Role = Role.PrincipalInvestigator,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
+                // The admin chose this password; they replace it at first sign-in.
+                MustChangePassword = true,
             };
             user.PasswordHash = passwordHasher.HashPassword(user, password);
             db.Users.Add(user);

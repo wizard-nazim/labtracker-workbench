@@ -463,10 +463,16 @@ namespace LabTracker.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("NotifyOnEquipmentChanges")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -477,6 +483,9 @@ namespace LabTracker.Infrastructure.Migrations
                         .HasColumnType("character varying(30)");
 
                     b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SecurityVersion")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");

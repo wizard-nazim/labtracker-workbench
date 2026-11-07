@@ -1,3 +1,4 @@
+using LabTracker.Api.Extensions;
 using LabTracker.Application.Modules.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +18,14 @@ public class UsersController(UserService service) : ControllerBase
     public async Task<ActionResult<UserDto>> Create(CreateUserRequest request, CancellationToken cancellationToken)
         => Ok(await service.CreateAsync(request, cancellationToken));
 
+    // A student or Science Officer: login and researcher profile together.
+    [HttpPost("accounts")]
+    public async Task<ActionResult<UserDto>> CreateAccount(CreateAccountRequest request, CancellationToken cancellationToken)
+        => Ok(await service.CreateAccountAsync(request, cancellationToken));
+
     [HttpPut("{id:int}/login")]
     public async Task<ActionResult<UserDto>> UpdateLogin(int id, UpdateUserLoginRequest request, CancellationToken cancellationToken)
-        => await service.UpdateLoginAsync(id, request, cancellationToken);
+        => await service.UpdateLoginAsync(id, request, User.GetUserId(), cancellationToken);
 
     [HttpPatch("{id:int}/status")]
     public async Task<ActionResult<UserDto>> UpdateStatus(int id, UpdateUserStatusRequest request, CancellationToken cancellationToken)

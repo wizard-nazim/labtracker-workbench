@@ -72,8 +72,14 @@ public class UniqueActorsAndLowercaseEmailsTests(PostgresApiFactory factory) : I
         await migrator.MigrateAsync(PreviousMigration);
         try
         {
-            var creator = await SeedUserAsync("admin@labtracker.local", Role.SuperAdmin);
-            await db.Database.ExecuteSqlRawAsync("""UPDATE "Users" SET "Email" = 'Admin@LabTracker.local' WHERE "Id" = {0}""", creator.Id);
+            // Raw SQL for the same reason as Equipment below: Users has since gained columns.
+            var creatorId = (await db.Database.SqlQueryRaw<int>(
+                """
+                INSERT INTO "Users" ("Email", "PasswordHash", "Role", "IsActive", "CreatedAt")
+                VALUES ('Admin@LabTracker.local', 'unused', {0}, true, now())
+                RETURNING "Id" AS "Value"
+                """,
+                (int)Role.SuperAdmin).ToListAsync()).Single();
 
             var researcher = await SeedResearcherAsync(db, schemaIsOlderThanTheModel: true);
             var keep = NewActor(researcher.Id);
@@ -89,7 +95,7 @@ public class UniqueActorsAndLowercaseEmailsTests(PostgresApiFactory factory) : I
                 ScheduledStart = DateTime.UtcNow.AddHours(2),
                 ScheduledEnd = DateTime.UtcNow.AddHours(3),
                 Status = BookingStatus.Approved,
-                CreatedByUserId = creator.Id,
+                CreatedByUserId = creatorId,
                 CreatedAt = DateTime.UtcNow,
             });
             await db.SaveChangesAsync();

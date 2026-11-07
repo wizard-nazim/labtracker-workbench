@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select'
 
 import { ROLE_LABEL, type UserRole } from '@/types/roles'
+import { FIELD_OF_STUDY_OPTIONS, type FieldOfStudy } from '@/types/field-of-study'
+import { LabPicker } from './research-groups'
 
 export interface User {
   id: number
@@ -28,29 +30,47 @@ export interface User {
   isActive: boolean
   createdAt: string
   phone: string | null
+  mustChangePassword: boolean
 }
 
-interface CreateUserRequest {
+interface CreateAccountRequest {
   email: string
   password: string
   role: UserRole
+  fullName: string
+  studentNumber?: string
+  fieldOfStudy?: FieldOfStudy
+  researchGroupIds: number[]
 }
 
-
 // Principal Investigator accounts are provisioned from the Admin → Principal
-// Investigators tab instead, so they're not offered as a role here.
-const CREATABLE_ROLES: UserRole[] = ['SuperAdmin', 'ScienceOfficer', 'Researcher']
+// Investigators tab instead, so they're not offered here. Students and Science
+// Officers get a researcher profile (their name, labs) along with the login.
+type AccountKind = 'Student' | 'ScienceOfficer' | 'SuperAdmin'
+
+const ACCOUNT_KINDS: { value: AccountKind; label: string; role: UserRole }[] = [
+  { value: 'Student', label: 'Student', role: 'Researcher' },
+  { value: 'ScienceOfficer', label: 'Science Officer', role: 'ScienceOfficer' },
+  { value: 'SuperAdmin', label: 'Super Admin', role: 'SuperAdmin' },
+]
 
 // /users is SuperAdmin-only; pass enabled=false for other roles to skip the 403.
 export function useUsers(enabled = true) {
   return useQuery({ queryKey: ['users'], queryFn: () => apiClient.get<User[]>('/users'), enabled })
 }
 
-function useCreateUser() {
+function useCreateAccount() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (request: CreateUserRequest) => apiClient.post<User>('/users', request),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    // A Super Admin has no researcher profile, so it uses the plain endpoint.
+    mutationFn: (request: CreateAccountRequest) =>
+      request.role === 'SuperAdmin'
+        ? apiClient.post<User>('/users', { email: request.email, password: request.password, role: request.role })
+        : apiClient.post<User>('/users/accounts', request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['researchers'] })
+    },
   })
 }
 
@@ -62,58 +82,129 @@ function useUpdateUserStatus(id: number) {
   })
 }
 
-function CreateUserDialog() {
+function CreateAccountDialog() {
+  const [kind, setKind] = useState<AccountKind>('Student')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<UserRole>('Researcher')
-  const create = useCreateUser()
+  const [fullName, setFullName] = useState('')
+  const [studentNumber, setStudentNumber] = useState('')
+  const [fieldOfStudy, setFieldOfStudy] = useState<FieldOfStudy | ''>('')
+  const [researchGroupIds, setResearchGroupIds] = useState<number[]>([])
+  const create = useCreateAccount()
+
+  const isStudent = kind === 'Student'
+  const hasProfile = kind !== 'SuperAdmin'
+  const role = ACCOUNT_KINDS.find((k) => k.value === kind)!.role
 
   async function handleSubmit() {
-    await create.mutateAsync({ email, password, role })
-    toast.success(`Added user "${email}".`)
+    await create.mutateAsync({
+      email,
+      password,
+      role,
+      fullName,
+      studentNumber: studentNumber || undefined,
+      fieldOfStudy: fieldOfStudy || undefined,
+      researchGroupIds,
+    })
+    toast.success(`Added ${hasProfile ? fullName : email}. Give them the temporary password in person.`)
     setEmail('')
     setPassword('')
-    setRole('Researcher')
+    setFullName('')
+    setStudentNumber('')
+    setFieldOfStudy('')
+    setResearchGroupIds([])
   }
 
   return (
     <EntityDialog
-      trigger={<AddButton>Add user</AddButton>}
-      title="Add user"
-      description="They can sign in immediately with this email and password."
-      submitLabel="Add user"
+      trigger={<AddButton>Add account</AddButton>}
+      title="Add account"
+      description="They sign in with the temporary password you set here, then must choose their own."
+      submitLabel="Add account"
+      submitDisabled={isStudent && researchGroupIds.length === 0}
       onSubmit={handleSubmit}
+      stickyFooter
     >
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="user-email">Email</Label>
-        <Input id="user-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="user-password">Password</Label>
-        <Input
-          id="user-password"
-          type="password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="user-role">Role</Label>
-        <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-          <SelectTrigger id="user-role">
+        <Label htmlFor="account-kind">Account type</Label>
+        <Select value={kind} onValueChange={(v) => setKind(v as AccountKind)}>
+          <SelectTrigger id="account-kind">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CREATABLE_ROLES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {ROLE_LABEL[value]}
+            {ACCOUNT_KINDS.map((k) => (
+              <SelectItem key={k.value} value={k.value}>
+                {k.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
+      {hasProfile && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="account-name">Full name</Label>
+          <Input id="account-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+        </div>
+      )}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="account-email">Email</Label>
+        <Input id="account-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="account-password">Temporary password</Label>
+        <Input
+          id="account-password"
+          type="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          aria-describedby="account-password-hint"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <p id="account-password-hint" className="text-xs text-muted-foreground">
+          At least 8 characters. You won't see the password they choose.
+        </p>
+      </div>
+      {hasProfile && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="account-number">{isStudent ? 'Student number' : 'Staff number (optional)'}</Label>
+            <Input
+              id="account-number"
+              required={isStudent}
+              value={studentNumber}
+              onChange={(e) => setStudentNumber(e.target.value)}
+            />
+          </div>
+          {isStudent && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="account-field-of-study">Field of study (optional)</Label>
+              <Select
+                value={fieldOfStudy || 'none'}
+                onValueChange={(v) => setFieldOfStudy(v === 'none' ? '' : (v as FieldOfStudy))}
+              >
+                <SelectTrigger id="account-field-of-study">
+                  <SelectValue placeholder="Not set" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not set</SelectItem>
+                  {FIELD_OF_STUDY_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <LabPicker
+            label={isStudent ? 'Labs (choose at least one)' : 'Labs (optional)'}
+            selected={researchGroupIds}
+            onChange={setResearchGroupIds}
+          />
+        </>
+      )}
     </EntityDialog>
   )
 }
@@ -152,7 +243,7 @@ function EditLoginDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Edit login"
-      description="Change the email this person signs in with, and optionally set a new password."
+      description="Change the email this person signs in with, or set a temporary password they must replace at their next sign-in."
       submitLabel="Save login"
       onSubmit={handleSubmit}
     >
@@ -167,7 +258,7 @@ function EditLoginDialog({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`login-password-${user.id}`}>New password (optional)</Label>
+        <Label htmlFor={`login-password-${user.id}`}>Temporary password (optional)</Label>
         <Input
           id={`login-password-${user.id}`}
           type="password"
@@ -186,7 +277,12 @@ function EditLoginDialog({
 }
 
 function StatusBadge({ user }: { user: User }) {
-  return <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <Badge variant={user.isActive ? 'secondary' : 'outline'}>{user.isActive ? 'Active' : 'Inactive'}</Badge>
+      {user.mustChangePassword && <Badge variant="outline">Temporary password</Badge>}
+    </span>
+  )
 }
 
 function UserActions({ user }: { user: User }) {
@@ -207,7 +303,7 @@ function UserActions({ user }: { user: User }) {
       <RowActionsMenu triggerRef={dialog.triggerRef}
         itemName={user.email}
         actions={[
-          { label: 'Edit login', icon: KeyRound, onSelect: () => dialog.show('login') },
+          { label: 'Edit login / set password', icon: KeyRound, onSelect: () => dialog.show('login') },
           user.isActive
             ? { label: 'Deactivate', icon: UserX, onSelect: toggleStatus, disabled: updateStatus.isPending, destructive: true }
             : { label: 'Activate', icon: UserCheck, onSelect: toggleStatus, disabled: updateStatus.isPending },
@@ -222,7 +318,7 @@ export function UsersTab() {
   const { data: users, isLoading, isError } = useUsers()
 
   return (
-    <AdminSection title="Users" description="Everyone who can sign in, and what they're allowed to do." action={<CreateUserDialog />}>
+    <AdminSection title="Users" description="Everyone who can sign in, and what they're allowed to do." action={<CreateAccountDialog />}>
       <ResponsiveList
         items={users}
         isLoading={isLoading}
@@ -234,7 +330,7 @@ export function UsersTab() {
           placeholder: 'Search by email or role',
           text: (u) => `${u.email} ${ROLE_LABEL[u.role]} ${u.phone ?? ''}`,
         }}
-        empty={{ title: 'No users yet.', description: 'Add the first user so they can sign in.' }}
+        empty={{ title: 'No users yet.', description: 'Add the first account so they can sign in.' }}
         columns={[
           { key: 'email', header: 'Email', cell: (u) => <span className="font-medium text-foreground wrap-anywhere">{u.email}</span> },
           { key: 'role', header: 'Role', cell: (u) => <span className="text-muted-foreground">{ROLE_LABEL[u.role]}</span> },
