@@ -26,8 +26,7 @@ flowchart LR
   D[Department<br/>Admin › Settings] --> PI[Principal investigator<br/>Admin › People › PIs]
   D --> L[Lab<br/>Admin › People › Labs]
   PI --> L
-  L --> R[Researcher profile<br/>Admin › People › Researchers]
-  U[Login<br/>Admin › People › Users] --> R
+  L --> A[Student account<br/>Admin › People › Users › Add account]
   D --> E[Equipment<br/>Admin › Equipment]
   RM[Room<br/>Admin › Rooms] --> E
   D --> RM
@@ -38,45 +37,47 @@ flowchart LR
 |---|---|
 | Principal investigator | a department |
 | Lab (research group) | a department and its principal investigator |
-| Student (researcher profile) | at least one lab, and a login with role **Researcher** to link |
-| Science Officer | a login with role **Science Officer**; a researcher profile holds their name |
+| Student account | at least one lab |
+| Science Officer account | nothing (labs are optional) |
 | Equipment | a room, an equipment type and an owning department |
 | A Science Officer approving bookings | the officer assigned to that equipment, or overseeing its room's facility |
 
 ## Adding a student
 
-1. **Admin › People › Users › Add user.** Enter the student's email and a
-   password (at least 8 characters), and pick role **Researcher**. They can
-   sign in straight away with that password; give it to them in person.
-2. **Admin › People › Researchers › Add researcher.** Enter their full name and
-   student number, tick at least one lab, and under **Linked account** pick the
-   login from step 1.
-3. The student signs in and sees a short welcome tour.
+1. **Admin › People › Users › Add account**, account type **Student**. Enter
+   their full name, email, a temporary password (at least 8 characters) and
+   student number, and tick at least one lab. This creates the login and the
+   researcher profile together.
+2. Give them the temporary password in person. Their row shows a **Temporary
+   password** badge until they replace it.
+3. The student signs in, chooses their own password and sees a short welcome
+   tour.
 
-> **Always link the login (step 2).** If a student books before a profile is
-> linked to their login, LabTracker creates a bare profile for them (no
-> student number, no lab). Adding a second, unlinked profile afterwards leaves
-> them with two.
+**Admin › People › Researchers › Add researcher** is still there for a profile
+without a login (for example someone who only appears in usage records).
 
 ## Adding a Science Officer
 
-1. **Admin › People › Users › Add user** with role **Science Officer**.
-2. **Admin › People › Researchers › Add researcher**, linked to that login, to
-   record their name (the profile's role shows as Science Officer).
-3. So they can approve bookings, either edit each piece of equipment they look
+1. **Admin › People › Users › Add account**, account type **Science
+   Officer**: full name, email and a temporary password. Staff number and labs
+   are optional.
+2. So they can approve bookings, either edit each piece of equipment they look
    after (**Admin › Equipment ›** row menu **› Edit › Science officers**) or
    make them an overseer of a facility (**Admin › Rooms › Facilities**).
 
 Principal investigators are added from **Admin › People › Principal
 investigators**; giving a password there also creates their login.
 
+Another Super Admin is added the same way, account type **Super Admin**
+(email and temporary password only).
+
 ## Passwords today
 
-- A Super Admin sets or changes anyone's password from **Admin › People ›
-  Users ›** row menu **› Edit login**.
-- Users cannot yet change their own password, and there is no "forgot
-  password" on the sign-in page. Both are planned (see the account management
-  phases in the project plan).
+- A Super Admin sets anyone's password from **Admin › People › Users ›** row
+  menu **› Edit login / set password**. Any password an admin sets is
+  temporary: the user is asked to choose their own at their next sign-in.
+- The forced change screen, changing your own password and "forgot password"
+  are being added in the next releases.
 
 ## Booking
 
