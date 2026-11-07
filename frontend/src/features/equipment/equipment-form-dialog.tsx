@@ -16,6 +16,7 @@ import {
 import { useCreateEquipment, useUpdateEquipment } from './use-equipment'
 import { ScienceOfficersField, StatusField } from './equipment-status-fields'
 import { useDepartments } from '@/features/admin/departments'
+import { PrerequisiteHint, SETUP_LINKS } from '@/features/admin/prerequisite-hint'
 import { useAuth } from '@/context/auth-context'
 import type { Equipment } from './types'
 
@@ -67,6 +68,10 @@ export function CreateEquipmentDialog({ trigger }: { trigger?: ReactNode }) {
         return hasVisibleFieldError(fieldErrors)
       }}
     >
+      <PrerequisiteHint
+        before="equipment is owned by a department. Rooms and types can be added from this form."
+        items={[{ missing: departments?.length === 0, what: 'a department', to: SETUP_LINKS.departments }]}
+      />
       <EquipmentFormFields state={state} setState={setState} errors={errors} setErrors={setErrors} />
     </EntityDialog>
   )

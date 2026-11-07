@@ -21,7 +21,8 @@ import {
 
 import { ROLE_LABEL, type UserRole } from '@/types/roles'
 import { FIELD_OF_STUDY_OPTIONS, type FieldOfStudy } from '@/types/field-of-study'
-import { LabPicker } from './research-groups'
+import { LabPicker, useResearchGroups } from './research-groups'
+import { PrerequisiteHint, SETUP_LINKS } from './prerequisite-hint'
 
 export interface User {
   id: number
@@ -91,6 +92,7 @@ function CreateAccountDialog() {
   const [fieldOfStudy, setFieldOfStudy] = useState<FieldOfStudy | ''>('')
   const [researchGroupIds, setResearchGroupIds] = useState<number[]>([])
   const create = useCreateAccount()
+  const { data: labs } = useResearchGroups()
 
   const isStudent = kind === 'Student'
   const hasProfile = kind !== 'SuperAdmin'
@@ -125,6 +127,12 @@ function CreateAccountDialog() {
       onSubmit={handleSubmit}
       stickyFooter
     >
+      {isStudent && (
+        <PrerequisiteHint
+          before="every student belongs to at least one lab. Science Officer and Super Admin accounts don't need one."
+          items={[{ missing: labs?.length === 0, what: 'a lab', to: SETUP_LINKS.labs }]}
+        />
+      )}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="account-kind">Account type</Label>
         <Select value={kind} onValueChange={(v) => setKind(v as AccountKind)}>
