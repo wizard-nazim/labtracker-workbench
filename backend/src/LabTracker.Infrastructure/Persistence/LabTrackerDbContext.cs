@@ -13,6 +13,7 @@ public class LabTrackerDbContext(DbContextOptions<LabTrackerDbContext> options)
     : DbContext(options), IApplicationDbContext
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<PasswordResetRequest> PasswordResetRequests => Set<PasswordResetRequest>();
 
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<PrincipalInvestigator> PrincipalInvestigators => Set<PrincipalInvestigator>();

@@ -62,6 +62,8 @@ public class UserService(
         var user = await db.Users.FindAsync([id], cancellationToken)
             ?? throw new NotFoundException(nameof(User), id);
 
+        // Deactivating ends their open sessions too (TokenRevocation).
+        if (user.IsActive && !isActive) user.SecurityVersion++;
         user.IsActive = isActive;
         await db.SaveChangesAsync(cancellationToken);
 

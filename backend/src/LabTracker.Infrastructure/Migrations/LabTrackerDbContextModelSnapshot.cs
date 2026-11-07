@@ -438,6 +438,40 @@ namespace LabTracker.Infrastructure.Migrations
                     b.ToTable("ExternalOrganizations");
                 });
 
+            modelBuilder.Entity("LabTracker.Domain.Modules.Identity.PasswordResetRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ResolvedByUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResolvedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "UserId");
+
+                    b.ToTable("PasswordResetRequests");
+                });
+
             modelBuilder.Entity("LabTracker.Domain.Modules.Identity.User", b =>
                 {
                     b.Property<int>("Id")
@@ -916,6 +950,24 @@ namespace LabTracker.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ExternalOrganization");
+                });
+
+            modelBuilder.Entity("LabTracker.Domain.Modules.Identity.PasswordResetRequest", b =>
+                {
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", "ResolvedByUser")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("LabTracker.Domain.Modules.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ResolvedByUser");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LabTracker.Domain.Modules.Notifications.Notification", b =>

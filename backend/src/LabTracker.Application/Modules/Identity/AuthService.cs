@@ -73,5 +73,6 @@ public class AuthService(
         Token = jwtTokenGenerator.GenerateToken(user),
         Email = user.Email,
         Role = user.Role.ToString(),
+        MustChangePassword = user.MustChangePassword,
     };
 }

@@ -33,6 +33,7 @@ public class AdminService(IApplicationDbContext db, IPasswordHasher<User> passwo
     public async Task ResetDemoDataAsync(CancellationToken cancellationToken = default)
     {
         db.Notifications.RemoveRange(db.Notifications);
+        db.PasswordResetRequests.RemoveRange(db.PasswordResetRequests);
         db.UsageRecords.RemoveRange(db.UsageRecords);
         db.Bookings.RemoveRange(db.Bookings);
         db.EquipmentScienceOfficers.RemoveRange(db.EquipmentScienceOfficers);

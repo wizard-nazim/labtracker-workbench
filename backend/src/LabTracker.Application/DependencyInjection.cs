@@ -24,6 +24,7 @@ public static class DependencyInjection
         services.AddSingleton<LoginAttemptThrottle>();
         services.AddScoped<AuthService>();
         services.AddScoped<AccountService>();
+        services.AddScoped<PasswordService>();
         services.AddScoped<UserService>();
         services.AddScoped<AdminService>();
         services.AddScoped<McbImportService>();

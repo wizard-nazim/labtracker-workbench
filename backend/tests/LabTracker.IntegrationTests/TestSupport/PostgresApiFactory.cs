@@ -56,6 +56,8 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         // Every test signs in from the same address; keep the login limiter out
         // of the way except in the tests that lower it on purpose.
         builder.UseSetting("RateLimiting:Login:PermitLimit", "100000");
+        // Revocation checks read the database every time, so tests see changes at once.
+        builder.UseSetting("Auth:AccountStateCacheSeconds", "0");
 
         builder.ConfigureTestServices(services =>
         {
@@ -71,7 +73,7 @@ public class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await db.Database.ExecuteSqlRawAsync(
             """
             TRUNCATE TABLE
-                "Notifications", "UsageRecords", "Bookings", "UsageActors",
+                "Notifications", "PasswordResetRequests", "UsageRecords", "Bookings", "UsageActors",
                 "EquipmentScienceOfficers", "Equipment", "EquipmentTypes", "Rooms",
                 "ExternalContacts", "ExternalOrganizations",
                 "Researchers", "ResearchGroups", "PrincipalInvestigators",

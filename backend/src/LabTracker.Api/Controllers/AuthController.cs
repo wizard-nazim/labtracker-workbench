@@ -11,6 +11,7 @@ namespace LabTracker.Api.Controllers;
 public class AuthController(
     AuthService authService,
     AccountService accountService,
+    PasswordService passwordService,
     IGoogleTokenValidator googleTokenValidator) : ControllerBase
 {
     [HttpPost("login")]
@@ -55,6 +56,21 @@ public class AuthController(
     [Authorize]
     public async Task<ActionResult<MeDto>> UpdateMe(UpdateMeRequest request, CancellationToken cancellationToken)
         => Ok(await accountService.UpdateMeAsync(User.GetUserId(), request, cancellationToken));
+
+    [HttpPut("me/password")]
+    [Authorize]
+    public async Task<ActionResult<LoginResult>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+        => Ok(await passwordService.ChangeOwnPasswordAsync(User.GetUserId(), request, cancellationToken));
+
+    // Same reply whether or not the email has an account.
+    [HttpPost("password-reset-requests")]
+    [AllowAnonymous]
+    [EnableRateLimiting(RateLimiting.LoginPolicy)]
+    public async Task<IActionResult> RequestPasswordReset(ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        await passwordService.RequestResetAsync(request, cancellationToken);
+        return Accepted(new { message = "If that account exists, your administrator has been asked to reset its password." });
+    }
 
     [HttpPost("onboarding/complete")]
     [Authorize]

@@ -63,7 +63,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["SigningKey"] ?? string.Empty)),
         };
+        options.Events = new JwtBearerEvents { OnTokenValidated = TokenRevocation.ValidateAsync };
     });
+builder.Services.AddMemoryCache();
 builder.Services.AddAuthorization();
 builder.Services.AddLoginRateLimiting();
 

@@ -12,6 +12,7 @@ namespace LabTracker.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<User> Users { get; }
+    DbSet<PasswordResetRequest> PasswordResetRequests { get; }
 
     DbSet<Department> Departments { get; }
     DbSet<PrincipalInvestigator> PrincipalInvestigators { get; }

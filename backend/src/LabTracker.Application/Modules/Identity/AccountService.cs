@@ -35,6 +35,7 @@ public class AccountService(
             HasCompletedAdminTour = user.HasCompletedAdminTour,
             Phone = user.Phone,
             NotifyOnEquipmentChanges = user.NotifyOnEquipmentChanges,
+            MustChangePassword = user.MustChangePassword,
             ResearcherProfile = researcherProfile,
             PrincipalInvestigatorProfile = piProfile,
         };
