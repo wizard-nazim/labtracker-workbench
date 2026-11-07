@@ -26,10 +26,10 @@ interface BrandLockupProps {
  *  the app identifies itself (sidebar, mobile sheet, mobile top bar). */
 export function BrandLockup({ compact = false, className }: BrandLockupProps) {
   return (
-    <span className={cn('flex min-w-0 items-center gap-2.5', className)}>
+    <span className={cn('flex min-w-0 items-center gap-3', className)}>
       <UctShield className={compact ? 'h-7' : 'h-8'} />
       <span className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate text-sm font-semibold tracking-tight text-foreground">LabTracker</span>
+        <span className="truncate font-brand text-[17px] font-semibold leading-tight text-foreground">LabTracker</span>
         {!compact && (
           <span className="text-xs text-muted-foreground">Molecular and Cell Biology</span>
         )}

@@ -68,6 +68,8 @@
 - **Sign-in**: email and password, or Google (Gmail and Workspace accounts that
   already have a login). Rate-limited per IP and per account.
 - **In-app notifications** and short guided tours for new users and admins.
+  The **?** button next to the bell tours the page you are on, and **Replay
+  all tutorials** in the profile menu plays them all again.
 - UCT / MCB branding, light and dark themes, and layouts that work on phones.
 
 Roles: **Super Admin** (everything), **Science Officer** (equipment they're

@@ -78,7 +78,7 @@ first and links there.
 2. Give them the temporary password in person. Their row shows a **Temporary
    password** badge until they replace it.
 3. The student signs in, chooses their own password and sees a short welcome
-   tour.
+   tour. The **?** button next to the bell tours whichever page they are on.
 
 **Admin › People › Researchers › Add researcher** is still there for a profile
 without a login (for example someone who only appears in usage records).

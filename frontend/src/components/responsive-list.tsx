@@ -100,7 +100,7 @@ export function ResponsiveList<T>({
       {(search || toolbar) && (
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           {search && (
-            <div className="relative min-w-0 sm:max-w-xs sm:flex-1">
+            <div className="relative min-w-0 sm:max-w-xs sm:flex-1" data-tour="list-search">
               <Search
                 className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
@@ -120,7 +120,7 @@ export function ResponsiveList<T>({
       )}
 
       {isDesktop ? (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-hidden rounded-lg border border-border bg-card" data-tour="list">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -172,7 +172,7 @@ export function ResponsiveList<T>({
           )}
           {state && <div className="rounded-lg border border-border bg-card">{state}</div>}
           {!isLoading && !isError && visible.length > 0 && (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2" data-tour="list">
               {visible.map((item) => (
                 <li key={getKey(item)}>
                   <Card size="sm" className={cn('flex-row items-start gap-2 px-3', rowClassName?.(item))}>

@@ -64,7 +64,7 @@ export function AccountPage() {
 
       <ContactSettingsCard me={me} />
 
-      <div className="rounded-md border border-border bg-card p-6">
+      <div className="rounded-md border border-border bg-card p-6" data-tour="account-password">
         <div className="mb-4 flex items-center gap-2">
           <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
           <h2 className="text-sm font-medium text-foreground">Password</h2>

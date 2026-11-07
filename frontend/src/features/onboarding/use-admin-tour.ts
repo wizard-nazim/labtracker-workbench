@@ -20,6 +20,12 @@ function waitForTarget(selector: string) {
   })
 }
 
+export const REPLAY_ADMIN_TOUR_STATE = { replayAdminTour: true }
+
+function isReplayRequest(state: unknown) {
+  return typeof state === 'object' && state !== null && 'replayAdminTour' in state
+}
+
 // Teaches the whole of Admin: where requests land, the order things are set
 // up in, then pick an area, add with the one Add button, and change things
 // from a row's ⋯ menu. Runs from the admin layout, so it can move from the
@@ -72,6 +78,18 @@ export function useAdminTour() {
   )
 
   const tour = useTour(steps, me?.hasCompletedAdminTour, '/auth/admin-tour/complete')
+
+  // "Replay all tutorials" sends the admin here with this state once the app
+  // tour ends. Picked up during render (keyed on the navigation) rather than
+  // in an effect, and turned into a manual run so the tour's own navigation,
+  // which drops the state, doesn't stop it.
+  const [replayKey, setReplayKey] = useState<string | null>(null)
+  if (isReplayRequest(location.state) && replayKey !== location.key) {
+    setReplayKey(location.key)
+    setManual(true)
+    tour.restart()
+  }
+
   return {
     ...tour,
     // Waits for the general app tour to finish first, so two tours never

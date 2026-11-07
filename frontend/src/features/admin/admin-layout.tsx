@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/page-header'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAuth } from '@/context/auth-context'
 import { useAdminTour } from '@/features/onboarding/use-admin-tour'
+import { JOYRIDE_OPTIONS } from '@/features/onboarding/joyride-options'
 
 export type AdminTour = ReturnType<typeof useAdminTour>
 
@@ -24,16 +25,7 @@ export function AdminLayout() {
         run={tour.run}
         onEvent={tour.handleEvent}
         continuous
-        options={{
-          showProgress: true,
-          skipBeacon: true,
-          buttons: ['back', 'skip', 'primary'],
-          primaryColor: 'var(--primary)',
-          backgroundColor: 'var(--popover)',
-          textColor: 'var(--popover-foreground)',
-          arrowColor: 'var(--popover)',
-          overlayColor: 'rgba(0, 0, 0, 0.5)',
-        }}
+        options={JOYRIDE_OPTIONS}
       />
       <Outlet context={tour} />
     </>
@@ -85,7 +77,7 @@ export function AdminSubpage({
 
       <Tabs value={current} onValueChange={selectSection} className="min-w-0 gap-4">
         {sections.length > 1 && (
-          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="-mx-1 overflow-x-auto px-1 pb-1" data-tour="page-sections">
             <TabsList className="w-full sm:w-fit">
               {sections.map((section) => (
                 <TabsTrigger key={section.value} value={section.value} className="px-3">
