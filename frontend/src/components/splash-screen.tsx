@@ -108,7 +108,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
 
         <ChemistryMark className="mt-10 size-24 sm:size-28" />
 
-        <p className="mt-6 text-2xl font-semibold tracking-tight text-foreground">LabTracker</p>
+        <p className="mt-6 font-brand text-3xl font-semibold text-foreground">LabTracker</p>
         <p className="mt-1 text-center text-sm text-muted-foreground">Molecular and Cell Biology, University of Cape Town</p>
 
         <div className="mt-10 w-full max-w-xs">

@@ -107,7 +107,7 @@ export function LoginPage() {
         </div>
 
         <div className="max-w-xl">
-          <p className="text-sm font-medium text-white lg:text-base">LabTracker</p>
+          <p className="font-brand text-base font-semibold text-white lg:text-lg">LabTracker</p>
           <p className="mt-1 text-2xl leading-tight font-semibold tracking-tight text-balance sm:text-3xl lg:text-5xl lg:leading-[1.05]">
             Book and track MCB lab equipment
           </p>

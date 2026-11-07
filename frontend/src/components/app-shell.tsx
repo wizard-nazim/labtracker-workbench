@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Outlet, NavLink, Link } from 'react-router-dom'
-import { Joyride } from 'react-joyride'
-import { LogOut, ChevronsLeft, ChevronsRight, ChevronDown, Menu, UserRound, HelpCircle } from 'lucide-react'
+import { Outlet, NavLink, Link, useLocation, useNavigate } from 'react-router-dom'
+import { Joyride, type Step } from 'react-joyride'
+import { LogOut, ChevronsLeft, ChevronsRight, ChevronDown, Menu, UserRound, RotateCcw, CircleHelp, X } from 'lucide-react'
 import { useAuth } from '@/context/auth-context'
 import { NAV_GROUPS, type NavGroup } from '@/lib/nav-items'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -10,6 +10,9 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { NotificationsPanel } from '@/components/notifications-panel'
 import { GlobalSearch } from '@/components/global-search'
 import { useOnboardingTour } from '@/features/onboarding/use-onboarding-tour'
+import { REPLAY_ADMIN_TOUR_STATE } from '@/features/onboarding/use-admin-tour'
+import { buildPageTour, hasPageTour } from '@/features/onboarding/page-tours'
+import { JOYRIDE_OPTIONS, tourEnded, tourFinished } from '@/features/onboarding/joyride-options'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +22,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ROLE_LABEL } from '@/types/roles'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { BrandLockup, UctShield } from '@/components/brand-mark'
 import { BrandFooter } from '@/components/brand-footer'
-
 
 // Shared between the desktop <aside> and the mobile Sheet so both stay in sync.
 function NavList({ groups, collapsed, onNavigate }: { groups: NavGroup[]; collapsed: boolean; onNavigate?: () => void }) {
@@ -70,6 +72,27 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const tour = useOnboardingTour()
+  const location = useLocation()
+  const navigate = useNavigate()
+  // Set by "Replay all tutorials": when the app tour finishes, admins carry
+  // on into the admin tour.
+  const [replayingAll, setReplayingAll] = useState(false)
+  const [pageTour, setPageTour] = useState<{ id: number; path: string; steps: Step[] } | null>(null)
+
+  // Leaving the page ends its tour (its targets are gone).
+  if (pageTour && pageTour.path !== location.pathname) setPageTour(null)
+
+  function startPageTour() {
+    const section = new URLSearchParams(location.search).get('section')
+    const steps = buildPageTour(location.pathname, section, user?.role)
+    if (steps.length > 0) setPageTour({ id: Date.now(), path: location.pathname, steps })
+  }
+
+  function replayAll() {
+    setPageTour(null)
+    setReplayingAll(true)
+    tour.restart()
+  }
 
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
@@ -111,9 +134,9 @@ export function AppShell() {
             Account
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={tour.restart}>
-          <HelpCircle className="size-4" aria-hidden="true" />
-          Restart tutorial
+        <DropdownMenuItem onSelect={replayAll}>
+          <RotateCcw className="size-4" aria-hidden="true" />
+          Replay all tutorials
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={logout}>
@@ -129,47 +152,65 @@ export function AppShell() {
       <Joyride
         steps={tour.steps}
         run={tour.run}
-        onEvent={tour.handleEvent}
-        continuous
-        options={{
-          showProgress: true,
-          skipBeacon: true,
-          buttons: ['back', 'skip', 'primary'],
-          primaryColor: 'var(--primary)',
-          backgroundColor: 'var(--popover)',
-          textColor: 'var(--popover-foreground)',
-          arrowColor: 'var(--popover)',
-          overlayColor: 'rgba(0, 0, 0, 0.5)',
+        onEvent={(data) => {
+          tour.handleEvent(data)
+          if (!replayingAll || !tourEnded(data)) return
+          setReplayingAll(false)
+          if (tourFinished(data) && user?.role === 'SuperAdmin') navigate('/admin', { state: REPLAY_ADMIN_TOUR_STATE })
         }}
+        continuous
+        options={JOYRIDE_OPTIONS}
       />
+      {pageTour && (
+        <Joyride
+          key={pageTour.id}
+          steps={pageTour.steps}
+          run
+          onEvent={(data) => {
+            if (tourEnded(data)) setPageTour(null)
+          }}
+          continuous
+          options={JOYRIDE_OPTIONS}
+        />
+      )}
 
       <aside
         className={`hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 lg:flex ${
           collapsed ? 'w-16' : 'w-64'
         }`}
       >
-        <div className={`flex h-16 shrink-0 items-center border-b border-sidebar-border ${collapsed ? 'flex-col justify-center gap-1 px-2' : 'justify-between gap-2 pr-3 pl-4'}`}>
-          {collapsed ? <UctShield className="h-7" /> : <BrandLockup />}
+        <div className={`flex h-16 shrink-0 items-center border-b border-sidebar-border ${collapsed ? 'justify-center' : 'px-4'}`}>
+          {collapsed ? <UctShield className="h-8" /> : <BrandLockup />}
+        </div>
+
+        <NavList groups={visibleGroups} collapsed={collapsed} />
+
+        <div className={`flex shrink-0 px-3 pb-2 ${collapsed ? 'justify-center' : 'justify-end'}`}>
           <button
             type="button"
             onClick={() => setCollapsed((c) => !c)}
-            className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronsRight className="size-4" aria-hidden="true" /> : <ChevronsLeft className="size-4" aria-hidden="true" />}
           </button>
         </div>
 
-        <NavList groups={visibleGroups} collapsed={collapsed} />
-
         <div className="shrink-0 border-t border-sidebar-border">{profileMenu}</div>
       </aside>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="w-72 p-0 text-sidebar-foreground [&]:bg-sidebar">
-          <SheetHeader className="border-b border-sidebar-border">
+        <SheetContent side="left" showCloseButton={false} className="w-72 p-0 text-sidebar-foreground [&]:bg-sidebar">
+          <SheetHeader className="h-16 shrink-0 flex-row items-center justify-between gap-2 border-b border-sidebar-border py-0 pr-3 pl-4">
             <SheetTitle className="sr-only">LabTracker navigation</SheetTitle>
             <BrandLockup />
+            <SheetClose
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Close navigation"
+            >
+              <X className="size-4" aria-hidden="true" />
+            </SheetClose>
           </SheetHeader>
           <NavList groups={visibleGroups} collapsed={false} onNavigate={() => setMobileNavOpen(false)} />
           <div className="shrink-0 border-t border-sidebar-border">{profileMenu}</div>
@@ -196,6 +237,18 @@ export function AppShell() {
             <GlobalSearch />
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {hasPageTour(location.pathname) && (
+              <button
+                type="button"
+                data-tour="page-tour"
+                onClick={startPageTour}
+                aria-label="Tour this page"
+                title="Tour this page"
+                className="flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CircleHelp className="size-4.5" aria-hidden="true" />
+              </button>
+            )}
             <NotificationsPanel />
             <ThemeToggle />
           </div>

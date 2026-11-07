@@ -130,7 +130,7 @@ export function ReportsPage() {
       />
 
       {/* Filters: one row on wider screens, stacked full-width on phones. */}
-      <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-end">
+      <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-end" data-tour="reports-filters">
         <div className="flex flex-col gap-1.5 sm:w-64">
           <Label htmlFor="report-equipment">Equipment</Label>
           <Select value={equipmentId} onValueChange={setEquipmentId}>
@@ -159,7 +159,7 @@ export function ReportsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4" data-tour="reports-totals">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
         ) : (
@@ -173,6 +173,7 @@ export function ReportsPage() {
 
       <section
         aria-labelledby="usage-chart-heading"
+        data-tour="reports-chart"
         className="rounded-lg border border-border bg-card p-4 [--chart-external:#b0177f] sm:p-5 dark:[--chart-external:#c2479a]"
       >
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

@@ -10,7 +10,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ icon: Icon, title, description, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-col items-start justify-between gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:gap-4">
+    <div data-tour="page-header" className="flex flex-col items-start justify-between gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:gap-4">
       <div className="flex min-w-0 items-start gap-3">
         <Icon className="mt-1 size-5 shrink-0 text-primary" aria-hidden="true" />
         <div className="min-w-0">
@@ -18,7 +18,7 @@ export function PageHeader({ icon: Icon, title, description, action }: PageHeade
           <p className="mt-1 text-sm text-muted-foreground wrap-anywhere">{description}</p>
         </div>
       </div>
-      {action}
+      {action && <div data-tour="page-action" className="w-full sm:w-auto">{action}</div>}
     </div>
   )
 }

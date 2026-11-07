@@ -18,6 +18,11 @@ const SEARCH_STEP: Step = {
   content: 'Press ⌘K (or Ctrl+K) anytime to jump straight to any equipment item or page.',
 }
 
+const PAGE_TOUR_STEP: Step = {
+  target: '[data-tour="page-tour"]',
+  content: 'Not sure what something on a page does? This button walks you through the page you are on.',
+}
+
 const NOTIFICATIONS_STEP: Step = {
   target: '[data-tour="notifications"]',
   content: 'Keep an eye on this bell for equipment and booking updates.',
@@ -33,6 +38,7 @@ function buildMobileSteps(): Step[] {
       content: 'Tap here to see navigation between pages, and your account menu.',
     },
     SEARCH_STEP,
+    PAGE_TOUR_STEP,
     NOTIFICATIONS_STEP,
   ]
 }
@@ -50,10 +56,11 @@ function buildDesktopSteps(role: UserRole | undefined): Step[] {
   return [
     ...navSteps,
     SEARCH_STEP,
+    PAGE_TOUR_STEP,
     NOTIFICATIONS_STEP,
     {
       target: '[data-tour="profile-menu"]',
-      content: 'Your account details and this tutorial live here — come back anytime.',
+      content: 'Your account is here, and so is Replay all tutorials if you want to see these tours again.',
     },
   ]
 }

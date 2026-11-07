@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { EVENTS, STATUS, type EventData, type Step } from 'react-joyride'
+import type { EventData, Step } from 'react-joyride'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { ME_KEY } from '@/features/account/use-me'
+import { tourEnded } from './joyride-options'
 
 // Drives a tour without any effects: `run` is fully derived from two pieces
 // of local state (never set from inside a useEffect, only from Joyride's own
@@ -23,7 +24,7 @@ export function useTour(steps: Step[], hasCompleted: boolean | undefined, comple
   const run = forceRun || (!dismissedThisSession && hasCompleted === false)
 
   function handleEvent(data: EventData) {
-    if (data.type === EVENTS.TOUR_END && (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED)) {
+    if (tourEnded(data)) {
       setForceRun(false)
       setDismissedThisSession(true)
       if (hasCompleted === false) {

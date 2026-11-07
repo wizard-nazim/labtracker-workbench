@@ -17,7 +17,7 @@ export function AdminSection({
 }) {
   const headingId = useId()
   return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-3">
+    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-3" data-tour="admin-section">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div className="min-w-0">
           <h2 id={headingId} className="text-base font-semibold text-foreground">
