@@ -154,7 +154,7 @@ function QuickActions({ role }: { role: UserRole }) {
   )
 
   return (
-    <section aria-labelledby="quick-actions-heading">
+    <section aria-labelledby="quick-actions-heading" data-tour="quick-actions">
       <h2 id="quick-actions-heading" className="text-base font-semibold text-foreground">
         Quick actions
       </h2>
@@ -366,7 +366,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1 border-b border-border pb-4">
+      <header className="flex flex-col gap-1 border-b border-border pb-4" data-tour="page-header">
         <h1 className="text-2xl font-semibold leading-tight tracking-tight text-foreground sm:text-3xl">
           {greetingFor(now)}
         </h1>
@@ -394,7 +394,7 @@ export function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-tour="dashboard-stats">
           <StatTile label="Equipment" hint="All instruments" value={counts.total} tone="navy" icon={Boxes} to="/equipment" />
           <StatTile
             label="Available"
@@ -431,7 +431,7 @@ export function DashboardPage() {
           <Skeleton className="h-56 rounded-lg" />
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2" data-tour="dashboard-panels">
           <UpcomingBookings bookings={upcoming} canBook={canBook} />
           <NeedsAttention items={attention.slice(0, 5)} total={attention.length} />
         </div>
