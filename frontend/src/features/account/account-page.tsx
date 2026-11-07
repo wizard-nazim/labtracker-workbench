@@ -1,4 +1,5 @@
-import { UserRound, FlaskConical, Beaker } from 'lucide-react'
+import { toast } from 'sonner'
+import { UserRound, FlaskConical, Beaker, KeyRound } from 'lucide-react'
 import { PageHeader } from '@/components/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -7,6 +8,7 @@ import { getRoleAvatarSrc } from '@/lib/role-avatar'
 import { ROLE_LABEL } from '@/types/roles'
 import { useMe } from './use-me'
 import { ContactSettingsCard } from './contact-settings-card'
+import { ChangePasswordForm } from './change-password-form'
 
 
 function InfoField({ label, value }: { label: string; value: string }) {
@@ -61,6 +63,14 @@ export function AccountPage() {
       </div>
 
       <ContactSettingsCard me={me} />
+
+      <div className="rounded-md border border-border bg-card p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <KeyRound className="size-4 text-muted-foreground" aria-hidden="true" />
+          <h2 className="text-sm font-medium text-foreground">Password</h2>
+        </div>
+        <ChangePasswordForm onChanged={() => toast.success('Password changed. Your other devices have been signed out.')} />
+      </div>
 
       {me.researcherProfile && (
         <div className="rounded-md border border-border bg-card p-6">

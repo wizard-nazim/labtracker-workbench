@@ -25,6 +25,9 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
   logout: () => void
+  // Swaps in a new token for the same user (after a password change), with
+  // no sign-in animation.
+  replaceToken: (token: string) => void
   transition: AuthTransition
   clearTransition: () => void
 }
@@ -103,6 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     startSession(result.token)
   }
 
+  function replaceToken(token: string) {
+    const decoded = userFromToken(token)
+    if (!decoded) throw new Error('Received an invalid session token.')
+    authStorage.setToken(token)
+    setUser(decoded)
+  }
+
   function logout() {
     authStorage.clearToken()
     // Drop the previous user's cached data so the next sign-in starts clean.
@@ -116,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, transition, clearTransition }}>
+    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, replaceToken, transition, clearTransition }}>
       {children}
     </AuthContext.Provider>
   )

@@ -11,6 +11,7 @@ import { BrandFooter } from '@/components/brand-footer'
 import { ChemistryMark } from '@/components/chemistry-mark'
 import { FloatingPathsBackground } from '@/components/ui/floating-paths'
 import { GoogleSignInButton } from './google-sign-in-button'
+import { ForgotPasswordDialog } from './forgot-password-dialog'
 
 function signInErrorMessage(err: unknown, method: 'password' | 'google'): string {
   if (err instanceof ApiError && err.status === 429) return 'Too many sign-in attempts. Please wait a few minutes and try again.'
@@ -147,7 +148,10 @@ export function LoginPage() {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <ForgotPasswordDialog initialEmail={email} />
+                </div>
                 <Input
                   id="password"
                   type="password"
