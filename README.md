@@ -114,6 +114,7 @@ render.yaml              alternative hosting: API on Render (frontend on Vercel)
 | Document | What's in it |
 |---|---|
 | This README | local development, tests, configuration reference, hosting options |
+| [docs/workflows/accounts-and-bookings.md](docs/workflows/accounts-and-bookings.md) | setup order, adding students and staff, how booking and approval work |
 | [docs/deploy-homelab.md](docs/deploy-homelab.md) | self-hosted runbook: deploy, verify, update, roll back, back up and restore, monitoring, Cloudflare Tunnel |
 | [frontend/README.md](frontend/README.md) | frontend commands |
 | [.env.production.example](.env.production.example) | every production setting, with notes |
