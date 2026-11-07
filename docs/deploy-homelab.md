@@ -714,3 +714,30 @@ sudo systemctl start labtracker-alert@test.service; journalctl -u labtracker-ale
 
 Leave heavier tooling (Prometheus, Grafana, Netdata) for later. On a 2-core,
 8 GB host with about 10 users it would cost more than it tells you.
+
+## 13. Content-Security-Policy (report-only)
+
+The web container sends a `Content-Security-Policy-Report-Only` header
+(`frontend/security-headers.conf`). Browsers log what the policy *would*
+block, but nothing is blocked yet. There's no report collector, to keep the
+server light; check by hand:
+
+1. Confirm the header is sent on pages, assets and photos:
+   ```bash
+   curl -sI https://<your-domain>/ | grep -i content-security
+   curl -sI https://<your-domain>/assets/<any file from the page source> | grep -i content-security
+   ```
+2. In a browser, open DevTools › Console and use the app normally: sign in
+   (also with Google, if enabled), open Admin, Reports, an equipment page with
+   photos, and the booking dialog. Any line starting
+   `[Report Only] Refused to …` is something the policy would block.
+3. After about a week with no such lines, enforce it: in
+   `frontend/security-headers.conf` rename the header to
+   `Content-Security-Policy`, then rebuild the web container:
+   ```bash
+   docker compose -f docker-compose.prod.yml up -d --build web
+   ```
+
+**Rolling back:** if anything breaks once enforced, rename the header back to
+`Content-Security-Policy-Report-Only` and rebuild the web container the same
+way. The API and database aren't affected.
