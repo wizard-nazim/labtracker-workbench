@@ -21,6 +21,7 @@ import {
 } from '@/features/equipment/use-equipment'
 import type { Equipment } from '@/features/equipment/types'
 import { AddButton, AdminSection } from './admin-section'
+import { ExportEquipmentMenu, ImportEquipmentDialog } from './equipment-transfer'
 import { useEquipmentTypes } from './equipment-types'
 
 const ALL_TYPES = 'all'
@@ -106,7 +107,13 @@ export function EquipmentAdminTab({
     <AdminSection
       title="Items"
       description="Every piece of equipment. Edit it, archive what's no longer used, or delete entries added by mistake."
-      action={<CreateEquipmentDialog trigger={<AddButton>Add equipment</AddButton>} />}
+      action={
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ImportEquipmentDialog />
+          <ExportEquipmentMenu />
+          <CreateEquipmentDialog trigger={<AddButton>Add equipment</AddButton>} />
+        </div>
+      }
     >
       <ResponsiveList
         items={items}

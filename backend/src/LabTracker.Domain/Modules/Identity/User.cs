@@ -20,4 +20,15 @@ public class User
     // an out-of-service status). Notifications about the user's own bookings
     // are always sent.
     public bool NotifyOnEquipmentChanges { get; set; } = true;
+
+    // Set whenever an admin chooses the password (new account or reset), so
+    // the person picks their own at next sign-in and the admin never knows
+    // the one that stays in use.
+    public bool MustChangePassword { get; set; }
+
+    public DateTime? PasswordChangedAt { get; set; }
+
+    // Bumped when the password changes or the account is deactivated; tokens
+    // carry it so older ones can be rejected.
+    public int SecurityVersion { get; set; }
 }

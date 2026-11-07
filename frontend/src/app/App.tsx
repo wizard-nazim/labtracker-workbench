@@ -16,11 +16,13 @@ import { AdminLayout } from '@/features/admin/admin-layout'
 import {
   AdminEquipmentPage,
   AdminPeoplePage,
+  AdminRequestsPage,
   AdminRoomsPage,
   AdminSettingsPage,
 } from '@/features/admin/admin-pages'
 import { ReportsPage } from '@/features/reports/reports-page'
 import { AccountPage } from '@/features/account/account-page'
+import { ChangePasswordPage } from '@/features/account/change-password-page'
 
 export function App() {
   const [showSplash, setShowSplash] = useState(true)
@@ -34,6 +36,14 @@ export function App() {
       <div className="contents" inert={showSplash}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ChangePasswordPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             element={
               <ProtectedRoute>
@@ -53,6 +63,7 @@ export function App() {
               <Route path="rooms" element={<AdminRoomsPage />} />
               <Route path="people" element={<AdminPeoplePage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
+              <Route path="requests" element={<AdminRequestsPage />} />
             </Route>
             <Route path="/account" element={<AccountPage />} />
           </Route>

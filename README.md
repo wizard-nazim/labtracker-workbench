@@ -52,13 +52,19 @@
 
 - **Equipment catalogue**: types, rooms, facilities and labs, with photos,
   status (available, faulty, under maintenance, retired) and assigned Science Officers. The
-  department's 67-item list can be imported in one step.
+  department's 67-item list can be imported in one step, and the whole list
+  can be imported from or exported to CSV or Excel.
 - **Bookings**: internal bookings are approved automatically; external ones
   wait for approval. There are clear time ranges and booking cards on phones.
 - **Usage records**, including walk-in use, and **reports** with filters and
   summary tiles.
 - **Admin hub** for non-technical admins: Equipment, Rooms, People and
-  Settings, each one page with search and a single ⋯ menu per row.
+  Settings, each one page with search and a single ⋯ menu per row, plus a
+  Getting started checklist and a Requests inbox for password resets.
+- **Accounts**: only Super Admins create accounts, in one step with a temporary
+  password that must be changed at first sign-in. Users change their own
+  password; "Forgot password?" asks an admin for a reset. Changing a password
+  or deactivating an account ends that user's other sessions.
 - **Sign-in**: email and password, or Google (Gmail and Workspace accounts that
   already have a login). Rate-limited per IP and per account.
 - **In-app notifications** and short guided tours for new users and admins.
@@ -114,6 +120,7 @@ render.yaml              alternative hosting: API on Render (frontend on Vercel)
 | Document | What's in it |
 |---|---|
 | This README | local development, tests, configuration reference, hosting options |
+| [docs/workflows/accounts-and-bookings.md](docs/workflows/accounts-and-bookings.md) | setup order, adding students and staff, passwords and reset requests, equipment import/export, how booking and approval work |
 | [docs/deploy-homelab.md](docs/deploy-homelab.md) | self-hosted runbook: deploy, verify, update, roll back, back up and restore, monitoring, Cloudflare Tunnel |
 | [frontend/README.md](frontend/README.md) | frontend commands |
 | [.env.production.example](.env.production.example) | every production setting, with notes |

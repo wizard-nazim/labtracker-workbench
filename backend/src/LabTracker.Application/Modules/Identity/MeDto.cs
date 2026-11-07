@@ -13,6 +13,7 @@ public class MeDto
     public bool HasCompletedAdminTour { get; set; }
     public string? Phone { get; set; }
     public bool NotifyOnEquipmentChanges { get; set; }
+    public bool MustChangePassword { get; set; }
 
     public ResearcherDto? ResearcherProfile { get; set; }
     public PrincipalInvestigatorDto? PrincipalInvestigatorProfile { get; set; }

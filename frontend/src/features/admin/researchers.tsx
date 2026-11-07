@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { useResearchGroups } from './research-groups'
+import { LabPicker } from './research-groups'
 import { useUsers } from './users'
 import { FIELD_OF_STUDY_OPTIONS, type FieldOfStudy } from '@/types/field-of-study'
 import type { UserRole } from '@/types/roles'
@@ -109,7 +109,6 @@ function ResearcherFields({
   setUserId: (v: string) => void
   currentResearcherId?: number
 }) {
-  const { data: groups } = useResearchGroups()
   const { data: users } = useUsers()
   const { data: researchers } = useResearchers()
 
@@ -120,12 +119,6 @@ function ResearcherFields({
     (researchers ?? []).filter((r) => r.id !== currentResearcherId && r.userId).map((r) => r.userId),
   )
   const linkableUsers = (users ?? []).filter((u) => u.role !== 'SuperAdmin' && !linkedElsewhere.has(u.id))
-
-  function toggleGroup(id: number) {
-    setResearchGroupIds(
-      researchGroupIds.includes(id) ? researchGroupIds.filter((g) => g !== id) : [...researchGroupIds, id],
-    )
-  }
 
   return (
     <>
@@ -177,22 +170,7 @@ function ResearcherFields({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <Label>Labs (choose at least one)</Label>
-        <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-2">
-          {groups?.map((group) => (
-            <label key={group.id} className="flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                className="size-4 rounded border-border accent-primary"
-                checked={researchGroupIds.includes(group.id)}
-                onChange={() => toggleGroup(group.id)}
-              />
-              {group.name}
-            </label>
-          ))}
-        </div>
-      </div>
+      <LabPicker label="Labs (choose at least one)" selected={researchGroupIds} onChange={setResearchGroupIds} />
     </>
   )
 }
@@ -225,7 +203,7 @@ function CreateResearcherDialog() {
     <EntityDialog
       trigger={<AddButton>Add researcher</AddButton>}
       title="Add researcher"
-      description="Creates a research profile, optionally linked to an existing login account."
+      description="A profile without a new login, e.g. someone who only appears in usage records. To give a student a login, use Users › Add account instead."
       submitLabel="Add researcher"
       submitDisabled={researchGroupIds.length === 0}
       onSubmit={handleSubmit}

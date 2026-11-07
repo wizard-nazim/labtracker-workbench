@@ -20,9 +20,10 @@ function waitForTarget(selector: string) {
   })
 }
 
-// Three steps that teach the whole of Admin: pick an area, add with the one
-// Add button, change things from a row's ⋯ menu. Runs from the admin layout,
-// so it can move from the hub to the Equipment page and back.
+// Teaches the whole of Admin: where requests land, the order things are set
+// up in, then pick an area, add with the one Add button, and change things
+// from a row's ⋯ menu. Runs from the admin layout, so it can move from the
+// hub to the Equipment page and back.
 export function useAdminTour() {
   const { data: me } = useMe()
   const navigate = useNavigate()
@@ -35,16 +36,28 @@ export function useAdminTour() {
   const steps = useMemo<Step[]>(
     () => [
       {
-        target: '[data-tour="admin-tiles"]',
-        content: 'Everything you manage is grouped into these four areas. Choose one to see its list.',
+        target: '[data-tour="admin-requests"]',
+        content:
+          'Requests is where people ask you for something, such as a new password when they forget theirs. It stands out when something is waiting, and the bell tells you too.',
         before: async () => {
           if (window.location.pathname !== HUB) navigate(HUB)
-          await waitForTarget('[data-tour="admin-tiles"]')
+          await waitForTarget('[data-tour="admin-requests"]')
         },
       },
       {
+        // The checklist only shows until setup is done, so fall back to the
+        // tiles; the text reads right on either.
+        target: '[data-tour="admin-setup"], [data-tour="admin-tiles"]',
+        content:
+          'Set things up in this order, because each needs the ones before it: departments, rooms, equipment types, equipment, principal investigators, labs, and then accounts. For example, a student account needs a lab, and a lab needs a PI. The Getting started checklist ticks these off as you go.',
+      },
+      {
+        target: '[data-tour="admin-tiles"]',
+        content: 'Everything you manage is grouped into these four areas. Choose one to see its list.',
+      },
+      {
         target: '[data-tour="admin-add"]',
-        content: 'Each list has one Add button. Use it to create something new.',
+        content: "Each list has one Add button. If something it needs doesn't exist yet, the form tells you what to add first.",
         before: async () => {
           if (window.location.pathname !== EXAMPLE_PAGE) navigate(EXAMPLE_PAGE)
           await waitForTarget('[data-tour="admin-add"]')

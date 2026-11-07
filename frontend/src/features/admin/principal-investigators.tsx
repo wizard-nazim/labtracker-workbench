@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
+import { PrerequisiteHint, SETUP_LINKS } from './prerequisite-hint'
 
 export interface PrincipalInvestigator {
   id: number
@@ -129,6 +130,7 @@ function CreatePiDialog() {
   const [hasEquipmentPermissions, setHasEquipmentPermissions] = useState(false)
   const [password, setPassword] = useState('')
   const create = useCreatePrincipalInvestigator()
+  const { data: departments } = useDepartments()
 
   async function handleSubmit() {
     await create.mutateAsync({
@@ -155,6 +157,10 @@ function CreatePiDialog() {
       submitDisabled={!departmentId}
       onSubmit={handleSubmit}
     >
+      <PrerequisiteHint
+        before="every principal investigator belongs to one."
+        items={[{ missing: departments?.length === 0, what: 'a department', to: SETUP_LINKS.departments }]}
+      />
       <PiFields
         fullName={fullName}
         setFullName={setFullName}

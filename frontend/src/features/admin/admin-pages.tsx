@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
-import { DoorOpen, FlaskConical, SlidersHorizontal, Users } from 'lucide-react'
+import { DoorOpen, FlaskConical, Inbox, SlidersHorizontal, Users } from 'lucide-react'
 import { AdminSubpage, type AdminSectionTab } from './admin-layout'
 import { McbImportCard, DangerZone, useDemoDataReset, useMcbImport } from './admin-data-tools'
 import { DepartmentsTab } from './departments'
@@ -10,6 +10,7 @@ import { FacilitiesTab } from './facilities'
 import { PrincipalInvestigatorsTab } from './principal-investigators'
 import { ResearchersTab } from './researchers'
 import { ResearchGroupsTab } from './research-groups'
+import { PendingRequestsTab, RequestHistoryTab } from './requests'
 import { RoomsTab } from './rooms'
 import { UsersTab } from './users'
 
@@ -68,6 +69,20 @@ export function AdminPeoplePage() {
         { value: 'pis', label: 'Principal investigators', shortLabel: 'PIs', content: <PrincipalInvestigatorsTab /> },
         { value: 'labs', label: 'Labs', content: <ResearchGroupsTab /> },
         { value: 'researchers', label: 'Researchers', content: <ResearchersTab /> },
+      ]}
+    />
+  )
+}
+
+export function AdminRequestsPage() {
+  return (
+    <AdminSubpage
+      icon={Inbox}
+      title="Requests"
+      description="Things people have asked an administrator to do, such as resetting a forgotten password."
+      sections={[
+        { value: 'pending', label: 'Password resets', content: <PendingRequestsTab /> },
+        { value: 'history', label: 'History', content: <RequestHistoryTab /> },
       ]}
     />
   )

@@ -24,6 +24,8 @@ public class JwtTokenGenerator(IConfiguration configuration) : IJwtTokenGenerato
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
+            // Checked on every request (Api/Extensions/TokenRevocation.cs).
+            new Claim("sv", user.SecurityVersion.ToString()),
         };
 
         var token = new JwtSecurityToken(

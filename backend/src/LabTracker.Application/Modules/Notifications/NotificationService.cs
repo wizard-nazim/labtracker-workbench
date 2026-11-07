@@ -114,6 +114,25 @@ public class NotificationService(IApplicationDbContext db)
         });
     }
 
+    // Every active Super Admin except the one who triggered it (if any).
+    public async Task NotifyAdminsAsync(NotificationType type, string title, string body, int? exceptUserId = null, CancellationToken cancellationToken = default)
+    {
+        var adminIds = await db.Users
+            .Where(u => u.IsActive && u.Role == Role.SuperAdmin && u.Id != exceptUserId)
+            .Select(u => u.Id)
+            .ToListAsync(cancellationToken);
+
+        var now = DateTime.UtcNow;
+        db.Notifications.AddRange(adminIds.Select(userId => new NotificationEntity
+        {
+            UserId = userId,
+            Type = type,
+            Title = ClampTitle(title),
+            Body = body,
+            CreatedAt = now,
+        }));
+    }
+
     private static string ClampTitle(string title) =>
         title.Length <= TitleMaxLength ? title : title[..(TitleMaxLength - 1)] + "…";
 }

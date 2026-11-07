@@ -28,6 +28,8 @@ export interface Me {
   hasCompletedAdminTour: boolean
   phone: string | null
   notifyOnEquipmentChanges: boolean
+  // An admin set their password; they must choose their own before anything else.
+  mustChangePassword: boolean
   researcherProfile: ResearcherProfile | null
   principalInvestigatorProfile: PrincipalInvestigatorProfile | null
 }

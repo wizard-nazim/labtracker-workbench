@@ -1,7 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 
-export type NotificationType = 'EquipmentUpdated' | 'BookingApproved' | 'BookingRejected'
+export type NotificationType =
+  | 'EquipmentUpdated'
+  | 'BookingApproved'
+  | 'BookingRejected'
+  | 'PasswordChanged'
+  | 'PasswordResetRequested'
 
 export interface AppNotification {
   id: number

@@ -1,4 +1,5 @@
 using FluentValidation;
+using LabTracker.Shared.Enums;
 using LabTracker.Application.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using LabTracker.Shared.Identity;
@@ -20,6 +21,36 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
 
     private static async Task<bool> IsEmailUniqueAsync(IApplicationDbContext db, string email, CancellationToken ct)
         => !await db.Users.AnyAsync(u => u.Email == EmailAddress.Normalize(email), ct);
+}
+
+public class CreateAccountRequestValidator : AbstractValidator<CreateAccountRequest>
+{
+    public CreateAccountRequestValidator(IApplicationDbContext db)
+    {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(200)
+            .MustAsync((email, ct) => db.Users.AllAsync(u => u.Email != EmailAddress.Normalize(email), ct))
+            .WithMessage("A user with this email already exists.");
+
+        RuleFor(x => x.Password).NotEmpty().MinimumLength(8);
+
+        // Super Admins have no profile (plain create); PIs are added from their own tab.
+        RuleFor(x => x.Role).Must(r => r is Role.Researcher or Role.ScienceOfficer)
+            .WithMessage("Role must be Researcher or ScienceOfficer.");
+
+        RuleFor(x => x.FullName).NotEmpty().MaximumLength(200);
+        RuleFor(x => x.StudentNumber).MaximumLength(50);
+        RuleFor(x => x.FieldOfStudy).IsInEnum().When(x => x.FieldOfStudy.HasValue);
+
+        When(x => x.Role == Role.Researcher, () =>
+        {
+            RuleFor(x => x.StudentNumber).NotEmpty().WithMessage("A student number is required.");
+            RuleFor(x => x.ResearchGroupIds).NotEmpty().WithMessage("Choose at least one lab.");
+        });
+
+        RuleForEach(x => x.ResearchGroupIds)
+            .MustAsync((id, ct) => db.ResearchGroups.AnyAsync(g => g.Id == id, ct))
+            .WithMessage("ResearchGroupIds contains an id that does not reference an existing research group.");
+    }
 }
 
 public class UpdateUserLoginRequestValidator : AbstractValidator<UpdateUserLoginRequest>

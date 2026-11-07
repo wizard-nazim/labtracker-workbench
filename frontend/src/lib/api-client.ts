@@ -78,6 +78,28 @@ async function uploadFile<T>(path: string, file: File): Promise<T> {
   return response.json() as Promise<T>
 }
 
+// Saves a file the API returns (an export) under the name it suggests.
+async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const token = authStorage.getToken()
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  })
+
+  if (!response.ok) {
+    handleUnauthorized(response, Boolean(token))
+    throw new ApiError(response.status, response.statusText)
+  }
+
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1] ?? fallbackName
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = decodeURIComponent(name)
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export const apiClient = {
   get: <T,>(path: string) => request<T>(path),
   post: <T,>(path: string, body?: unknown) =>
@@ -88,4 +110,5 @@ export const apiClient = {
     request<T>(path, { method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
   delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
   uploadFile,
+  downloadFile,
 }

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select'
 import { useDepartments } from './departments'
 import { usePrincipalInvestigators } from './principal-investigators'
+import { PrerequisiteHint, SETUP_LINKS } from './prerequisite-hint'
 
 export interface ResearchGroup {
   id: number
@@ -36,6 +37,47 @@ interface UpsertResearchGroupRequest {
 
 export function useResearchGroups() {
   return useQuery({ queryKey: ['research-groups'], queryFn: () => apiClient.get<ResearchGroup[]>('/research-groups') })
+}
+
+// Checkbox list of labs, shared by the researcher and account dialogs.
+export function LabPicker({
+  label,
+  selected,
+  onChange,
+}: {
+  label: string
+  selected: number[]
+  onChange: (ids: number[]) => void
+}) {
+  const { data: groups, isLoading } = useResearchGroups()
+
+  function toggle(id: number) {
+    onChange(selected.includes(id) ? selected.filter((g) => g !== id) : [...selected, id])
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>{label}</Label>
+      <div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-md border border-border p-2">
+        {!isLoading && groups?.length === 0 && (
+          <p className="px-1 py-1 text-sm text-muted-foreground">
+            No labs yet. Add one under People › Labs first (it needs a department and its principal investigator).
+          </p>
+        )}
+        {groups?.map((group) => (
+          <label key={group.id} className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              className="size-4 rounded border-border accent-primary"
+              checked={selected.includes(group.id)}
+              onChange={() => toggle(group.id)}
+            />
+            {group.name}
+          </label>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function useCreateResearchGroup() {
@@ -117,6 +159,8 @@ function CreateResearchGroupDialog() {
   const [departmentId, setDepartmentId] = useState('')
   const [principalInvestigatorId, setPrincipalInvestigatorId] = useState('')
   const create = useCreateResearchGroup()
+  const { data: departments } = useDepartments()
+  const { data: pis } = usePrincipalInvestigators()
 
   async function handleSubmit() {
     await create.mutateAsync({
@@ -138,6 +182,13 @@ function CreateResearchGroupDialog() {
       submitDisabled={!departmentId || !principalInvestigatorId}
       onSubmit={handleSubmit}
     >
+      <PrerequisiteHint
+        before="each lab sits in a department and is led by a principal investigator."
+        items={[
+          { missing: departments?.length === 0, what: 'a department', to: SETUP_LINKS.departments },
+          { missing: pis?.length === 0, what: 'a principal investigator', to: SETUP_LINKS.pis },
+        ]}
+      />
       <ResearchGroupFields
         name={name}
         setName={setName}

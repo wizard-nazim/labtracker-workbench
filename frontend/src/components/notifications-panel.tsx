@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, CalendarCheck, CalendarX, AlertTriangle } from 'lucide-react'
+import { Bell, CalendarCheck, CalendarX, AlertTriangle, KeyRound, LifeBuoy } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,7 +17,19 @@ const ICONS = {
   EquipmentUpdated: AlertTriangle,
   BookingApproved: CalendarCheck,
   BookingRejected: CalendarX,
+  PasswordChanged: KeyRound,
+  PasswordResetRequested: LifeBuoy,
 } as const
+
+// Notifications with no booking or equipment to open go to the admin page
+// where they're dealt with.
+const ADMIN_TARGETS: Partial<Record<AppNotification['type'], string>> = {
+  PasswordChanged: '/admin/people',
+  PasswordResetRequested: '/admin/requests',
+}
+
+// Bad news, or something waiting on the reader, gets the warning colour.
+const WARNING_TYPES: AppNotification['type'][] = ['EquipmentUpdated', 'BookingRejected', 'PasswordResetRequested']
 
 const relativeFormat = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
@@ -33,7 +45,7 @@ function timeAgo(value: string) {
 function NotificationRow({ notification, onOpen }: { notification: AppNotification; onOpen: (n: AppNotification) => void }) {
   const Icon = ICONS[notification.type]
   const isRead = notification.readAt !== null
-  const isWarning = notification.type !== 'BookingApproved'
+  const isWarning = WARNING_TYPES.includes(notification.type)
   return (
     <button
       type="button"
@@ -109,6 +121,7 @@ export function NotificationsPanel() {
     setOpen(false)
     if (n.bookingId !== null) navigate('/bookings')
     else if (n.equipmentId !== null) navigate(`/equipment/${n.equipmentId}`)
+    else if (ADMIN_TARGETS[n.type]) navigate(ADMIN_TARGETS[n.type]!)
   }
 
   return (
