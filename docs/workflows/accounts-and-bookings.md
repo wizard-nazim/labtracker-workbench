@@ -14,7 +14,7 @@ on 7 November 2026 (see [the last section](#smoke-test-record)).
 | Researcher (student) | yes | Dashboard, Equipment, Bookings, Usage | book for themselves; cancel their own bookings |
 
 Only a Super Admin creates accounts or sets passwords. Every `/admin` page and
-the `/api/users` endpoints are restricted to Super Admins (a student calling
+the `/api/users`, equipment import/export and reset-request endpoints are restricted to Super Admins (a student calling
 them gets `403`).
 
 ## Setup order
@@ -41,6 +41,33 @@ flowchart LR
 | Science Officer account | nothing (labs are optional) |
 | Equipment | a room, an equipment type and an owning department |
 | A Science Officer approving bookings | the officer assigned to that equipment, or overseeing its room's facility |
+
+The **Admin** hub shows a **Getting started** checklist in this order with a
+tick for each step that is done; it disappears once everything is set up (or
+when dismissed). If a form needs something that doesn't exist yet, for example
+**Add account** for a student when there are no labs, it says what to add
+first and links there.
+
+## Importing and exporting equipment
+
+**Admin › Equipment › Items** has **Import** and **Export** (CSV or Excel).
+
+- **Export** downloads every item with these columns: Name, Type, Building,
+  Floor, Room, Owning department, Lab, Serial number, Status, Shared,
+  Description.
+- **Import** takes a `.csv` or `.xlsx` file in the same layout (up to 2 MB and
+  2,000 rows). Download the template from the import dialog to start.
+  - Name, Type and Room are required. Building and Floor narrow the room down
+    when the same room number exists in more than one place.
+  - Types, rooms, departments and labs are matched by name, ignoring case.
+    They must already exist; the import doesn't create them.
+  - Owning department defaults to the room's department. Status defaults to
+    Available, Shared to no.
+  - An item with the same name in the same room (already there, or earlier in
+    the file) is skipped, so importing an export again adds nothing.
+- After you choose a file, the dialog previews each row as *Will add*, *Skip*
+  or *Error* with the reason. Nothing is added until you press **Import**, and
+  only when no row has an error; then all rows are added together.
 
 ## Adding a student
 
@@ -71,13 +98,28 @@ investigators**; giving a password there also creates their login.
 Another Super Admin is added the same way, account type **Super Admin**
 (email and temporary password only).
 
-## Passwords today
+## Passwords
 
-- A Super Admin sets anyone's password from **Admin › People › Users ›** row
-  menu **› Edit login / set password**. Any password an admin sets is
-  temporary: the user is asked to choose their own at their next sign-in.
-- The forced change screen, changing your own password and "forgot password"
-  are being added in the next releases.
+- **Temporary passwords.** A Super Admin sets a password when adding an
+  account, from **Admin › People › Users ›** row menu **› Edit login / set
+  password**, or when answering a reset request. Any password an admin sets is
+  temporary: at their next sign-in the user sees only a "choose your own
+  password" screen (they can sign out instead) until they replace it.
+- **Changing your own password.** Everyone can change it under **Account ›
+  Password**. They need their current password; the new one must be at least
+  8 characters and different. Super Admins get a bell notification that the
+  person changed their password. Nobody, admins included, can see a password.
+- **Forgot password.** The sign-in page has a **Forgot password?** link that
+  asks for an email. It always gives the same answer, whether or not the
+  account exists, so it can't be used to find out who has an account. For an
+  active account it opens a request under **Admin › Requests** (once; asking
+  again while one is open doesn't add another) and notifies Super Admins.
+  The admin picks **Assign new password**, gives it to the person in person,
+  and the person replaces it at sign-in. **Dismiss** closes a request without
+  changing anything. **History** lists closed requests and who closed them.
+- **Sessions end when they should.** Within about 30 seconds, changing or
+  resetting a password signs that person out everywhere else (the device they
+  changed it on stays signed in), and deactivating an account signs them out.
 
 ## Booking
 
